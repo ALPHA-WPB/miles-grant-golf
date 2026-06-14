@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const HOLES = [
   {
@@ -47,72 +49,112 @@ function HOLE_TEE_COLOR(tee) {
   return { champ:"#3b82f6", mens:"#d1d5db", womens:"#ef4444" }[tee];
 }
 
+function makeIcon(color, label) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:22px;height:22px;border-radius:50%;background:${color};border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;font-family:Inter,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,0.5)">${label}</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
+const flagIcon = L.divIcon({
+  className: "",
+  html: `<div style="position:relative;width:20px;height:32px"><div style="position:absolute;left:0;top:0;width:2px;height:28px;background:#fff;border-radius:1px"></div><div style="position:absolute;left:2px;top:0;width:12px;height:8px;background:#ef4444;clip-path:polygon(0 0,100% 50%,0 100%)"></div><div style="position:absolute;bottom:0;left:-4px;width:10px;height:2px;background:#fff;border-radius:2px;opacity:0.7"></div></div>`,
+  iconSize: [20, 32],
+  iconAnchor: [0, 28],
+});
+
+const gpsIcon = L.divIcon({
+  className: "",
+  html: `<div style="width:18px;height:18px;border-radius:50%;background:#4ade80;border:2px solid #fff;box-shadow:0 0 0 4px rgba(74,222,128,0.3)"></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
 function HoleMap({ hole, gps }) {
-  const W = 400, H = 300, PAD = 30;
-  // Use only hole points for bounds — never GPS, which can be miles away
-  const allPts = [hole.tees.champ, hole.tees.mens, hole.tees.womens, hole.green];
-  const lats = allPts.map(p => p.lat);
-  const lngs = allPts.map(p => p.lng);
-  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-  const latR = maxLat - minLat || 0.0005;
-  const lngR = maxLng - minLng || 0.0005;
-  const scale = Math.min((W - PAD*2) / lngR, (H - PAD*2) / latR) * 0.82;
-  const cx = (W - lngR * scale) / 2;
-  const cy = (H - latR * scale) / 2;
+  const mapRef = useRef(null);
+  const leafletRef = useRef(null);
+  const markersRef = useRef([]);
+  const gpsMarkerRef = useRef(null);
+  const lineRef = useRef(null);
 
-  function proj(lat, lng) {
-    return [cx + (lng - minLng) * scale, cy + (maxLat - lat) * scale];
-  }
+  // Fit map to hole (tees + green), never GPS
+  const holePts = [
+    [hole.tees.champ.lat,  hole.tees.champ.lng],
+    [hole.tees.mens.lat,   hole.tees.mens.lng],
+    [hole.tees.womens.lat, hole.tees.womens.lng],
+    [hole.green.lat,       hole.green.lng],
+  ];
 
-  const teeC  = proj(hole.tees.champ.lat,  hole.tees.champ.lng);
-  const teeM  = proj(hole.tees.mens.lat,   hole.tees.mens.lng);
-  const teeW  = proj(hole.tees.womens.lat, hole.tees.womens.lng);
-  const green = proj(hole.green.lat,       hole.green.lng);
-  // Only show GPS dot if within ~600 yards of the green (on-course)
-  const gpsNearby = gps && haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng) < 600;
-  const gpsP  = gpsNearby ? proj(gps.lat, gps.lng) : null;
+  useEffect(() => {
+    if (!mapRef.current) return;
+    if (leafletRef.current) {
+      leafletRef.current.remove();
+      leafletRef.current = null;
+    }
+
+    const map = L.map(mapRef.current, {
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      touchZoom: false,
+      keyboard: false,
+    });
+
+    // Esri World Imagery — free satellite tiles, no API key
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      { maxZoom: 20 }
+    ).addTo(map);
+
+    // Fit to hole bounds with padding
+    map.fitBounds(holePts, { padding: [24, 24] });
+
+    // Fairway line
+    const midTee = [hole.tees.mens.lat, hole.tees.mens.lng];
+    const greenPt = [hole.green.lat, hole.green.lng];
+    lineRef.current = L.polyline([midTee, greenPt], {
+      color: "#c9a84c", weight: 2, dashArray: "6,6", opacity: 0.8,
+    }).addTo(map);
+
+    // Tee markers
+    const teeMarkers = [
+      L.marker([hole.tees.champ.lat,  hole.tees.champ.lng],  { icon: makeIcon("#3b82f6", "B") }).addTo(map),
+      L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#9ca3af", "W") }).addTo(map),
+      L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444", "R") }).addTo(map),
+    ];
+
+    // Flag on green
+    const flagMarker = L.marker([hole.green.lat, hole.green.lng], { icon: flagIcon }).addTo(map);
+
+    markersRef.current = [...teeMarkers, flagMarker];
+    leafletRef.current = map;
+
+    return () => { map.remove(); leafletRef.current = null; };
+  }, [hole.number]);
+
+  // Update GPS dot separately without re-creating the map
+  useEffect(() => {
+    const map = leafletRef.current;
+    if (!map) return;
+
+    if (gpsMarkerRef.current) {
+      map.removeLayer(gpsMarkerRef.current);
+      gpsMarkerRef.current = null;
+    }
+
+    if (gps) {
+      gpsMarkerRef.current = L.marker([gps.lat, gps.lng], { icon: gpsIcon })
+        .bindTooltip("You", { permanent: true, direction: "right", className: "gps-tip", offset: [8, 0] })
+        .addTo(map);
+    }
+  }, [gps]);
 
   return (
-    <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} xmlns="http://www.w3.org/2000/svg"
-      style={{display:"block"}}>
-      <defs>
-        <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
-          <stop offset="0%" stopColor="#0d3320" />
-          <stop offset="100%" stopColor="#081a10" />
-        </radialGradient>
-      </defs>
-      <rect width={W} height={H} fill="url(#bgGrad)" />
-      <line x1={teeM[0]} y1={teeM[1]} x2={green[0]} y2={green[1]}
-        stroke="#2d6e3e" strokeWidth="28" strokeLinecap="round" opacity="0.6" />
-      <line x1={teeM[0]} y1={teeM[1]} x2={green[0]} y2={green[1]}
-        stroke="#3a8050" strokeWidth="18" strokeLinecap="round" opacity="0.4" />
-      <ellipse cx={green[0]} cy={green[1]} rx={20} ry={14} fill="#2d7a44" stroke="#4aaa64" strokeWidth="1.5" />
-      <line x1={teeM[0]} y1={teeM[1]} x2={green[0]} y2={green[1]}
-        stroke="#c9a84c" strokeWidth="1.5" strokeDasharray="6,6" opacity="0.6" />
-      <circle cx={teeC[0]} cy={teeC[1]} r={7} fill="#3b82f6" stroke="#fff" strokeWidth="1.5" />
-      <circle cx={teeM[0]} cy={teeM[1]} r={7} fill="#d1d5db" stroke="#fff" strokeWidth="1.5" />
-      <circle cx={teeW[0]} cy={teeW[1]} r={7} fill="#ef4444" stroke="#fff" strokeWidth="1.5" />
-      <line x1={green[0]} y1={green[1]+14} x2={green[0]} y2={green[1]-10}
-        stroke="#e8e8e8" strokeWidth="2" />
-      <polygon points={`${green[0]+1},${green[1]-10} ${green[0]+12},${green[1]-5} ${green[0]+1},${green[1]}`}
-        fill="#ef4444" />
-      {gpsP && <>
-        <circle cx={gpsP[0]} cy={gpsP[1]} r={12} fill="#4ade80" opacity="0.15" />
-        <circle cx={gpsP[0]} cy={gpsP[1]} r={6}  fill="#4ade80" stroke="#fff" strokeWidth="2" />
-        <text x={gpsP[0]+10} y={gpsP[1]-8} fill="#4ade80" fontSize="10" fontFamily="Inter,sans-serif" fontWeight="600">You</text>
-      </>}
-      <text x={teeC[0]+10} y={teeC[1]+4}  fill="#60a5fa" fontSize="10" fontFamily="Inter,sans-serif">B</text>
-      <text x={teeM[0]+10} y={teeM[1]+4}  fill="#d1d5db" fontSize="10" fontFamily="Inter,sans-serif">W</text>
-      <text x={teeW[0]+10} y={teeW[1]+4}  fill="#f87171" fontSize="10" fontFamily="Inter,sans-serif">R</text>
-      <text x={green[0]+16} y={green[1]+4} fill="#a3b89a" fontSize="10" fontFamily="Inter,sans-serif">Pin</text>
-      {gps && (
-        <g>
-          <rect x={W-58} y={8} width={50} height={20} rx={5} fill="rgba(0,0,0,0.5)" />
-          <text x={W-33} y={22} fill="#7a9e84" fontSize="10" fontFamily="Inter,sans-serif" textAnchor="middle">±{gps.acc}m</text>
-        </g>
-      )}
-    </svg>
+    <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
   );
 }
 
@@ -132,6 +174,9 @@ const css = `
   .btn-primary { background: #c9a84c; color: #0f2818; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; padding: 13px; cursor: pointer; width: 100%; font-family: 'Inter',sans-serif; }
   .btn-ghost { background: transparent; border: 0.5px solid #2d5a3d; border-radius: 8px; color: #a3b89a; font-size: 13px; padding: 6px 14px; cursor: pointer; font-family: 'Inter',sans-serif; }
   input[type=text] { background: #122018; border: 0.5px solid #2d5a3d; border-radius: 8px; color: #f0ead6; font-size: 15px; padding: 8px 12px; font-family: 'Inter',sans-serif; outline: none; width: 100%; }
+  .leaflet-container { background: #0d2416; }
+  .gps-tip { background: rgba(8,26,16,0.9) !important; border: 1px solid #4ade80 !important; color: #4ade80 !important; font-size: 11px !important; font-weight: 600; font-family: 'Inter',sans-serif; box-shadow: none !important; }
+  .gps-tip::before { display: none !important; }
 `;
 
 export default function App() {
