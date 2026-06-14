@@ -49,37 +49,35 @@ function HOLE_TEE_COLOR(tee) {
   return { champ:"#3b82f6", mens:"#d1d5db", womens:"#ef4444" }[tee];
 }
 
-function makeIcon(color, label) {
+// Colored circle only — no letter label
+function makeIcon(color) {
   return L.divIcon({
     className: "",
-    html: `<div style="width:22px;height:22px;border-radius:50%;background:${color};border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;font-family:Inter,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,0.5)">${label}</div>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
+    html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
   });
 }
 
 const flagIcon = L.divIcon({
   className: "",
-  html: `<div style="position:relative;width:20px;height:32px"><div style="position:absolute;left:0;top:0;width:2px;height:28px;background:#fff;border-radius:1px"></div><div style="position:absolute;left:2px;top:0;width:12px;height:8px;background:#ef4444;clip-path:polygon(0 0,100% 50%,0 100%)"></div><div style="position:absolute;bottom:0;left:-4px;width:10px;height:2px;background:#fff;border-radius:2px;opacity:0.7"></div></div>`,
+  html: `<div style="position:relative;width:20px;height:32px"><div style="position:absolute;left:0;top:0;width:2px;height:28px;background:#fff;border-radius:1px"></div><div style="position:absolute;left:2px;top:0;width:12px;height:8px;background:#ef4444;clip-path:polygon(0 0,100% 50%,0 100%)"></div></div>`,
   iconSize: [20, 32],
   iconAnchor: [0, 28],
 });
 
 const gpsIcon = L.divIcon({
   className: "",
-  html: `<div style="width:18px;height:18px;border-radius:50%;background:#4ade80;border:2px solid #fff;box-shadow:0 0 0 4px rgba(74,222,128,0.3)"></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
+  html: `<div style="width:16px;height:16px;border-radius:50%;background:#4ade80;border:2px solid #fff;box-shadow:0 0 0 4px rgba(74,222,128,0.3)"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
 });
 
 function HoleMap({ hole, gps }) {
   const mapRef = useRef(null);
   const leafletRef = useRef(null);
-  const markersRef = useRef([]);
   const gpsMarkerRef = useRef(null);
-  const lineRef = useRef(null);
 
-  // Fit map to hole (tees + green), never GPS
   const holePts = [
     [hole.tees.champ.lat,  hole.tees.champ.lng],
     [hole.tees.mens.lat,   hole.tees.mens.lng],
@@ -89,73 +87,47 @@ function HoleMap({ hole, gps }) {
 
   useEffect(() => {
     if (!mapRef.current) return;
-    if (leafletRef.current) {
-      leafletRef.current.remove();
-      leafletRef.current = null;
-    }
+    if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; }
 
     const map = L.map(mapRef.current, {
-      zoomControl: false,
-      attributionControl: false,
-      dragging: false,
-      scrollWheelZoom: false,
-      doubleClickZoom: false,
-      touchZoom: false,
-      keyboard: false,
+      zoomControl: false, attributionControl: false,
+      dragging: false, scrollWheelZoom: false,
+      doubleClickZoom: false, touchZoom: false, keyboard: false,
     });
 
-    // Esri World Imagery — free satellite tiles, no API key
     L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       { maxZoom: 20 }
     ).addTo(map);
 
-    // Fit to hole bounds with padding
-    map.fitBounds(holePts, { padding: [24, 24] });
+    map.fitBounds(holePts, { padding: [20, 20] });
 
-    // Fairway line
-    const midTee = [hole.tees.mens.lat, hole.tees.mens.lng];
-    const greenPt = [hole.green.lat, hole.green.lng];
-    lineRef.current = L.polyline([midTee, greenPt], {
-      color: "#c9a84c", weight: 2, dashArray: "6,6", opacity: 0.8,
-    }).addTo(map);
+    L.polyline(
+      [[hole.tees.mens.lat, hole.tees.mens.lng], [hole.green.lat, hole.green.lng]],
+      { color: "#c9a84c", weight: 2, dashArray: "6,6", opacity: 0.8 }
+    ).addTo(map);
 
-    // Tee markers
-    const teeMarkers = [
-      L.marker([hole.tees.champ.lat,  hole.tees.champ.lng],  { icon: makeIcon("#3b82f6", "B") }).addTo(map),
-      L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#9ca3af", "W") }).addTo(map),
-      L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444", "R") }).addTo(map),
-    ];
+    L.marker([hole.tees.champ.lat,  hole.tees.champ.lng],  { icon: makeIcon("#3b82f6") }).addTo(map);
+    L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#9ca3af") }).addTo(map);
+    L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444") }).addTo(map);
+    L.marker([hole.green.lat, hole.green.lng], { icon: flagIcon }).addTo(map);
 
-    // Flag on green
-    const flagMarker = L.marker([hole.green.lat, hole.green.lng], { icon: flagIcon }).addTo(map);
-
-    markersRef.current = [...teeMarkers, flagMarker];
     leafletRef.current = map;
-
     return () => { map.remove(); leafletRef.current = null; };
   }, [hole.number]);
 
-  // Update GPS dot separately without re-creating the map
   useEffect(() => {
     const map = leafletRef.current;
     if (!map) return;
-
-    if (gpsMarkerRef.current) {
-      map.removeLayer(gpsMarkerRef.current);
-      gpsMarkerRef.current = null;
-    }
-
+    if (gpsMarkerRef.current) { map.removeLayer(gpsMarkerRef.current); gpsMarkerRef.current = null; }
     if (gps) {
       gpsMarkerRef.current = L.marker([gps.lat, gps.lng], { icon: gpsIcon })
-        .bindTooltip("You", { permanent: true, direction: "right", className: "gps-tip", offset: [8, 0] })
+        .bindTooltip("You", { permanent: true, direction: "right", className: "gps-tip", offset: [6, 0] })
         .addTo(map);
     }
   }, [gps]);
 
-  return (
-    <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
-  );
+  return <div ref={mapRef} style={{ width: "100%", height: "100%" }} />;
 }
 
 const css = `
@@ -164,9 +136,9 @@ const css = `
   html, body, #root { height: 100%; }
   .app { height: 100vh; display: flex; flex-direction: column; background: #0f2818; color: #f0ead6; font-family: 'Inter', sans-serif; overflow: hidden; }
   .serif { font-family: 'Playfair Display', serif; }
-  .map-wrap { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-  .bottom-panel { flex-shrink: 0; background: #0f2818; border-top: 1px solid #2d5a3d; overflow-y: auto; max-height: 55vh; }
-  .card { background: #1a3a24; border: 0.5px solid #2d5a3d; border-radius: 12px; padding: 12px 14px; }
+  .map-wrap { height: 210px; flex-shrink: 0; position: relative; overflow: hidden; }
+  .bottom-panel { flex: 1; min-height: 0; background: #0f2818; border-top: 1px solid #2d5a3d; overflow-y: auto; }
+  .card { background: #1a3a24; border: 0.5px solid #2d5a3d; border-radius: 10px; padding: 10px 12px; }
   .label { font-size: 10px; color: #7a9e84; text-transform: uppercase; letter-spacing: 0.08em; }
   .tab-bar { display: flex; background: #081a10; border-top: 0.5px solid #2d5a3d; flex-shrink: 0; }
   .tab { flex: 1; padding: 11px 0 13px; background: transparent; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; }
@@ -177,25 +149,31 @@ const css = `
   .leaflet-container { background: #0d2416; }
   .gps-tip { background: rgba(8,26,16,0.9) !important; border: 1px solid #4ade80 !important; color: #4ade80 !important; font-size: 11px !important; font-weight: 600; font-family: 'Inter',sans-serif; box-shadow: none !important; }
   .gps-tip::before { display: none !important; }
+  .pickup-link { background: none; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; text-decoration: underline; padding: 0; }
+  .pickup-link:hover { color: #f87171; }
 `;
 
 export default function App() {
-  const [screen, setScreen]     = useState("setup");
-  const [players, setPlayers]   = useState([
+  const [screen, setScreen]   = useState("setup");
+  const [players, setPlayers] = useState([
     { name: "Player 1", tee: "mens", active: true },
     { name: "Player 2", tee: "mens", active: false },
     { name: "Player 3", tee: "mens", active: false },
     { name: "Player 4", tee: "mens", active: false },
   ]);
-  const [holeIdx, setHoleIdx]   = useState(0);
-  const [scores, setScores]     = useState(
+  const [holeIdx, setHoleIdx] = useState(0);
+  const [scores, setScores]   = useState(
     Array(4).fill(null).map(() => Array(HOLES.length).fill(0))
   );
-  const [shots, setShots]       = useState(Array(HOLES.length).fill(null).map(() => []));
-  const [gps, setGps]           = useState(null);
+  const [skipped, setSkipped] = useState(
+    Array(4).fill(null).map(() => Array(HOLES.length).fill(false))
+  );
+  const [pickupConfirm, setPickupConfirm] = useState(null); // player index showing confirm
+  const [shots, setShots]     = useState(Array(HOLES.length).fill(null).map(() => []));
+  const [gps, setGps]         = useState(null);
   const [gpsError, setGpsError] = useState(null);
   const [shotFrom, setShotFrom] = useState(null);
-  const watchRef                = useRef(null);
+  const watchRef              = useRef(null);
 
   const activePlayers = players.filter(p => p.active);
   const hole = HOLES[holeIdx];
@@ -211,24 +189,26 @@ export default function App() {
     return () => navigator.geolocation.clearWatch(watchRef.current);
   }, [screen]);
 
+  // Distance only shown when within 600 yards
   function distToGreen() {
     if (!gps) return null;
-    return Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
+    const d = Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
+    return d <= 600 ? d : null;
   }
 
+  // Each tap: if a shot is in progress, log it; then start next shot from current position
   function markShot() {
     if (!gps) return;
-    if (!shotFrom) {
-      setShotFrom({ lat: gps.lat, lng: gps.lng });
-    } else {
+    if (shotFrom) {
       const yards = Math.round(haversineYards(shotFrom.lat, shotFrom.lng, gps.lat, gps.lng));
       setShots(prev => {
         const next = prev.map(h => [...h]);
         next[holeIdx] = [...next[holeIdx], { from: shotFrom, to: { lat: gps.lat, lng: gps.lng }, yards }];
         return next;
       });
-      setShotFrom(null);
     }
+    // Always start new shot from current position
+    setShotFrom({ lat: gps.lat, lng: gps.lng });
   }
 
   function clearShots() {
@@ -242,13 +222,28 @@ export default function App() {
       n[pi][holeIdx] = Math.max(0, (n[pi][holeIdx] || 0) + delta);
       return n;
     });
+    // Entering a score un-skips the hole
+    setSkipped(prev => {
+      const n = prev.map(r => [...r]);
+      n[pi][holeIdx] = false;
+      return n;
+    });
   }
 
-  function totalScore(pi) { return scores[pi].reduce((s,v)=>s+(v||0),0); }
-  function totalPar()     { return HOLES.reduce((s,h)=>s+h.par,0); }
+  function skipHole(pi) {
+    setSkipped(prev => { const n = prev.map(r=>[...r]); n[pi][holeIdx] = true; return n; });
+    setScores(prev => { const n = prev.map(r=>[...r]); n[pi][holeIdx] = 0; return n; });
+    setPickupConfirm(null);
+  }
+
+  function totalScore(pi) {
+    return scores[pi].reduce((s, v, hi) => s + (skipped[pi][hi] ? 0 : (v || 0)), 0);
+  }
+  function totalPar() { return HOLES.reduce((s,h)=>s+h.par,0); }
 
   const dtg = distToGreen();
   const holeShots = shots[holeIdx];
+  const lastShot = holeShots.length > 0 ? holeShots[holeShots.length - 1].yards : null;
 
   if (screen === "setup") return (
     <div className="app" style={{overflowY:"auto"}}>
@@ -323,11 +318,12 @@ export default function App() {
                   {activePlayers.map((p,i) => {
                     const pi = players.indexOf(p);
                     const s = scores[pi][hi];
+                    const isSkipped = skipped[pi][hi];
                     const diff = s - h.par;
                     return (
                       <td key={i} style={{padding:"9px 6px",textAlign:"center",fontWeight:600,
-                        color:!s?"#2d5a3d":diff<=-2?"#60a5fa":diff===-1?"#4ade80":diff===0?"#c9a84c":diff===1?"#fb923c":"#f87171"}}>
-                        {s||"·"}
+                        color:isSkipped?"#4a6a54":!s?"#2d5a3d":diff<=-2?"#60a5fa":diff===-1?"#4ade80":diff===0?"#c9a84c":diff===1?"#fb923c":"#f87171"}}>
+                        {isSkipped ? "—" : s ? s : "·"}
                       </td>
                     );
                   })}
@@ -351,8 +347,13 @@ export default function App() {
             </tbody>
           </table>
         </div>
-        <button onClick={() => { setScreen("setup"); setHoleIdx(0); setScores(Array(4).fill(null).map(()=>Array(HOLES.length).fill(0))); setShots(Array(HOLES.length).fill(null).map(()=>[])); setShotFrom(null); }}
-          style={{width:"100%",padding:"11px",borderRadius:10,border:"0.5px solid #5a2d2d",background:"transparent",fontSize:14,cursor:"pointer",color:"#f87171",fontFamily:"'Inter',sans-serif"}}>
+        <button onClick={() => {
+          setScreen("setup"); setHoleIdx(0);
+          setScores(Array(4).fill(null).map(()=>Array(HOLES.length).fill(0)));
+          setSkipped(Array(4).fill(null).map(()=>Array(HOLES.length).fill(false)));
+          setShots(Array(HOLES.length).fill(null).map(()=>[]));
+          setShotFrom(null);
+        }} style={{width:"100%",padding:"11px",borderRadius:10,border:"0.5px solid #5a2d2d",background:"transparent",fontSize:14,cursor:"pointer",color:"#f87171",fontFamily:"'Inter',sans-serif"}}>
           End Round
         </button>
       </div>
@@ -363,129 +364,182 @@ export default function App() {
     </div>
   );
 
+  // Hole screen
   return (
     <div className="app">
       <style>{css}</style>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px 6px",flexShrink:0}}>
+
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px 4px",flexShrink:0}}>
         <div>
           <p className="label">Miles Grant CC</p>
-          <h2 className="serif" style={{fontSize:18,color:"#c9a84c",lineHeight:1.1}}>
+          <h2 className="serif" style={{fontSize:17,color:"#c9a84c",lineHeight:1.1}}>
             Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}
           </h2>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button style={{background:"transparent",border:"none",fontSize:22,cursor:"pointer",padding:"2px 6px"}}
-            onClick={() => { setHoleIdx(i=>Math.max(0,i-1)); setShotFrom(null); }}
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <button style={{background:"transparent",border:"none",fontSize:20,cursor:"pointer",padding:"2px 4px",color:"#f0ead6"}}
+            onClick={() => { setHoleIdx(i=>Math.max(0,i-1)); setShotFrom(null); setPickupConfirm(null); }}
             disabled={holeIdx===0}>◀</button>
-          <span style={{fontSize:13,color:"#7a9e84",minWidth:32,textAlign:"center"}}>{holeIdx+1}/{HOLES.length}</span>
-          <button style={{background:"transparent",border:"none",fontSize:22,cursor:"pointer",padding:"2px 6px"}}
-            onClick={() => { setHoleIdx(i=>Math.min(HOLES.length-1,i+1)); setShotFrom(null); }}
+          <span style={{fontSize:12,color:"#7a9e84",minWidth:28,textAlign:"center"}}>{holeIdx+1}/{HOLES.length}</span>
+          <button style={{background:"transparent",border:"none",fontSize:20,cursor:"pointer",padding:"2px 4px",color:"#f0ead6"}}
+            onClick={() => { setHoleIdx(i=>Math.min(HOLES.length-1,i+1)); setShotFrom(null); setPickupConfirm(null); }}
             disabled={holeIdx===HOLES.length-1}>▶</button>
         </div>
       </div>
+
+      {/* Satellite map — fixed height */}
       <div className="map-wrap">
         <HoleMap hole={hole} gps={gps} key={hole.number} />
-        <div style={{position:"absolute",top:10,left:"50%",transform:"translateX(-50%)",
-          background:"rgba(8,26,16,0.88)",border:"0.5px solid #2d5a3d",borderRadius:12,
-          padding:"6px 20px",textAlign:"center",pointerEvents:"none"}}>
-          <p className="label" style={{marginBottom:1}}>To pin</p>
-          <p style={{fontSize:34,fontWeight:700,lineHeight:1,
-            color:dtg?(dtg<100?"#4ade80":dtg<175?"#c9a84c":"#f0ead6"):"#7a9e84"}}>
-            {dtg ?? "—"}
-          </p>
-          <p style={{fontSize:11,color:"#7a9e84"}}>yards</p>
-          {gpsError && <p style={{fontSize:10,color:"#f87171",marginTop:2}}>{gpsError}</p>}
-        </div>
       </div>
+
+      {/* Bottom panel — scrollable, fits remaining space */}
       <div className="bottom-panel">
-        <div style={{padding:"10px 14px"}}>
-          <div style={{display:"flex",gap:8,marginBottom:10}}>
+        <div style={{padding:"10px 14px 14px"}}>
+
+          {/* Stat row: To pin + Last shot + Tee yardages */}
+          <div style={{display:"grid",gridTemplateColumns:`repeat(${1 + activePlayers.length},1fr)`,gap:6,marginBottom:10}}>
+            {/* To pin — always visible */}
+            <div style={{background:"#122018",border:"0.5px solid #2d5a3d",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
+              <p className="label" style={{marginBottom:2}}>To pin</p>
+              <p style={{fontSize:22,fontWeight:700,lineHeight:1,
+                color:dtg?(dtg<100?"#4ade80":dtg<175?"#c9a84c":"#f0ead6"):"#7a9e84"}}>
+                {dtg ?? "—"}
+              </p>
+              <p style={{fontSize:9,color:"#7a9e84"}}>yards</p>
+              {gpsError && <p style={{fontSize:9,color:"#f87171",marginTop:1}}>{gpsError}</p>}
+            </div>
+
+            {/* Per-player tee yardage */}
             {activePlayers.map((p,i) => {
               const pi = players.indexOf(p);
               return (
-                <div key={i} style={{flex:1,background:"#122018",border:"0.5px solid #2d5a3d",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4,marginBottom:2}}>
-                    <div style={{width:7,height:7,borderRadius:"50%",background:PLAYER_COLORS[pi]}} />
-                    <span style={{fontSize:10,color:"#7a9e84"}}>{p.name.split(" ")[0]}</span>
+                <div key={i} style={{background:"#122018",border:"0.5px solid #2d5a3d",borderRadius:8,padding:"6px 8px",textAlign:"center"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,marginBottom:2}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:PLAYER_COLORS[pi]}} />
+                    <span style={{fontSize:9,color:"#7a9e84"}}>{p.name.split(" ")[0]}</span>
                   </div>
-                  <span style={{fontSize:13,fontWeight:600}}>{hole.tees[p.tee].yards}</span>
-                  <span style={{fontSize:9,color:"#7a9e84",marginLeft:2}}>yds</span>
+                  <p style={{fontSize:16,fontWeight:700,lineHeight:1,color:"#f0ead6"}}>{hole.tees[p.tee].yards}</p>
+                  <p style={{fontSize:9,color:"#7a9e84"}}>yds</p>
                 </div>
               );
             })}
           </div>
-          <button onClick={markShot} disabled={!gps}
-            style={{width:"100%",padding:"10px",borderRadius:10,cursor:gps?"pointer":"not-allowed",
-              fontFamily:"'Inter',sans-serif",fontSize:14,fontWeight:500,marginBottom:10,
-              background:shotFrom?"rgba(251,191,36,0.15)":"#1a3a24",
-              color:shotFrom?"#fbbf24":"#a3b89a",
-              border:shotFrom?"1px solid #92400e":"0.5px solid #2d5a3d",
-              opacity:gps?1:0.5}}>
-            {shotFrom ? "📍 Tap when you reach your ball" : "🏌️ Tap before your swing"}
-          </button>
-          {holeShots.length > 0 && (
-            <div style={{background:"#122018",border:"0.5px solid #2d5a3d",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <p className="label">Shot log</p>
-                <button onClick={clearShots} style={{fontSize:10,color:"#7a9e84",background:"transparent",border:"none",cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>Clear</button>
+
+          {/* Shot tracker */}
+          <div style={{display:"flex",gap:8,marginBottom:10,alignItems:"stretch"}}>
+            <button onClick={markShot} disabled={!gps}
+              style={{flex:1,padding:"9px 10px",borderRadius:10,cursor:gps?"pointer":"not-allowed",
+                fontFamily:"'Inter',sans-serif",fontSize:13,fontWeight:500,
+                background:shotFrom?"rgba(251,191,36,0.12)":"#1a3a24",
+                color:shotFrom?"#fbbf24":"#a3b89a",
+                border:shotFrom?"1px solid #92400e":"0.5px solid #2d5a3d",
+                opacity:gps?1:0.5}}>
+              🏌️ {shotFrom ? "Tap before next swing" : "Tap before your swing"}
+            </button>
+            {lastShot !== null && (
+              <div style={{background:"#122018",border:"0.5px solid #2d5a3d",borderRadius:10,padding:"6px 10px",textAlign:"center",minWidth:70}}>
+                <p style={{fontSize:9,color:"#7a9e84",marginBottom:1}}>LAST SHOT</p>
+                <p style={{fontSize:18,fontWeight:700,color:"#4ade80",lineHeight:1}}>{lastShot}</p>
+                <p style={{fontSize:9,color:"#7a9e84"}}>yds</p>
               </div>
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-                <tbody>
-                  {holeShots.map((s,i) => {
-                    const toPin = Math.round(haversineYards(s.to.lat, s.to.lng, hole.green.lat, hole.green.lng));
-                    return (
-                      <tr key={i} style={{borderTop:i>0?"0.5px solid #1e3a28":"none"}}>
-                        <td style={{padding:"5px 0",color:"#7a9e84"}}>#{i+1}</td>
-                        <td style={{padding:"5px 0",textAlign:"right",fontWeight:600,color:"#4ade80"}}>{s.yards} yds</td>
-                        <td style={{padding:"5px 0",textAlign:"right",color:"#a3b89a"}}>{toPin} to pin</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+            )}
+            {holeShots.length > 0 && (
+              <button onClick={clearShots}
+                style={{background:"transparent",border:"0.5px solid #2d5a3d",borderRadius:10,
+                  padding:"6px 10px",color:"#7a9e84",fontSize:11,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Score per player */}
           <div style={{background:"#1a3a24",border:"0.5px solid #2d5a3d",borderRadius:10,padding:"10px 12px"}}>
             <p className="label" style={{marginBottom:8}}>Score — hole {hole.number}</p>
             {activePlayers.map((p,i) => {
               const pi = players.indexOf(p);
               const val = scores[pi][holeIdx];
+              const isSkipped = skipped[pi][holeIdx];
               const diff = val - hole.par;
+              const showConfirm = pickupConfirm === pi;
+
               return (
-                <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                  marginBottom:i<activePlayers.length-1?8:0,
-                  paddingBottom:i<activePlayers.length-1?8:0,
+                <div key={i} style={{
+                  marginBottom:i<activePlayers.length-1?10:0,
+                  paddingBottom:i<activePlayers.length-1?10:0,
                   borderBottom:i<activePlayers.length-1?"0.5px solid #2d5a3d":"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <div style={{width:9,height:9,borderRadius:"50%",background:PLAYER_COLORS[pi]}} />
-                    <span style={{fontSize:14,fontWeight:500}}>{p.name}</span>
-                    {val > 0 && (
-                      <span style={{fontSize:11,padding:"1px 7px",borderRadius:6,fontWeight:600,
-                        background:diff<=-2?"#1d4ed8":diff===-1?"#14532d":diff===0?"#3a3a2a":diff===1?"#7c2d12":"#450a0a",
-                        color:diff<=-2?"#93c5fd":diff===-1?"#4ade80":diff===0?"#c9a84c":diff===1?"#fb923c":"#fca5a5"}}>
-                        {diff===0?"E":diff>0?`+${diff}`:diff}
-                      </span>
+
+                  {/* Player row */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <div style={{width:9,height:9,borderRadius:"50%",background:PLAYER_COLORS[pi]}} />
+                      <span style={{fontSize:14,fontWeight:500}}>{p.name}</span>
+                      {!isSkipped && val > 0 && (
+                        <span style={{fontSize:11,padding:"1px 7px",borderRadius:6,fontWeight:600,
+                          background:diff<=-2?"#1d4ed8":diff===-1?"#14532d":diff===0?"#3a3a2a":diff===1?"#7c2d12":"#450a0a",
+                          color:diff<=-2?"#93c5fd":diff===-1?"#4ade80":diff===0?"#c9a84c":diff===1?"#fb923c":"#fca5a5"}}>
+                          {diff===0?"E":diff>0?`+${diff}`:diff}
+                        </span>
+                      )}
+                      {isSkipped && (
+                        <span style={{fontSize:11,color:"#4a6a54",fontStyle:"italic"}}>skipped</span>
+                      )}
+                      {/* Pick up link */}
+                      {!showConfirm && (
+                        <button className="pickup-link"
+                          onClick={() => setPickupConfirm(showConfirm ? null : pi)}>
+                          pick up
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Score stepper — hidden if skipped */}
+                    {!isSkipped ? (
+                      <div style={{display:"flex",alignItems:"center"}}>
+                        <button onClick={()=>updateScore(pi,-1)}
+                          style={{width:34,height:34,borderRadius:"8px 0 0 8px",border:"0.5px solid #2d5a3d",
+                            background:"#122018",color:"#f0ead6",fontSize:20,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>−</button>
+                        <div style={{width:34,height:34,background:"#0f2818",border:"0.5px solid #2d5a3d",
+                          borderLeft:"none",borderRight:"none",display:"flex",alignItems:"center",justifyContent:"center",
+                          fontSize:16,fontWeight:700,color:!val?"#7a9e84":"#f0ead6"}}>
+                          {val||"·"}
+                        </div>
+                        <button onClick={()=>updateScore(pi,1)}
+                          style={{width:34,height:34,borderRadius:"0 8px 8px 0",border:"0.5px solid #2d5a3d",
+                            background:"#122018",color:"#f0ead6",fontSize:20,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>+</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setSkipped(prev=>{const n=prev.map(r=>[...r]);n[pi][holeIdx]=false;return n;}); }}
+                        style={{fontSize:11,color:"#7a9e84",background:"transparent",border:"0.5px solid #2d5a3d",
+                          borderRadius:8,padding:"4px 10px",cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>
+                        undo
+                      </button>
                     )}
                   </div>
-                  <div style={{display:"flex",alignItems:"center"}}>
-                    <button onClick={()=>updateScore(pi,-1)}
-                      style={{width:36,height:36,borderRadius:"8px 0 0 8px",border:"0.5px solid #2d5a3d",
-                        background:"#122018",color:"#f0ead6",fontSize:20,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>−</button>
-                    <div style={{width:36,height:36,background:"#0f2818",border:"0.5px solid #2d5a3d",
-                      borderLeft:"none",borderRight:"none",display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:16,fontWeight:700,color:!val?"#7a9e84":"#f0ead6"}}>
-                      {val||"·"}
+
+                  {/* Inline confirm */}
+                  {showConfirm && (
+                    <div style={{marginTop:8,display:"flex",alignItems:"center",gap:8,paddingLeft:17}}>
+                      <span style={{fontSize:12,color:"#a3b89a"}}>Skip this hole?</span>
+                      <button onClick={() => skipHole(pi)}
+                        style={{fontSize:12,padding:"3px 12px",borderRadius:7,border:"none",
+                          background:"#5a2d2d",color:"#f87171",cursor:"pointer",fontFamily:"'Inter',sans-serif",fontWeight:600}}>
+                        Skip hole
+                      </button>
+                      <button onClick={() => setPickupConfirm(null)}
+                        style={{fontSize:12,padding:"3px 10px",borderRadius:7,border:"0.5px solid #2d5a3d",
+                          background:"transparent",color:"#7a9e84",cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>
+                        Cancel
+                      </button>
                     </div>
-                    <button onClick={()=>updateScore(pi,1)}
-                      style={{width:36,height:36,borderRadius:"0 8px 8px 0",border:"0.5px solid #2d5a3d",
-                        background:"#122018",color:"#f0ead6",fontSize:20,cursor:"pointer",fontFamily:"'Inter',sans-serif"}}>+</button>
-                  </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
       </div>
+
       <div className="tab-bar">
         <button className="tab active">⛳ Hole</button>
         <button className="tab" onClick={()=>setScreen("scorecard")}>📋 Scores</button>
