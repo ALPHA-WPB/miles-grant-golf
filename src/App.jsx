@@ -355,12 +355,11 @@ const css = `
   .pickup-link:hover { color: #f87171; }
   .setup-bg { position: fixed; inset: 0; background-image: url('/course-bg.jpg'); background-size: cover; background-position: center 40%; z-index: 0; }
   .setup-overlay { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(5,16,10,0.45) 0%, rgba(5,16,10,0.72) 55%, rgba(5,16,10,0.97) 100%); z-index: 1; }
-  .setup-content { position: relative; z-index: 2; min-height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem 2rem; }
+  .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem 1.2rem; }
 `;
 
 export default function App() {
   const [screen, setScreen]       = useState("setup");
-  const [playerName, setPlayerName] = useState("");
   const [playerTee, setPlayerTee]   = useState("mens");
   const [holeIdx, setHoleIdx]       = useState(0);
   const [scores, setScores]         = useState(() => Array(HOLES.length).fill(0));
@@ -465,8 +464,8 @@ export default function App() {
       <div className="setup-overlay" />
       <div className="setup-content">
         {/* Title block */}
-        <div style={{textAlign:"center", marginBottom:"2rem"}}>
-          <p style={{fontSize:11, color:"rgba(201,168,76,0.8)", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:6}}>
+        <div style={{textAlign:"center", marginBottom:"1.4rem"}}>
+          <p style={{fontSize:11, color:"rgba(201,168,76,0.8)", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:5}}>
             Unofficial Member App
           </p>
           <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:34, color:"#fff", lineHeight:1.1, marginBottom:4, textShadow:"0 2px 12px rgba(0,0,0,0.6)"}}>
@@ -475,18 +474,13 @@ export default function App() {
           <p style={{fontSize:13, color:"rgba(240,234,214,0.7)"}}>Stuart, Florida · 18 Holes</p>
         </div>
 
-        {/* Form card */}
-        <div style={{background:"rgba(8,26,16,0.82)", border:"0.5px solid rgba(45,90,61,0.8)", borderRadius:16, padding:"1.25rem 1.25rem 1.5rem", backdropFilter:"blur(12px)", marginBottom:"1rem"}}>
-          <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:6}}>Your name</p>
-          <input type="text" value={playerName} placeholder="Enter your name"
-            onChange={e => setPlayerName(e.target.value)}
-            style={{marginBottom:16}} />
-
-          <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>Tee</p>
-          <div style={{display:"flex", gap:8, marginBottom:20}}>
+        {/* Tee selector + Start */}
+        <div style={{background:"rgba(8,26,16,0.82)", border:"0.5px solid rgba(45,90,61,0.8)", borderRadius:16, padding:"1rem 1.25rem 1.25rem", backdropFilter:"blur(12px)", marginBottom:"0.75rem"}}>
+          <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>Select tee</p>
+          <div style={{display:"flex", gap:8, marginBottom:16}}>
             {TEE_ORDER.map(t => (
               <button key={t} onClick={() => setPlayerTee(t)}
-                style={{flex:1, padding:"10px 0", borderRadius:10, cursor:"pointer",
+                style={{flex:1, padding:"11px 0", borderRadius:10, cursor:"pointer",
                   fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:playerTee===t?600:400,
                   background:playerTee===t?(t==="champ"?"rgba(30,58,95,0.9)":t==="mens"?"rgba(58,58,58,0.9)":"rgba(90,26,26,0.9)"):"rgba(18,32,24,0.6)",
                   color:playerTee===t?(t==="champ"?"#60a5fa":t==="mens"?"#e8e8e8":"#f87171"):"#7a9e84",
@@ -502,9 +496,9 @@ export default function App() {
         </div>
 
         {/* Disclaimer */}
-        <p style={{fontSize:10, color:"rgba(240,234,214,0.4)", textAlign:"center", lineHeight:1.6, padding:"0 0.5rem"}}>
-          This is an unofficial app and is not affiliated with Miles Grant Country Club.<br/>
-          Free to use for all members and guests. No data is saved or tracked.
+        <p style={{fontSize:10, color:"rgba(240,234,214,0.35)", textAlign:"center", lineHeight:1.55, padding:"0 0.5rem"}}>
+          Unofficial app · Not affiliated with Miles Grant Country Club<br/>
+          Free for all members &amp; guests · No data saved or tracked
         </p>
       </div>
     </div>
@@ -517,7 +511,7 @@ export default function App() {
       <div style={{padding:"1rem 1rem 5rem", maxWidth:420, margin:"0 auto"}}>
         <div style={{textAlign:"center", padding:"1.2rem 0 1rem"}}>
           <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c"}}>Scorecard</h2>
-          <p style={{fontSize:12, color:"#7a9e84"}}>Miles Grant CC · 18 holes · Par {totalPar()}</p>
+          <p style={{fontSize:12, color:"#7a9e84"}}>Miles Grant CC · 18 Holes · Par {totalPar()}</p>
         </div>
         {/* Front 9 */}
         {[{label:"Front Nine", start:0, end:9}, {label:"Back Nine", start:9, end:18}].map(({label,start,end}) => (
@@ -529,7 +523,7 @@ export default function App() {
                   <tr style={{borderBottom:"0.5px solid #2d5a3d"}}>
                     <td style={{padding:"8px 10px", color:"#7a9e84", width:36}}>H</td>
                     <td style={{padding:"8px 6px", color:"#7a9e84", width:30, textAlign:"center"}}>Par</td>
-                    <td style={{padding:"8px 6px", color:PLAYER_COLOR, fontWeight:600, textAlign:"center"}}>{playerName ? playerName.split(" ")[0] : "You"}</td>
+                    <td style={{padding:"8px 6px", color:PLAYER_COLOR, fontWeight:600, textAlign:"center"}}>Score</td>
                   </tr>
                 </thead>
                 <tbody>
@@ -669,7 +663,7 @@ export default function App() {
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8}}>
               <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
                 <div style={{width:9, height:9, borderRadius:"50%", background:PLAYER_COLOR}} />
-                <span style={{fontSize:14, fontWeight:500}}>{playerName || "You"}</span>
+                <span style={{fontSize:14, fontWeight:500}}>Score</span>
                 {!skipped[holeIdx] && scoreForDisplay > 0 && diff !== null && (
                   <span style={{fontSize:11, padding:"1px 7px", borderRadius:6, fontWeight:600,
                     background:diff<=-2?"#1d4ed8":diff===-1?"#14532d":diff===0?"#3a3a2a":diff===1?"#7c2d12":"#450a0a",
