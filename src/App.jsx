@@ -353,9 +353,15 @@ const css = `
   .gps-tip::before { display: none !important; }
   .pickup-link { background: none; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; text-decoration: underline; padding: 0 0 0 4px; }
   .pickup-link:hover { color: #f87171; }
-  .setup-bg { position: fixed; inset: 0; background-image: url('/course-bg.jpg'); background-size: cover; background-position: center 40%; z-index: 0; }
-  .setup-overlay { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(5,16,10,0.45) 0%, rgba(5,16,10,0.72) 55%, rgba(5,16,10,0.97) 100%); z-index: 1; }
-  .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem 1.2rem; }
+  .setup-bg { position: fixed; inset: 0; background-image: url('/course-bg.jpg'); background-size: cover; background-position: center 30%; z-index: 0; }
+  .setup-overlay { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(5,16,10,0.2) 0%, rgba(5,16,10,0.55) 38%, rgba(5,16,10,0.96) 62%, rgba(5,16,10,1) 100%); z-index: 1; }
+  .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem env(safe-area-inset-bottom, 16px); padding-bottom: max(env(safe-area-inset-bottom), 14px); }
+  .hole-nav-bar { display: flex; align-items: center; justify-content: space-between; background: #081a10; border-bottom: 0.5px solid #2d5a3d; padding: 0; flex-shrink: 0; }
+  .hole-nav-btn { flex: 1; background: transparent; border: none; color: #f0ead6; font-size: 26px; cursor: pointer; padding: 10px 0; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
+  .hole-nav-btn:disabled { color: #2d5a3d; cursor: default; }
+  .hole-nav-info { flex: 2; text-align: center; }
+  .hole-nav-label { font-size: 11px; color: #c9a84c; font-weight: 600; font-family: 'Playfair Display',serif; }
+  .hole-nav-sub { font-size: 10px; color: #7a9e84; }
 `;
 
 export default function App() {
@@ -464,7 +470,7 @@ export default function App() {
       <div className="setup-overlay" />
       <div className="setup-content">
         {/* Title block */}
-        <div style={{textAlign:"center", marginBottom:"1.4rem"}}>
+        <div style={{textAlign:"center", marginBottom:"1rem"}}>
           <p style={{fontSize:11, color:"rgba(201,168,76,0.8)", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:5}}>
             Unofficial Member App
           </p>
@@ -595,29 +601,27 @@ export default function App() {
     <div className="app">
       <style>{css}</style>
 
-      {/* Header */}
-      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center",
-        padding:"7px 16px 5px", flexShrink:0}}>
-        <div>
-          <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em"}}>Miles Grant CC</p>
-          <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:17, color:"#c9a84c", lineHeight:1.15}}>
-            Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}
-          </h2>
-        </div>
-        <div style={{display:"flex", gap:4, alignItems:"center"}}>
-          <button style={{background:"transparent", border:"none", fontSize:20, cursor:"pointer",
-            color:holeIdx===0?"#2d5a3d":"#f0ead6", padding:"4px 6px"}}
-            onClick={prevHole} disabled={holeIdx===0}>◀</button>
-          <span style={{fontSize:12, color:"#7a9e84", minWidth:36, textAlign:"center"}}>{holeIdx+1}/{HOLES.length}</span>
-          <button style={{background:"transparent", border:"none", fontSize:20, cursor:"pointer",
-            color:holeIdx===HOLES.length-1?"#2d5a3d":"#f0ead6", padding:"4px 6px"}}
-            onClick={nextHole} disabled={holeIdx===HOLES.length-1}>▶</button>
-        </div>
+      {/* Header — compact, just hole info */}
+      <div style={{padding:"6px 16px 4px", flexShrink:0, borderBottom:"0.5px solid #1a3a24"}}>
+        <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em"}}>Miles Grant CC</p>
+        <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:17, color:"#c9a84c", lineHeight:1.2}}>
+          Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}
+        </h2>
       </div>
 
       {/* Map */}
       <div className="map-wrap">
         <HoleMap hole={hole} gps={gps} holeShots={holeShots} key={hole.number} />
+      </div>
+
+      {/* Nav bar below map */}
+      <div className="hole-nav-bar">
+        <button className="hole-nav-btn" onClick={prevHole} disabled={holeIdx===0}>‹ Back</button>
+        <div className="hole-nav-info">
+          <div className="hole-nav-label">Hole {hole.number}</div>
+          <div className="hole-nav-sub">{holeIdx+1} of {HOLES.length}</div>
+        </div>
+        <button className="hole-nav-btn" onClick={nextHole} disabled={holeIdx===HOLES.length-1}>Next ›</button>
       </div>
 
       {/* Bottom panel */}
