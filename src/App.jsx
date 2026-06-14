@@ -355,7 +355,7 @@ const css = `
   .pickup-link:hover { color: #f87171; }
   .setup-bg { position: fixed; inset: 0; background-image: url('/course-bg.jpg'); background-size: cover; background-position: center 30%; z-index: 0; }
   .setup-overlay { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(5,16,10,0.2) 0%, rgba(5,16,10,0.55) 38%, rgba(5,16,10,0.96) 62%, rgba(5,16,10,1) 100%); z-index: 1; }
-  .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem env(safe-area-inset-bottom, 16px); padding-bottom: max(env(safe-area-inset-bottom), 14px); }
+  .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem; padding-bottom: calc(20vh + max(env(safe-area-inset-bottom), 14px)); }
   .hole-nav-bar { display: flex; align-items: center; justify-content: space-between; background: #081a10; border-bottom: 0.5px solid #2d5a3d; padding: 0; flex-shrink: 0; }
   .hole-nav-btn { flex: 1; background: transparent; border: none; color: #f0ead6; font-size: 26px; cursor: pointer; padding: 10px 0; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
   .hole-nav-btn:disabled { color: #2d5a3d; cursor: default; }
