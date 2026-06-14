@@ -49,10 +49,8 @@ function HOLE_TEE_COLOR(tee) {
 
 function HoleMap({ hole, gps }) {
   const W = 400, H = 300, PAD = 30;
-  const allPts = [
-    hole.tees.champ, hole.tees.mens, hole.tees.womens, hole.green,
-    ...(gps ? [{ lat: gps.lat, lng: gps.lng }] : [])
-  ];
+  // Use only hole points for bounds — never GPS, which can be miles away
+  const allPts = [hole.tees.champ, hole.tees.mens, hole.tees.womens, hole.green];
   const lats = allPts.map(p => p.lat);
   const lngs = allPts.map(p => p.lng);
   const minLat = Math.min(...lats), maxLat = Math.max(...lats);
@@ -71,7 +69,9 @@ function HoleMap({ hole, gps }) {
   const teeM  = proj(hole.tees.mens.lat,   hole.tees.mens.lng);
   const teeW  = proj(hole.tees.womens.lat, hole.tees.womens.lng);
   const green = proj(hole.green.lat,       hole.green.lng);
-  const gpsP  = gps ? proj(gps.lat, gps.lng) : null;
+  // Only show GPS dot if within ~600 yards of the green (on-course)
+  const gpsNearby = gps && haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng) < 600;
+  const gpsP  = gpsNearby ? proj(gps.lat, gps.lng) : null;
 
   return (
     <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} xmlns="http://www.w3.org/2000/svg"
