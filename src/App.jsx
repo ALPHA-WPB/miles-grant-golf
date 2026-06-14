@@ -16,12 +16,11 @@ const HOLES = [
   {
     number: 2, par: 3, handicap: 15,
     tees: {
-      // NOTE: all 3 tees share same coords — awaiting correct Blue/White values
-      champ:  { lat: 27.14645268, lng: -80.17935540, yards: 132 },
-      mens:   { lat: 27.14645268, lng: -80.17935540, yards: 120 },
-      womens: { lat: 27.14645268, lng: -80.17935540, yards: 108 },
+      champ:  { lat: 27.14645101, lng: -80.17935365, yards: 132 },
+      mens:   { lat: 27.14637063, lng: -80.17935447, yards: 120 },
+      womens: { lat: 27.14632678, lng: -80.17935098, yards: 108 },
     },
-    green: { lat: 27.14538377, lng: -80.17929777 },
+    green: { lat: 27.14536361, lng: -80.17929695 },
   },
   {
     number: 3, par: 3, handicap: 13,
@@ -31,6 +30,60 @@ const HOLES = [
       womens: { lat: 27.14530151, lng: -80.17977076, yards: 118 },
     },
     green: { lat: 27.14623854, lng: -80.17980873 },
+  },
+  {
+    number: 4, par: 4, handicap: 1,
+    tees: {
+      champ:  { lat: 27.14657490, lng: -80.17986190, yards: 350 },
+      mens:   { lat: 27.14650859, lng: -80.18006170, yards: 330 },
+      womens: { lat: 27.14634566, lng: -80.18044440, yards: 290 },
+    },
+    green: { lat: 27.14524837, lng: -80.18304176 },
+  },
+  {
+    number: 5, par: 3, handicap: 17,
+    tees: {
+      champ:  { lat: 27.14555760, lng: -80.18328247, yards: 148 },
+      mens:   { lat: 27.14554824, lng: -80.18347100, yards: 130 },
+      womens: { lat: 27.14554823, lng: -80.18354423, yards: 122 },
+    },
+    green: { lat: 27.14538419, lng: -80.18464611 },
+  },
+  {
+    number: 6, par: 4, handicap: 7,
+    tees: {
+      champ:  { lat: 27.14590461, lng: -80.18481237, yards: 355 },
+      mens:   { lat: 27.14591224, lng: -80.18476249, yards: 340 },
+      womens: { lat: 27.14584275, lng: -80.18378381, yards: 280 },
+    },
+    green: { lat: 27.14668028, lng: -80.18116062 },
+  },
+  {
+    number: 7, par: 3, handicap: 11,
+    tees: {
+      champ:  { lat: 27.14706897, lng: -80.18135856, yards: 132 },
+      mens:   { lat: 27.14700144, lng: -80.18109789, yards: 115 },
+      womens: { lat: 27.14697594, lng: -80.18095993, yards: 105 },
+    },
+    green: { lat: 27.14681188, lng: -80.18013925 },
+  },
+  {
+    number: 8, par: 3, handicap: 9,
+    tees: {
+      champ:  { lat: 27.14656995, lng: -80.17962218, yards: 128 },
+      mens:   { lat: 27.14662363, lng: -80.17953149, yards: 115 },
+      womens: { lat: 27.14667765, lng: -80.17944083, yards: 100 },
+    },
+    green: { lat: 27.14725279, lng: -80.17856710 },
+  },
+  {
+    number: 9, par: 4, handicap: 5,
+    tees: {
+      champ:  { lat: 27.14759828, lng: -80.17827814, yards: 315 },
+      mens:   { lat: 27.14760531, lng: -80.17812078, yards: 295 },
+      womens: { lat: 27.14763077, lng: -80.17779727, yards: 260 },
+    },
+    green: { lat: 27.14805456, lng: -80.17481248 },
   },
 ];
 
