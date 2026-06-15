@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "leaflet": "^1.9.4",
+    "leaflet-rotate": "^0.2.8",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
