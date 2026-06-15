@@ -549,6 +549,148 @@ export default function App() {
     </div>
   );
 
+  // ── Round Complete screen ─────────────────────────────────────
+  if (screen === "complete") {
+    const ts = totalScore(), tp = totalPar(), diff2 = ts - tp;
+    const playedFront = roundStart === 0;
+    const playedBack  = roundEnd === 18;
+    const playedAll   = playedFront && playedBack;
+    return (
+      <div className="app" style={{overflowY:"auto"}}>
+        <style>{css}</style>
+        <div style={{padding:"2rem 1.25rem 5rem", maxWidth:420, margin:"0 auto", textAlign:"center"}}>
+          <div style={{marginBottom:"1.5rem"}}>
+            <p style={{fontSize:36, marginBottom:8}}>🏁</p>
+            <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:28, color:"#c9a84c", marginBottom:4}}>Round Complete</h2>
+            <p style={{fontSize:13, color:"#7a9e84"}}>
+              {playedAll ? "All 18 Holes" : playedFront ? "Front 9 · Holes 1–9" : "Back 9 · Holes 10–18"} · Miles Grant CC
+            </p>
+          </div>
+
+          {/* Score summary */}
+          <div className="glass-card" style={{padding:"1.25rem", marginBottom:"1.25rem"}}>
+            <p style={{fontSize:48, fontWeight:700, lineHeight:1, marginBottom:4,
+              color:diff2<0?"#4ade80":diff2===0?"#c9a84c":"#f87171"}}>{ts || "—"}</p>
+            <p style={{fontSize:13, color:"#7a9e84", marginBottom:12}}>Total score · Par {tp}</p>
+            <div style={{fontSize:22, fontWeight:700, padding:"8px 20px", borderRadius:50, display:"inline-block",
+              background:diff2<0?"rgba(74,222,128,0.12)":diff2===0?"rgba(201,168,76,0.12)":"rgba(248,113,113,0.12)",
+              color:diff2<0?"#4ade80":diff2===0?"#c9a84c":"#f87171",
+              border:`1px solid ${diff2<0?"rgba(74,222,128,0.3)":diff2===0?"rgba(201,168,76,0.3)":"rgba(248,113,113,0.3)"}`}}>
+              {diff2===0?"Even":diff2>0?`+${diff2}`:diff2}
+            </div>
+          </div>
+
+          {/* Continue with other 9 */}
+          {!playedAll && (
+            <button onClick={() => {
+              const ns = playedFront ? 9 : 0, ne = playedFront ? 18 : 9;
+              setRoundStart(ns); setRoundEnd(ne); setHoleIdx(ns); setHoleComplete(false); setScreen("hole");
+            }} className="glass-card"
+              style={{width:"100%", padding:"14px", borderRadius:14, cursor:"pointer", border:"0.5px solid rgba(201,168,76,0.35)",
+                fontFamily:"'Inter',sans-serif", fontSize:15, fontWeight:600, color:"#c9a84c", marginBottom:10,
+                background:"rgba(201,168,76,0.08)", display:"block", textAlign:"center"}}>
+              Continue with {playedFront ? "Back 9 →" : "← Front 9"}
+            </button>
+          )}
+
+          {/* Action buttons */}
+          <div style={{display:"flex", gap:10, marginBottom:10}}>
+            <button onClick={() => setScreen("scorecard")}
+              style={{flex:1, padding:"13px", borderRadius:14, cursor:"pointer", border:"0.5px solid rgba(255,255,255,0.12)",
+                fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:600, color:"#f0ead6",
+                background:"rgba(255,255,255,0.06)", backdropFilter:"blur(12px)"}}>
+              📋 Scorecard
+            </button>
+            <button onClick={() => setScreen("browser")}
+              style={{flex:1, padding:"13px", borderRadius:14, cursor:"pointer", border:"0.5px solid rgba(255,255,255,0.12)",
+                fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:600, color:"#f0ead6",
+                background:"rgba(255,255,255,0.06)", backdropFilter:"blur(12px)"}}>
+              🗺 All Holes
+            </button>
+          </div>
+
+          <button onClick={() => {
+            setScreen("setup"); setHoleIdx(0);
+            setScores(Array(HOLES.length).fill(0));
+            setSkipped(Array(HOLES.length).fill(false));
+            setShots(Array(HOLES.length).fill(null).map(()=>[]));
+            setShotFrom(null); setPickupConfirm(false);
+            setRoundStart(0); setRoundEnd(18); setHoleComplete(false);
+          }} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
+            background:"transparent", fontSize:14, cursor:"pointer", color:"#f87171", fontFamily:"'Inter',sans-serif"}}>
+            End Round · Start New
+          </button>
+        </div>
+        <div className="tab-bar">
+          <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
+          <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
+          <button className="tab active">🏁 Done</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Hole browser screen ───────────────────────────────────────
+  if (screen === "browser") {
+    const scoreColor = (hi) => {
+      if (skipped[hi]) return "#4a6a54";
+      const s = scores[hi], d = s - HOLES[hi].par;
+      if (!s) return "#2d5a3d";
+      if (d <= -2) return "#60a5fa";
+      if (d === -1) return "#4ade80";
+      if (d === 0)  return "#c9a84c";
+      if (d === 1)  return "#fb923c";
+      return "#f87171";
+    };
+    return (
+      <div className="app" style={{overflowY:"auto"}}>
+        <style>{css}</style>
+        <div style={{padding:"1rem 1rem 5rem"}}>
+          <div style={{textAlign:"center", padding:"0.8rem 0 1rem"}}>
+            <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c", marginBottom:2}}>All 18 Holes</h2>
+            <p style={{fontSize:12, color:"#7a9e84"}}>Tap any hole to jump to it</p>
+          </div>
+
+          {/* Front 9 */}
+          {["Front Nine · 1–9", "Back Nine · 10–18"].map((label, half) => (
+            <div key={half} style={{marginBottom:16}}>
+              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>{label}</p>
+              <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8}}>
+                {HOLES.slice(half*9, half*9+9).map((h, i) => {
+                  const hi = half*9+i;
+                  const s = scores[hi];
+                  const isSkipped = skipped[hi];
+                  const isCurrent = hi === holeIdx;
+                  return (
+                    <button key={hi} onClick={() => { setHoleIdx(hi); setHoleComplete(false); setScreen("hole"); }}
+                      style={{padding:"12px 8px", borderRadius:14, cursor:"pointer", fontFamily:"'Inter',sans-serif",
+                        background: isCurrent ? "rgba(201,168,76,0.15)" : "rgba(255,255,255,0.05)",
+                        border: isCurrent ? "1px solid rgba(201,168,76,0.5)" : "0.5px solid rgba(255,255,255,0.1)",
+                        backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
+                        boxShadow:"0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)",
+                        display:"flex", flexDirection:"column", alignItems:"center", gap:3}}>
+                      <span style={{fontSize:11, color:"#7a9e84"}}>Hole</span>
+                      <span style={{fontSize:22, fontWeight:700, color:isCurrent?"#c9a84c":"#f0ead6", lineHeight:1}}>{h.number}</span>
+                      <span style={{fontSize:10, color:"#7a9e84"}}>Par {h.par}</span>
+                      <span style={{fontSize:16, fontWeight:700, color:scoreColor(hi), marginTop:2}}>
+                        {isSkipped ? "—" : s || "·"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="tab-bar">
+          <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
+          <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
+          <button className="tab active">🗺 Holes</button>
+        </div>
+      </div>
+    );
+  }
+
   // ── Scorecard screen ──────────────────────────────────────────
   if (screen === "scorecard") return (
     <div className="app" style={{overflowY:"auto"}}>
@@ -632,6 +774,7 @@ export default function App() {
       <div className="tab-bar">
         <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
         <button className="tab active">📋 Scores</button>
+        <button className="tab" onClick={() => setScreen("browser")}>🗺 Holes</button>
       </div>
     </div>
   );
@@ -715,7 +858,7 @@ export default function App() {
                 Hole {hole.number + 1} →
               </button>
             ) : (
-              <button onClick={() => setScreen("scorecard")}
+              <button onClick={() => setScreen("complete")}
                 style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer",
                   fontFamily:"'Inter',sans-serif", fontSize:16, fontWeight:700, marginBottom:8,
                   background:"linear-gradient(135deg, rgba(74,222,128,0.2), rgba(74,222,128,0.08))",
@@ -723,7 +866,7 @@ export default function App() {
                   backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
                   boxShadow:"0 4px 16px rgba(74,222,128,0.1), inset 0 1px 0 rgba(255,255,255,0.06)",
                   letterSpacing:"0.02em"}}>
-                🏁 View Final Scorecard
+                🏁 Round Complete
               </button>
             )
           ) : (
@@ -836,6 +979,7 @@ export default function App() {
       <div className="tab-bar">
         <button className="tab active">⛳ Hole</button>
         <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
+        <button className="tab" onClick={() => setScreen("browser")}>🗺 Holes</button>
       </div>
     </div>
   );
