@@ -824,7 +824,7 @@ export default function App() {
           {/* Stat row */}
           <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6, marginBottom:10}}>
             <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
-              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>To pin</p>
+              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>⛳ To pin</p>
               <p style={{fontSize:24, fontWeight:700, lineHeight:1,
                 color:dtg?(dtg<100?"#4ade80":dtg<175?"#c9a84c":"#f0ead6"):"#7a9e84"}}>
                 {dtg ?? "—"}
@@ -838,7 +838,7 @@ export default function App() {
               <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
             </div>
             <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
-              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>Last shot</p>
+              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>⚪ Last shot</p>
               <p style={{fontSize:24, fontWeight:700, lineHeight:1, color:lastShot?"#4ade80":"#7a9e84"}}>{lastShot ?? "—"}</p>
               <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
             </div>
@@ -871,15 +871,15 @@ export default function App() {
             )
           ) : (
             <button onClick={markShot} disabled={!gps}
-              style={{width:"100%", padding:"11px", borderRadius:12, cursor:gps?"pointer":"not-allowed",
-                fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:500, marginBottom:8,
-                background:shotFrom?"rgba(251,191,36,0.1)":"rgba(255,255,255,0.05)",
-                color:shotFrom?"#fbbf24":"#a3b89a",
-                border:shotFrom?"1px solid rgba(146,64,14,0.8)":"0.5px solid rgba(255,255,255,0.1)",
-                backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
-                boxShadow:"inset 0 1px 0 rgba(255,255,255,0.05)",
-                opacity:gps?1:0.5}}>
-              🏌️ {shotFrom ? `Shot ${completedShots + 1} in progress — tap before next swing` : "Tap before your swing"}
+              style={{width:"100%", padding:"15px", borderRadius:14, cursor:gps?"pointer":"not-allowed",
+                fontFamily:"'Inter',sans-serif", fontSize:17, fontWeight:600, marginBottom:8,
+                background:shotFrom?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.12)",
+                color:shotFrom?"#fbbf24":"#4ade80",
+                border:shotFrom?"1px solid rgba(146,64,14,0.7)":"1px solid rgba(255,255,255,0.18)",
+                backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                boxShadow:"0 2px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.18)",
+                opacity:gps?1:0.45}}>
+              🏌️ {shotFrom ? `Shot ${completedShots + 1} — tap before next swing` : "Tap before your swing"}
             </button>
           )}
 
