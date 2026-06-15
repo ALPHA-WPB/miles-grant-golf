@@ -339,7 +339,7 @@ const css = `
   html, body, #root { height: 100%; }
   .app { height: 100vh; display: flex; flex-direction: column; background: #0f2818; color: #f0ead6; font-family: 'Inter', sans-serif; overflow: hidden; }
   .serif { font-family: 'Playfair Display', serif; }
-  .map-wrap { height: 50vh; flex-shrink: 0; position: relative; overflow: hidden; }
+  .map-wrap { height: 40vh; flex-shrink: 0; position: relative; overflow: hidden; }
   .bottom-panel { flex: 1; min-height: 0; background: #0a1c12; border-top: 1px solid rgba(45,90,61,0.5); overflow-y: auto; }
   .label { font-size: 10px; color: #7a9e84; text-transform: uppercase; letter-spacing: 0.08em; }
   .tab-bar { display: flex; background: rgba(6,14,9,0.95); border-top: 0.5px solid rgba(45,90,61,0.5); flex-shrink: 0; backdrop-filter: blur(12px); }
@@ -348,6 +348,11 @@ const css = `
   .glass-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
   .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
   .hole-pill { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); border-radius: 50px; padding: 6px 16px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none; }
+  .shot-pill { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; border: none; border-radius: 50px; cursor: pointer; font-family: 'Inter',sans-serif; font-size: 16px; font-weight: 700; padding: 14px 32px; white-space: nowrap; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: all 0.2s; }
+  .shot-pill-idle { background: rgba(255,255,255,0.15); color: #4ade80; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
+  .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
+  .shot-pill-disabled { opacity: 0.4; cursor: not-allowed; }
+  @keyframes pulse-amber { 0%,100% { box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); } 50% { box-shadow: 0 4px 28px rgba(251,191,36,0.55), 0 0 0 6px rgba(251,191,36,0.12), inset 0 1px 0 rgba(255,255,255,0.1); } }
   .btn-primary { background: #c9a84c; color: #0f2818; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; padding: 14px; cursor: pointer; width: 100%; font-family: 'Inter',sans-serif; letter-spacing:0.02em; }
   .btn-ghost { background: transparent; border: 0.5px solid #2d5a3d; border-radius: 8px; color: #a3b89a; font-size: 13px; padding: 6px 14px; cursor: pointer; font-family: 'Inter',sans-serif; }
   input[type=text] { background: rgba(10,28,18,0.7); border: 0.5px solid #2d5a3d; border-radius: 8px; color: #f0ead6; font-size: 15px; padding: 8px 12px; font-family: 'Inter',sans-serif; outline: none; width: 100%; }
@@ -792,7 +797,7 @@ export default function App() {
         <p style={{fontSize:11, color:"#7a9e84"}}>Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}</p>
       </div>
 
-      {/* Map + hole pill overlay */}
+      {/* Map + overlays */}
       <div className="map-wrap">
         <HoleMap hole={hole} gps={gps} holeShots={holeShots} key={hole.number} />
         <div className="hole-pill">
@@ -801,6 +806,15 @@ export default function App() {
           </span>
           <span style={{fontSize:11, color:"rgba(240,234,214,0.6)", marginLeft:6}}>Par {hole.par}</span>
         </div>
+        {/* Floating shot pill — only when hole not complete */}
+        {!holeComplete && (
+          <button
+            onClick={markShot}
+            disabled={!gps}
+            className={`shot-pill ${!gps ? "shot-pill-disabled" : shotFrom ? "shot-pill-active" : "shot-pill-idle"}`}>
+            🏌️ {shotFrom ? `Shot ${completedShots + 1} — tap before next swing` : "Tap before your swing"}
+          </button>
+        )}
       </div>
 
       {/* Nav bar below map */}
@@ -844,8 +858,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Next Hole button (after completion) or Shot button */}
-          {holeComplete ? (
+          {/* Next Hole / Round Complete button (after hole completion) */}
+          {holeComplete && (
             holeIdx < roundEnd - 1 ? (
               <button onClick={nextHole}
                 style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer",
@@ -869,18 +883,6 @@ export default function App() {
                 🏁 Round Complete
               </button>
             )
-          ) : (
-            <button onClick={markShot} disabled={!gps}
-              style={{width:"100%", padding:"15px", borderRadius:14, cursor:gps?"pointer":"not-allowed",
-                fontFamily:"'Inter',sans-serif", fontSize:17, fontWeight:600, marginBottom:8,
-                background:shotFrom?"rgba(251,191,36,0.12)":"rgba(255,255,255,0.12)",
-                color:shotFrom?"#fbbf24":"#4ade80",
-                border:shotFrom?"1px solid rgba(146,64,14,0.7)":"1px solid rgba(255,255,255,0.18)",
-                backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
-                boxShadow:"0 2px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.18)",
-                opacity:gps?1:0.45}}>
-              🏌️ {shotFrom ? `Shot ${completedShots + 1} — tap before next swing` : "Tap before your swing"}
-            </button>
           )}
 
           {/* Score row */}
