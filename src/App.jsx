@@ -368,9 +368,12 @@ const css = `
 `;
 
 export default function App() {
-  const [screen, setScreen]       = useState("setup");
+  const [screen, setScreen]         = useState("setup");
   const [playerTee, setPlayerTee]   = useState("mens");
+  const [roundStart, setRoundStart] = useState(0);
+  const [roundEnd, setRoundEnd]     = useState(18);
   const [holeIdx, setHoleIdx]       = useState(0);
+  const [holeComplete, setHoleComplete] = useState(false);
   const [scores, setScores]         = useState(() => Array(HOLES.length).fill(0));
   const [skipped, setSkipped]       = useState(() => Array(HOLES.length).fill(false));
   const [pickupConfirm, setPickupConfirm] = useState(false);
@@ -379,6 +382,14 @@ export default function App() {
   const [gpsError, setGpsError]     = useState(null);
   const [shotFrom, setShotFrom]     = useState(null);
   const watchRef                    = useRef(null);
+
+  function startRound(start, end) {
+    setRoundStart(start);
+    setRoundEnd(end);
+    setHoleIdx(start);
+    setHoleComplete(false);
+    setScreen("hole");
+  }
 
   const hole = HOLES[holeIdx];
   const holeShots = shots[holeIdx];
@@ -425,6 +436,7 @@ export default function App() {
     setSkipped(prev => { const n = [...prev]; n[holeIdx] = false; return n; });
     setShotFrom(null);
     setPickupConfirm(false);
+    setHoleComplete(true);
   }
 
   function adjustScore(delta) {
@@ -437,6 +449,7 @@ export default function App() {
     setScores(prev => { const n = [...prev]; n[holeIdx] = 0; return n; });
     setShotFrom(null);
     setPickupConfirm(false);
+    setHoleComplete(true);
   }
 
   function clearShots() {
@@ -445,19 +458,21 @@ export default function App() {
   }
 
   function nextHole() {
-    setHoleIdx(i => Math.min(HOLES.length - 1, i + 1));
+    setHoleIdx(i => Math.min(roundEnd - 1, i + 1));
     setShotFrom(null);
     setPickupConfirm(false);
+    setHoleComplete(false);
   }
 
   function prevHole() {
-    setHoleIdx(i => Math.max(0, i - 1));
+    setHoleIdx(i => Math.max(roundStart, i - 1));
     setShotFrom(null);
     setPickupConfirm(false);
+    setHoleComplete(false);
   }
 
   function totalScore() { return scores.reduce((s, v, i) => s + (skipped[i] ? 0 : (v || 0)), 0); }
-  function totalPar()   { return HOLES.reduce((s, h) => s + h.par, 0); }
+  function totalPar()   { return HOLES.slice(roundStart, roundEnd).reduce((s, h) => s + h.par, 0); }
 
   const dtg = distToGreen();
   const displayScore = scores[holeIdx] || (inProgress || completedShots > 0 ? shotBasedScore : 0);
@@ -486,25 +501,43 @@ export default function App() {
           </p>
         </div>
 
-        {/* Tee selector + Start */}
-        <div style={{background:"rgba(8,26,16,0.82)", border:"0.5px solid rgba(45,90,61,0.8)", borderRadius:16, padding:"1rem 1.25rem 1.25rem", backdropFilter:"blur(12px)", marginBottom:"0.75rem"}}>
+        {/* Tee selector */}
+        <div style={{background:"rgba(8,26,16,0.75)", border:"0.5px solid rgba(45,90,61,0.7)", borderRadius:14, padding:"0.85rem 1.25rem 1rem", backdropFilter:"blur(14px)", marginBottom:"0.75rem"}}>
           <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>Select tee</p>
-          <div style={{display:"flex", gap:8, marginBottom:16}}>
+          <div style={{display:"flex", gap:8}}>
             {TEE_ORDER.map(t => (
               <button key={t} onClick={() => setPlayerTee(t)}
                 style={{flex:1, padding:"11px 0", borderRadius:10, cursor:"pointer",
                   fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:playerTee===t?600:400,
-                  background:playerTee===t?(t==="champ"?"rgba(30,58,95,0.9)":t==="mens"?"rgba(58,58,58,0.9)":"rgba(90,26,26,0.9)"):"rgba(18,32,24,0.6)",
+                  background:playerTee===t?(t==="champ"?"rgba(30,58,95,0.9)":t==="mens"?"rgba(58,58,58,0.9)":"rgba(90,26,26,0.9)"):"rgba(255,255,255,0.05)",
                   color:playerTee===t?(t==="champ"?"#60a5fa":t==="mens"?"#e8e8e8":"#f87171"):"#7a9e84",
-                  border:playerTee===t?`1.5px solid ${HOLE_TEE_COLOR(t)}`:"0.5px solid rgba(45,90,61,0.6)"}}>
+                  border:playerTee===t?`1.5px solid ${HOLE_TEE_COLOR(t)}`:"0.5px solid rgba(255,255,255,0.08)"}}>
                 {TEE_LABELS[t]}
               </button>
             ))}
           </div>
+        </div>
 
-          <button className="btn-primary" onClick={() => setScreen("hole")}>
-            Start Round ›
-          </button>
+        {/* Round selection — 3 glass rectangles */}
+        <div style={{display:"flex", gap:10, marginBottom:"0.75rem", height:130}}>
+          {[
+            { label:"Front 9", sub:"Holes 1–9", emoji:"🌅", start:0, end:9 },
+            { label:"All 18", sub:"Full Round", emoji:"⛳", start:0, end:18 },
+            { label:"Back 9", sub:"Holes 10–18", emoji:"🌇", start:9, end:18 },
+          ].map(opt => (
+            <button key={opt.label} onClick={() => startRound(opt.start, opt.end)}
+              style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                gap:6, borderRadius:16, cursor:"pointer", fontFamily:"'Inter',sans-serif",
+                background:"rgba(255,255,255,0.06)",
+                border:"0.5px solid rgba(255,255,255,0.12)",
+                backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+                boxShadow:"0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
+                transition:"all 0.15s"}}>
+              <span style={{fontSize:22}}>{opt.emoji}</span>
+              <span style={{fontSize:15, fontWeight:700, color:"#f0ead6"}}>{opt.label}</span>
+              <span style={{fontSize:10, color:"#7a9e84", letterSpacing:"0.04em"}}>{opt.sub}</span>
+            </button>
+          ))}
         </div>
 
         {/* Disclaimer */}
@@ -526,7 +559,7 @@ export default function App() {
           <p style={{fontSize:12, color:"#7a9e84"}}>Miles Grant CC · 18 Holes · Par {totalPar()}</p>
         </div>
         {/* Front 9 */}
-        {[{label:"Front Nine", start:0, end:9}, {label:"Back Nine", start:9, end:18}].map(({label,start,end}) => (
+        {[{label:"Front Nine", start:0, end:9}, {label:"Back Nine", start:9, end:18}].filter(({start,end}) => start < roundEnd && end > roundStart).map(({label,start,end}) => (
           <div key={label} style={{marginBottom:10}}>
             <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", padding:"4px 2px 4px", marginBottom:4}}>{label}</p>
             <div style={{background:"#122018", border:"0.5px solid #2d5a3d", borderRadius:12, overflow:"hidden"}}>
@@ -590,6 +623,7 @@ export default function App() {
           setSkipped(Array(HOLES.length).fill(false));
           setShots(Array(HOLES.length).fill(null).map(()=>[]));
           setShotFrom(null); setPickupConfirm(false);
+          setRoundStart(0); setRoundEnd(18); setHoleComplete(false);
         }} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
           background:"transparent", fontSize:14, cursor:"pointer", color:"#f87171", fontFamily:"'Inter',sans-serif"}}>
           End Round
@@ -628,15 +662,15 @@ export default function App() {
 
       {/* Nav bar below map */}
       <div className="hole-nav-bar">
-        <button className="hole-nav-btn" onClick={prevHole} disabled={holeIdx===0}>
-          {holeIdx===0 ? "‹ —" : `‹ Hole ${hole.number - 1}`}
+        <button className="hole-nav-btn" onClick={prevHole} disabled={holeIdx===roundStart}>
+          {holeIdx===roundStart ? "‹ —" : `‹ Hole ${hole.number - 1}`}
         </button>
         <div className="hole-nav-info">
           <div className="hole-nav-label">Hole {hole.number}</div>
-          <div className="hole-nav-sub">{holeIdx+1} of {HOLES.length}</div>
+          <div className="hole-nav-sub">{holeIdx - roundStart + 1} of {roundEnd - roundStart}</div>
         </div>
-        <button className="hole-nav-btn" onClick={nextHole} disabled={holeIdx===HOLES.length-1}>
-          {holeIdx===HOLES.length-1 ? "— ›" : `Hole ${hole.number + 1} ›`}
+        <button className="hole-nav-btn" onClick={nextHole} disabled={holeIdx===roundEnd-1}>
+          {holeIdx===roundEnd-1 ? "— ›" : `Hole ${hole.number + 1} ›`}
         </button>
       </div>
 
@@ -667,18 +701,44 @@ export default function App() {
             </div>
           </div>
 
-          {/* Shot button */}
-          <button onClick={markShot} disabled={!gps}
-            style={{width:"100%", padding:"11px", borderRadius:12, cursor:gps?"pointer":"not-allowed",
-              fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:500, marginBottom:8,
-              background:shotFrom?"rgba(251,191,36,0.1)":"rgba(255,255,255,0.05)",
-              color:shotFrom?"#fbbf24":"#a3b89a",
-              border:shotFrom?"1px solid rgba(146,64,14,0.8)":"0.5px solid rgba(255,255,255,0.1)",
-              backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
-              boxShadow:"inset 0 1px 0 rgba(255,255,255,0.05)",
-              opacity:gps?1:0.5}}>
-            🏌️ {shotFrom ? `Shot ${completedShots + 1} in progress — tap before next swing` : "Tap before your swing"}
-          </button>
+          {/* Next Hole button (after completion) or Shot button */}
+          {holeComplete ? (
+            holeIdx < roundEnd - 1 ? (
+              <button onClick={nextHole}
+                style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer",
+                  fontFamily:"'Inter',sans-serif", fontSize:16, fontWeight:700, marginBottom:8,
+                  background:"linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.12))",
+                  color:"#c9a84c", border:"1px solid rgba(201,168,76,0.45)",
+                  backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
+                  boxShadow:"0 4px 16px rgba(201,168,76,0.15), inset 0 1px 0 rgba(255,255,255,0.08)",
+                  letterSpacing:"0.02em"}}>
+                Hole {hole.number + 1} →
+              </button>
+            ) : (
+              <button onClick={() => setScreen("scorecard")}
+                style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer",
+                  fontFamily:"'Inter',sans-serif", fontSize:16, fontWeight:700, marginBottom:8,
+                  background:"linear-gradient(135deg, rgba(74,222,128,0.2), rgba(74,222,128,0.08))",
+                  color:"#4ade80", border:"1px solid rgba(74,222,128,0.4)",
+                  backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
+                  boxShadow:"0 4px 16px rgba(74,222,128,0.1), inset 0 1px 0 rgba(255,255,255,0.06)",
+                  letterSpacing:"0.02em"}}>
+                🏁 View Final Scorecard
+              </button>
+            )
+          ) : (
+            <button onClick={markShot} disabled={!gps}
+              style={{width:"100%", padding:"11px", borderRadius:12, cursor:gps?"pointer":"not-allowed",
+                fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:500, marginBottom:8,
+                background:shotFrom?"rgba(251,191,36,0.1)":"rgba(255,255,255,0.05)",
+                color:shotFrom?"#fbbf24":"#a3b89a",
+                border:shotFrom?"1px solid rgba(146,64,14,0.8)":"0.5px solid rgba(255,255,255,0.1)",
+                backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
+                boxShadow:"inset 0 1px 0 rgba(255,255,255,0.05)",
+                opacity:gps?1:0.5}}>
+              🏌️ {shotFrom ? `Shot ${completedShots + 1} in progress — tap before next swing` : "Tap before your swing"}
+            </button>
+          )}
 
           {/* Score row */}
           <div className="glass-card" style={{padding:"10px 12px", marginBottom:8}}>
