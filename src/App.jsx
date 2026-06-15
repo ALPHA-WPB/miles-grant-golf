@@ -357,7 +357,7 @@ const css = `
   .setup-overlay { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(5,16,10,0.2) 0%, rgba(5,16,10,0.55) 38%, rgba(5,16,10,0.96) 62%, rgba(5,16,10,1) 100%); z-index: 1; }
   .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem; padding-bottom: calc(20vh + max(env(safe-area-inset-bottom), 14px)); }
   .hole-nav-bar { display: flex; align-items: center; justify-content: space-between; background: #081a10; border-bottom: 0.5px solid #2d5a3d; padding: 0; flex-shrink: 0; }
-  .hole-nav-btn { flex: 1; background: transparent; border: none; color: #f0ead6; font-size: 26px; cursor: pointer; padding: 10px 0; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
+  .hole-nav-btn { flex: 1; background: transparent; border: none; color: #f0ead6; font-size: 13px; font-weight: 500; cursor: pointer; padding: 10px 8px; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
   .hole-nav-btn:disabled { color: #2d5a3d; cursor: default; }
   .hole-nav-info { flex: 2; text-align: center; }
   .hole-nav-label { font-size: 11px; color: #c9a84c; font-weight: 600; font-family: 'Playfair Display',serif; }
@@ -471,13 +471,13 @@ export default function App() {
       <div className="setup-content">
         {/* Title block */}
         <div style={{textAlign:"center", marginBottom:"1rem"}}>
-          <p style={{fontSize:11, color:"rgba(201,168,76,0.8)", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:5}}>
-            Unofficial Member App
-          </p>
-          <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:34, color:"#fff", lineHeight:1.1, marginBottom:4, textShadow:"0 2px 12px rgba(0,0,0,0.6)"}}>
-            Miles Grant<br/>Country Club
+          <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:34, color:"#fff", lineHeight:1.1, marginBottom:6, textShadow:"0 2px 12px rgba(0,0,0,0.6)"}}>
+            Unofficial Free<br/>Golf App
           </h1>
-          <p style={{fontSize:13, color:"rgba(240,234,214,0.7)"}}>Stuart, Florida · 18 Holes</p>
+          <p style={{fontSize:13, color:"rgba(240,234,214,0.7)", marginBottom:6}}>Stuart, Florida · Miles Grant CC</p>
+          <p style={{fontSize:12, color:"rgba(201,168,76,0.75)", lineHeight:1.5, padding:"0 0.5rem"}}>
+            Real-time GPS yardage to the pin,<br/>with automatic shot distance tracking
+          </p>
         </div>
 
         {/* Tee selector + Start */}
@@ -601,12 +601,12 @@ export default function App() {
     <div className="app">
       <style>{css}</style>
 
-      {/* Header — compact, just hole info */}
-      <div style={{padding:"6px 16px 4px", flexShrink:0, borderBottom:"0.5px solid #1a3a24"}}>
-        <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em"}}>Miles Grant CC</p>
-        <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:17, color:"#c9a84c", lineHeight:1.2}}>
-          Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}
+      {/* Header */}
+      <div style={{padding:"6px 16px 5px", flexShrink:0, borderBottom:"0.5px solid #1a3a24"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c", lineHeight:1.15, marginBottom:1}}>
+          The Unofficial Miles Grant Golf Companion
         </h2>
+        <p style={{fontSize:11, color:"#7a9e84"}}>Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}</p>
       </div>
 
       {/* Map */}
@@ -616,12 +616,16 @@ export default function App() {
 
       {/* Nav bar below map */}
       <div className="hole-nav-bar">
-        <button className="hole-nav-btn" onClick={prevHole} disabled={holeIdx===0}>‹ Back</button>
+        <button className="hole-nav-btn" onClick={prevHole} disabled={holeIdx===0}>
+          {holeIdx===0 ? "‹ —" : `‹ Hole ${hole.number - 1}`}
+        </button>
         <div className="hole-nav-info">
           <div className="hole-nav-label">Hole {hole.number}</div>
           <div className="hole-nav-sub">{holeIdx+1} of {HOLES.length}</div>
         </div>
-        <button className="hole-nav-btn" onClick={nextHole} disabled={holeIdx===HOLES.length-1}>Next ›</button>
+        <button className="hole-nav-btn" onClick={nextHole} disabled={holeIdx===HOLES.length-1}>
+          {holeIdx===HOLES.length-1 ? "— ›" : `Hole ${hole.number + 1} ›`}
+        </button>
       </div>
 
       {/* Bottom panel */}
