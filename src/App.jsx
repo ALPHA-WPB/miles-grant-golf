@@ -340,11 +340,14 @@ const css = `
   .app { height: 100vh; display: flex; flex-direction: column; background: #0f2818; color: #f0ead6; font-family: 'Inter', sans-serif; overflow: hidden; }
   .serif { font-family: 'Playfair Display', serif; }
   .map-wrap { height: 50vh; flex-shrink: 0; position: relative; overflow: hidden; }
-  .bottom-panel { flex: 1; min-height: 0; background: #0f2818; border-top: 1px solid #2d5a3d; overflow-y: auto; }
+  .bottom-panel { flex: 1; min-height: 0; background: #0a1c12; border-top: 1px solid rgba(45,90,61,0.5); overflow-y: auto; }
   .label { font-size: 10px; color: #7a9e84; text-transform: uppercase; letter-spacing: 0.08em; }
-  .tab-bar { display: flex; background: #081a10; border-top: 0.5px solid #2d5a3d; flex-shrink: 0; }
-  .tab { flex: 1; padding: 11px 0 13px; background: transparent; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; }
-  .tab.active { color: #c9a84c; }
+  .tab-bar { display: flex; background: rgba(6,14,9,0.95); border-top: 0.5px solid rgba(45,90,61,0.5); flex-shrink: 0; backdrop-filter: blur(12px); }
+  .tab { flex: 1; padding: 12px 0 14px; background: transparent; border: none; color: #7a9e84; font-size: 13px; cursor: pointer; font-family: 'Inter',sans-serif; }
+  .tab.active { color: #c9a84c; font-weight: 600; }
+  .glass-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
+  .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
+  .hole-pill { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); border-radius: 50px; padding: 6px 16px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none; }
   .btn-primary { background: #c9a84c; color: #0f2818; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; padding: 14px; cursor: pointer; width: 100%; font-family: 'Inter',sans-serif; letter-spacing:0.02em; }
   .btn-ghost { background: transparent; border: 0.5px solid #2d5a3d; border-radius: 8px; color: #a3b89a; font-size: 13px; padding: 6px 14px; cursor: pointer; font-family: 'Inter',sans-serif; }
   input[type=text] { background: rgba(10,28,18,0.7); border: 0.5px solid #2d5a3d; border-radius: 8px; color: #f0ead6; font-size: 15px; padding: 8px 12px; font-family: 'Inter',sans-serif; outline: none; width: 100%; }
@@ -356,11 +359,11 @@ const css = `
   .setup-bg { position: fixed; inset: 0; background-image: url('/course-bg.jpg'); background-size: cover; background-position: center 30%; z-index: 0; }
   .setup-overlay { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(5,16,10,0.2) 0%, rgba(5,16,10,0.55) 38%, rgba(5,16,10,0.96) 62%, rgba(5,16,10,1) 100%); z-index: 1; }
   .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem; padding-bottom: calc(20vh + max(env(safe-area-inset-bottom), 14px)); }
-  .hole-nav-bar { display: flex; align-items: center; justify-content: space-between; background: #081a10; border-bottom: 0.5px solid #2d5a3d; padding: 0; flex-shrink: 0; }
-  .hole-nav-btn { flex: 1; background: transparent; border: none; color: #f0ead6; font-size: 13px; font-weight: 500; cursor: pointer; padding: 10px 8px; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
+  .hole-nav-bar { display: flex; align-items: center; background: rgba(6,14,9,0.95); border-bottom: 0.5px solid rgba(45,90,61,0.5); padding: 0; flex-shrink: 0; backdrop-filter: blur(12px); }
+  .hole-nav-btn { flex: 1; background: transparent; border: none; color: #e8dfc8; font-size: 15px; font-weight: 600; cursor: pointer; padding: 13px 10px; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
   .hole-nav-btn:disabled { color: #2d5a3d; cursor: default; }
   .hole-nav-info { flex: 2; text-align: center; }
-  .hole-nav-label { font-size: 11px; color: #c9a84c; font-weight: 600; font-family: 'Playfair Display',serif; }
+  .hole-nav-label { font-size: 13px; color: #c9a84c; font-weight: 700; font-family: 'Playfair Display',serif; }
   .hole-nav-sub { font-size: 10px; color: #7a9e84; }
 `;
 
@@ -471,11 +474,14 @@ export default function App() {
       <div className="setup-content">
         {/* Title block */}
         <div style={{textAlign:"center", marginBottom:"1rem"}}>
-          <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:34, color:"#fff", lineHeight:1.1, marginBottom:6, textShadow:"0 2px 12px rgba(0,0,0,0.6)"}}>
-            Unofficial Free<br/>Golf App
+          <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:42, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:6, textShadow:"0 2px 16px rgba(0,0,0,0.7)"}}>
+            Miles Grant<br/>Country Club
           </h1>
-          <p style={{fontSize:13, color:"rgba(240,234,214,0.7)", marginBottom:6}}>Stuart, Florida · Miles Grant CC</p>
-          <p style={{fontSize:12, color:"rgba(201,168,76,0.75)", lineHeight:1.5, padding:"0 0.5rem"}}>
+          <p style={{fontSize:13, fontWeight:600, color:"rgba(201,168,76,0.9)", letterSpacing:"0.06em", marginBottom:8, textTransform:"uppercase"}}>
+            Unofficial Free Golf App
+          </p>
+          <p style={{fontSize:13, color:"rgba(240,234,214,0.7)", marginBottom:6}}>Stuart, Florida · 18 Holes</p>
+          <p style={{fontSize:12, color:"rgba(201,168,76,0.65)", lineHeight:1.5, padding:"0 0.5rem"}}>
             Real-time GPS yardage to the pin,<br/>with automatic shot distance tracking
           </p>
         </div>
@@ -609,9 +615,15 @@ export default function App() {
         <p style={{fontSize:11, color:"#7a9e84"}}>Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}</p>
       </div>
 
-      {/* Map */}
+      {/* Map + hole pill overlay */}
       <div className="map-wrap">
         <HoleMap hole={hole} gps={gps} holeShots={holeShots} key={hole.number} />
+        <div className="hole-pill">
+          <span style={{fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:"#c9a84c", lineHeight:1}}>
+            Hole {hole.number}
+          </span>
+          <span style={{fontSize:11, color:"rgba(240,234,214,0.6)", marginLeft:6}}>Par {hole.par}</span>
+        </div>
       </div>
 
       {/* Nav bar below map */}
@@ -634,7 +646,7 @@ export default function App() {
 
           {/* Stat row */}
           <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6, marginBottom:10}}>
-            <div style={{background:"#122018", border:"0.5px solid #2d5a3d", borderRadius:8, padding:"7px 8px", textAlign:"center"}}>
+            <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
               <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>To pin</p>
               <p style={{fontSize:24, fontWeight:700, lineHeight:1,
                 color:dtg?(dtg<100?"#4ade80":dtg<175?"#c9a84c":"#f0ead6"):"#7a9e84"}}>
@@ -643,12 +655,12 @@ export default function App() {
               <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
               {gpsError && <p style={{fontSize:9, color:"#f87171"}}>{gpsError}</p>}
             </div>
-            <div style={{background:"#122018", border:"0.5px solid #2d5a3d", borderRadius:8, padding:"7px 8px", textAlign:"center"}}>
+            <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
               <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>Tee</p>
               <p style={{fontSize:24, fontWeight:700, lineHeight:1, color:"#f0ead6"}}>{hole.tees[playerTee].yards}</p>
               <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
             </div>
-            <div style={{background:"#122018", border:"0.5px solid #2d5a3d", borderRadius:8, padding:"7px 8px", textAlign:"center"}}>
+            <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
               <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>Last shot</p>
               <p style={{fontSize:24, fontWeight:700, lineHeight:1, color:lastShot?"#4ade80":"#7a9e84"}}>{lastShot ?? "—"}</p>
               <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
@@ -657,17 +669,19 @@ export default function App() {
 
           {/* Shot button */}
           <button onClick={markShot} disabled={!gps}
-            style={{width:"100%", padding:"10px", borderRadius:10, cursor:gps?"pointer":"not-allowed",
+            style={{width:"100%", padding:"11px", borderRadius:12, cursor:gps?"pointer":"not-allowed",
               fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:500, marginBottom:8,
-              background:shotFrom?"rgba(251,191,36,0.12)":"#1a3a24",
+              background:shotFrom?"rgba(251,191,36,0.1)":"rgba(255,255,255,0.05)",
               color:shotFrom?"#fbbf24":"#a3b89a",
-              border:shotFrom?"1px solid #92400e":"0.5px solid #2d5a3d",
+              border:shotFrom?"1px solid rgba(146,64,14,0.8)":"0.5px solid rgba(255,255,255,0.1)",
+              backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
+              boxShadow:"inset 0 1px 0 rgba(255,255,255,0.05)",
               opacity:gps?1:0.5}}>
             🏌️ {shotFrom ? `Shot ${completedShots + 1} in progress — tap before next swing` : "Tap before your swing"}
           </button>
 
           {/* Score row */}
-          <div style={{background:"#1a3a24", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"10px 12px", marginBottom:8}}>
+          <div className="glass-card" style={{padding:"10px 12px", marginBottom:8}}>
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8}}>
               <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
                 <div style={{width:9, height:9, borderRadius:"50%", background:PLAYER_COLOR}} />
@@ -724,16 +738,18 @@ export default function App() {
             )}
 
             <button onClick={cupIn}
-              style={{width:"100%", padding:"10px", borderRadius:10, border:"none",
-                background:"rgba(201,168,76,0.15)", color:"#c9a84c", fontFamily:"'Inter',sans-serif",
-                fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:"0.02em"}}>
+              style={{width:"100%", padding:"11px", borderRadius:12, border:"0.5px solid rgba(201,168,76,0.35)",
+                background:"rgba(201,168,76,0.12)", color:"#c9a84c", fontFamily:"'Inter',sans-serif",
+                fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:"0.02em",
+                backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
+                boxShadow:"inset 0 1px 0 rgba(201,168,76,0.1)"}}>
               🏆 In the cup — score {shotBasedScore || scores[holeIdx] || 1}
             </button>
           </div>
 
           {/* Shot log */}
           {holeShots.length > 0 && (
-            <div style={{background:"#122018", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"8px 12px"}}>
+            <div className="glass-card" style={{padding:"8px 12px"}}>
               <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
                 <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em"}}>Shot log</p>
                 <button onClick={clearShots}
