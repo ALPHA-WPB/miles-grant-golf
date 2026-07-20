@@ -2,6 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-rotate";
+import { supabase } from "./lib/supabase";
+import { authService } from "./services/authService";
+import { roundService } from "./services/roundService";
+import { Auth } from "./components/Auth";
+import { RoundLobby } from "./components/RoundLobby";
+import { Leaderboard } from "./components/Leaderboard";
+import { Friends } from "./components/Friends";
+import { RoundHistory } from "./components/RoundHistory";
+import { Profile } from "./components/Profile";
 
 const HOLES = [
   // ── Front Nine ──────────────────────────────────────────────
@@ -372,8 +381,52 @@ const css = `
   .hole-nav-sub { font-size: 10px; color: #7a9e84; }
 `;
 
+// ── Auth wrapper ─────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen]         = useState("setup");
+  const [authUser, setAuthUser] = useState(undefined); // undefined=loading
+  const [profile, setProfile]   = useState(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthUser(session?.user || null);
+      if (session?.user) loadProfile(session.user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setAuthUser(session?.user || null);
+      if (session?.user) loadProfile(session.user);
+      else setProfile(null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function loadProfile(user) {
+    try {
+      await authService.upsertProfile(user);
+      const p = await authService.getProfile(user.id);
+      setProfile(p);
+    } catch {}
+  }
+
+  if (authUser === undefined) {
+    return (
+      <div style={{ height: '100vh', background: '#0a1c12', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c9a84c', fontFamily: "'Playfair Display',serif", fontSize: 22 }}>
+        Loading…
+      </div>
+    );
+  }
+
+  if (!authUser) return <Auth />;
+
+  return <GolfApp user={authUser} profile={profile} onProfileUpdate={setProfile} />;
+}
+
+// ── Main game app (authenticated) ────────────────────────────────
+function GolfApp({ user, profile, onProfileUpdate }) {
+  const [socialTab, setSocialTab]   = useState(null); // null | 'leaderboard' | 'friends' | 'history' | 'profile'
+  const [activeRound, setActiveRound] = useState(null); // { round, roundPlayer, tee, roundType }
+
+  const [screen, setScreen]         = useState("lobby");
   const [playerTee, setPlayerTee]   = useState("mens");
   const [roundStart, setRoundStart] = useState(0);
   const [roundEnd, setRoundEnd]     = useState(18);
@@ -387,6 +440,66 @@ export default function App() {
   const [gpsError, setGpsError]     = useState(null);
   const [shotFrom, setShotFrom]     = useState(null);
   const watchRef                    = useRef(null);
+
+  // Social screens
+  if (socialTab === 'leaderboard') return (
+    <div className="app" style={{ display: 'flex', flexDirection: 'column' }}>
+      <style>{css}</style>
+      <Leaderboard onClose={() => setSocialTab(null)} />
+      <SocialTabBar active={socialTab} onSelect={setSocialTab} onGame={() => setSocialTab(null)} />
+    </div>
+  );
+  if (socialTab === 'friends') return (
+    <div className="app" style={{ display: 'flex', flexDirection: 'column' }}>
+      <style>{css}</style>
+      <Friends userId={user.id} />
+      <SocialTabBar active={socialTab} onSelect={setSocialTab} onGame={() => setSocialTab(null)} />
+    </div>
+  );
+  if (socialTab === 'history') return (
+    <div className="app" style={{ display: 'flex', flexDirection: 'column' }}>
+      <style>{css}</style>
+      <RoundHistory userId={user.id} />
+      <SocialTabBar active={socialTab} onSelect={setSocialTab} onGame={() => setSocialTab(null)} />
+    </div>
+  );
+  if (socialTab === 'profile') return (
+    <div className="app" style={{ display: 'flex', flexDirection: 'column' }}>
+      <style>{css}</style>
+      <Profile user={user} profile={profile} onProfileUpdate={onProfileUpdate} onSignOut={() => {}} />
+      <SocialTabBar active={socialTab} onSelect={setSocialTab} onGame={() => setSocialTab(null)} />
+    </div>
+  );
+
+  // Lobby (pre-round)
+  if (screen === "lobby") return (
+    <RoundLobby
+      user={user}
+      profile={profile}
+      onRoundStart={({ round, roundPlayer, tee, roundType }) => {
+        setActiveRound({ round, roundPlayer, tee, roundType });
+        setPlayerTee(tee);
+        const start = roundType === 'back9' ? 9 : 0;
+        const end   = roundType === 'front9' ? 9 : 18;
+        setRoundStart(start);
+        setRoundEnd(end);
+        setHoleIdx(start);
+        setHoleComplete(false);
+        setScores(Array(HOLES.length).fill(0));
+        setSkipped(Array(HOLES.length).fill(false));
+        setShots(Array(HOLES.length).fill(null).map(() => []));
+        setShotFrom(null);
+        setScreen("hole");
+      }}
+    />
+  );
+
+  async function saveScore(holeNum, strokes) {
+    if (!activeRound?.roundPlayer?.id) return;
+    try {
+      await roundService.upsertScore(activeRound.roundPlayer.id, holeNum, strokes);
+    } catch {}
+  }
 
   function startRound(start, end) {
     setRoundStart(start);
@@ -442,10 +555,16 @@ export default function App() {
     setShotFrom(null);
     setPickupConfirm(false);
     setHoleComplete(true);
+    saveScore(hole.number, final);
   }
 
   function adjustScore(delta) {
-    setScores(prev => { const n = [...prev]; n[holeIdx] = Math.max(1, (n[holeIdx] || shotBasedScore) + delta); return n; });
+    setScores(prev => {
+      const n = [...prev];
+      n[holeIdx] = Math.max(1, (n[holeIdx] || shotBasedScore) + delta);
+      saveScore(hole.number, n[holeIdx]);
+      return n;
+    });
     setSkipped(prev => { const n = [...prev]; n[holeIdx] = false; return n; });
   }
 
@@ -485,74 +604,8 @@ export default function App() {
   const diff = scoreForDisplay ? scoreForDisplay - hole.par : null;
   const lastShot = holeShots.length > 0 ? holeShots[holeShots.length - 1].yards : null;
 
-  // ── Setup screen ──────────────────────────────────────────────
-  if (screen === "setup") return (
-    <div style={{position:"relative", height:"100vh", overflow:"hidden", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
-      <style>{css}</style>
-      <div className="setup-bg" />
-      <div className="setup-overlay" />
-      <div className="setup-content">
-        {/* Title block */}
-        <div style={{textAlign:"center", marginBottom:"1rem"}}>
-          <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:42, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:6, textShadow:"0 2px 16px rgba(0,0,0,0.7)"}}>
-            Miles Grant<br/>Country Club
-          </h1>
-          <p style={{fontSize:13, fontWeight:600, color:"rgba(201,168,76,0.9)", letterSpacing:"0.06em", marginBottom:8, textTransform:"uppercase"}}>
-            Unofficial Free Golf App
-          </p>
-          <p style={{fontSize:13, color:"rgba(240,234,214,0.7)", marginBottom:6}}>Stuart, Florida · 18 Holes</p>
-          <p style={{fontSize:12, color:"rgba(201,168,76,0.65)", lineHeight:1.5, padding:"0 0.5rem"}}>
-            Real-time GPS yardage to the pin,<br/>with automatic shot distance tracking
-          </p>
-        </div>
-
-        {/* Tee selector */}
-        <div style={{background:"rgba(8,26,16,0.75)", border:"0.5px solid rgba(45,90,61,0.7)", borderRadius:14, padding:"0.85rem 1.25rem 1rem", backdropFilter:"blur(14px)", marginBottom:"0.75rem"}}>
-          <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>Select tee</p>
-          <div style={{display:"flex", gap:8}}>
-            {TEE_ORDER.map(t => (
-              <button key={t} onClick={() => setPlayerTee(t)}
-                style={{flex:1, padding:"11px 0", borderRadius:10, cursor:"pointer",
-                  fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:playerTee===t?600:400,
-                  background:playerTee===t?(t==="champ"?"rgba(30,58,95,0.9)":t==="mens"?"rgba(58,58,58,0.9)":"rgba(90,26,26,0.9)"):"rgba(255,255,255,0.05)",
-                  color:playerTee===t?(t==="champ"?"#60a5fa":t==="mens"?"#e8e8e8":"#f87171"):"#7a9e84",
-                  border:playerTee===t?`1.5px solid ${HOLE_TEE_COLOR(t)}`:"0.5px solid rgba(255,255,255,0.08)"}}>
-                {TEE_LABELS[t]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Round selection — 3 glass rectangles */}
-        <div style={{display:"flex", gap:10, marginBottom:"0.75rem", height:130}}>
-          {[
-            { label:"Front 9", sub:"Holes 1–9", emoji:"🌅", start:0, end:9 },
-            { label:"All 18", sub:"Full Round", emoji:"⛳", start:0, end:18 },
-            { label:"Back 9", sub:"Holes 10–18", emoji:"🌇", start:9, end:18 },
-          ].map(opt => (
-            <button key={opt.label} onClick={() => startRound(opt.start, opt.end)}
-              style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                gap:6, borderRadius:16, cursor:"pointer", fontFamily:"'Inter',sans-serif",
-                background:"rgba(255,255,255,0.06)",
-                border:"0.5px solid rgba(255,255,255,0.12)",
-                backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
-                boxShadow:"0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
-                transition:"all 0.15s"}}>
-              <span style={{fontSize:22}}>{opt.emoji}</span>
-              <span style={{fontSize:15, fontWeight:700, color:"#f0ead6"}}>{opt.label}</span>
-              <span style={{fontSize:10, color:"#7a9e84", letterSpacing:"0.04em"}}>{opt.sub}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Disclaimer */}
-        <p style={{fontSize:10, color:"rgba(240,234,214,0.35)", textAlign:"center", lineHeight:1.55, padding:"0 0.5rem"}}>
-          Unofficial app · Not affiliated with Miles Grant Country Club<br/>
-          Free for all members &amp; guests · No data saved or tracked
-        </p>
-      </div>
-    </div>
-  );
+  // setup screen replaced by RoundLobby — redirect if hit directly
+  if (screen === "setup") { setScreen("lobby"); return null; }
 
   // ── Round Complete screen ─────────────────────────────────────
   if (screen === "complete") {
@@ -615,7 +668,7 @@ export default function App() {
           </div>
 
           <button onClick={() => {
-            setScreen("setup"); setHoleIdx(0);
+            setActiveRound(null); setScreen("lobby"); setHoleIdx(0);
             setScores(Array(HOLES.length).fill(0));
             setSkipped(Array(HOLES.length).fill(false));
             setShots(Array(HOLES.length).fill(null).map(()=>[]));
@@ -626,11 +679,7 @@ export default function App() {
             End Round · Start New
           </button>
         </div>
-        <div className="tab-bar">
-          <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
-          <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
-          <button className="tab active">🏁 Done</button>
-        </div>
+        <SocialTabBar active={null} onSelect={setSocialTab} onGame={() => setScreen("hole")} />
       </div>
     );
   }
@@ -687,11 +736,7 @@ export default function App() {
             </div>
           ))}
         </div>
-        <div className="tab-bar">
-          <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
-          <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
-          <button className="tab active">🗺 Holes</button>
-        </div>
+        <SocialTabBar active={null} onSelect={setSocialTab} onGame={() => setScreen("hole")} />
       </div>
     );
   }
@@ -765,7 +810,8 @@ export default function App() {
           </div>
         </div>
         <button onClick={() => {
-          setScreen("setup"); setHoleIdx(0);
+          if (activeRound?.round?.id) roundService.finalizeRound(activeRound.round.id).catch(()=>{});
+          setActiveRound(null); setScreen("lobby"); setHoleIdx(0);
           setScores(Array(HOLES.length).fill(0));
           setSkipped(Array(HOLES.length).fill(false));
           setShots(Array(HOLES.length).fill(null).map(()=>[]));
@@ -776,11 +822,7 @@ export default function App() {
           End Round
         </button>
       </div>
-      <div className="tab-bar">
-        <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
-        <button className="tab active">📋 Scores</button>
-        <button className="tab" onClick={() => setScreen("browser")}>🗺 Holes</button>
-      </div>
+      <SocialTabBar active={null} onSelect={setSocialTab} onGame={() => setScreen("hole")} />
     </div>
   );
 
@@ -978,11 +1020,34 @@ export default function App() {
         </div>
       </div>
 
-      <div className="tab-bar">
-        <button className="tab active">⛳ Hole</button>
-        <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
-        <button className="tab" onClick={() => setScreen("browser")}>🗺 Holes</button>
-      </div>
+      <SocialTabBar active={null} onSelect={setSocialTab} onGame={() => {}} />
+    </div>
+  );
+}
+
+// ── Social tab bar (replaces old 3-tab game bar) ─────────────────
+function SocialTabBar({ active, onSelect, onGame }) {
+  const tabs = [
+    { key: 'hole',        label: '⛳ Play',    action: onGame },
+    { key: 'history',     label: '📋 History',  action: () => onSelect('history') },
+    { key: 'leaderboard', label: '🏆 Leaders',  action: () => onSelect('leaderboard') },
+    { key: 'friends',     label: '👥 Friends',  action: () => onSelect('friends') },
+    { key: 'profile',     label: '👤 Me',       action: () => onSelect('profile') },
+  ];
+  return (
+    <div style={{ display: 'flex', background: 'rgba(6,14,9,0.97)', borderTop: '0.5px solid rgba(45,90,61,0.5)', flexShrink: 0, backdropFilter: 'blur(12px)' }}>
+      {tabs.map(t => (
+        <button key={t.key} onClick={t.action}
+          style={{
+            flex: 1, padding: '10px 0 13px', background: 'transparent', border: 'none',
+            color: active === t.key ? '#c9a84c' : '#7a9e84',
+            fontWeight: active === t.key ? 700 : 400,
+            fontSize: 11, cursor: 'pointer', fontFamily: "'Inter',sans-serif",
+            borderTop: active === t.key ? '2px solid #c9a84c' : '2px solid transparent',
+          }}>
+          {t.label}
+        </button>
+      ))}
     </div>
   );
 }
