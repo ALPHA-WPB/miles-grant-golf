@@ -466,7 +466,7 @@ function GolfApp({ user, profile, onProfileUpdate }) {
   if (socialTab === 'profile') return (
     <div className="app" style={{ display: 'flex', flexDirection: 'column' }}>
       <style>{css}</style>
-      <Profile user={user} profile={profile} onProfileUpdate={onProfileUpdate} onSignOut={() => {}} />
+      <Profile user={user} profile={profile} onProfileUpdate={onProfileUpdate} onSignOut={() => authService.signOut()} />
       <SocialTabBar active={socialTab} onSelect={setSocialTab} onGame={() => setSocialTab(null)} />
     </div>
   );
