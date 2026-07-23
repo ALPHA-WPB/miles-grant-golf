@@ -441,6 +441,21 @@ function GolfApp({ user, profile, onProfileUpdate }) {
   const [shotFrom, setShotFrom]     = useState(null);
   const watchRef                    = useRef(null);
 
+  // GPS watch — must be before any early returns (Rules of Hooks)
+  useEffect(() => {
+    if (screen !== "hole") return;
+    if (!navigator.geolocation) { setGpsError("GPS not available"); return; }
+    watchRef.current = navigator.geolocation.watchPosition(
+      pos => {
+        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) });
+        setGpsError(null);
+      },
+      () => setGpsError("GPS unavailable"),
+      { enableHighAccuracy: true, maximumAge: 2000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchRef.current);
+  }, [screen]);
+
   // Social screens
   if (socialTab === 'leaderboard') return (
     <div className="app" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -514,20 +529,6 @@ function GolfApp({ user, profile, onProfileUpdate }) {
   const completedShots = holeShots.length;
   const inProgress = shotFrom !== null;
   const shotBasedScore = Math.max(1, completedShots + (inProgress ? 1 : 0));
-
-  useEffect(() => {
-    if (screen !== "hole") return;
-    if (!navigator.geolocation) { setGpsError("GPS not available"); return; }
-    watchRef.current = navigator.geolocation.watchPosition(
-      pos => {
-        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) });
-        setGpsError(null);
-      },
-      () => setGpsError("GPS unavailable"),
-      { enableHighAccuracy: true, maximumAge: 2000 }
-    );
-    return () => navigator.geolocation.clearWatch(watchRef.current);
-  }, [screen]);
 
   function distToGreen() {
     if (!gps) return null;
