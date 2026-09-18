@@ -66,6 +66,16 @@ export function Auth() {
     }
   }
 
+  async function handleGuest() {
+    setLoading(true);
+    try {
+      await authService.signInAsGuest();
+    } catch (err) {
+      toast.error(err.message);
+      setLoading(false);
+    }
+  }
+
   return (
     <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', fontFamily: "'Inter',sans-serif", color: '#f0ead6' }}>
       <style>{css}</style>
@@ -130,6 +140,13 @@ export function Auth() {
             </button>
           </p>
         </div>
+
+        <p style={{ textAlign: 'center', marginTop: 14, fontSize: 13, color: '#7a9e84' }}>
+          <button onClick={handleGuest} disabled={loading}
+            style={{ background: 'none', border: 'none', color: 'rgba(201,168,76,0.6)', cursor: 'pointer', fontFamily: "'Inter',sans-serif", fontSize: 13, textDecoration: 'underline' }}>
+            Continue as Guest
+          </button>
+        </p>
 
         <p style={{ textAlign: 'center', fontSize: 10, color: 'rgba(240,234,214,0.3)', marginTop: 12, lineHeight: 1.55 }}>
           Unofficial app · Not affiliated with Miles Grant Country Club<br />

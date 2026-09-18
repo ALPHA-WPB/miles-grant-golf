@@ -17,6 +17,12 @@ export const authService = {
     return data;
   },
 
+  async signInAsGuest() {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) throw error;
+    return data;
+  },
+
   async signInWithGoogle() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
