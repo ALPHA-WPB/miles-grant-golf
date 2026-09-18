@@ -58,6 +58,46 @@ export const roundService = {
     return { round, roundPlayer: rp };
   },
 
+  // Invite friends to a round by user ID array
+  async inviteFriends(roundId, friendUserIds) {
+    if (!friendUserIds.length) return;
+    const rows = friendUserIds.map(uid => ({ round_id: roundId, invited_user_id: uid, status: 'pending' }));
+    const { error } = await supabase.from('round_invites').insert(rows);
+    if (error) throw error;
+  },
+
+  // Get pending invites for a user
+  async getPendingInvites(userId) {
+    const { data, error } = await supabase
+      .from('round_invites')
+      .select('*, rounds(id, round_type, join_code, created_at), users!round_invites_invited_by_fkey(full_name)')
+      .eq('invited_user_id', userId)
+      .eq('status', 'pending');
+    if (error) return [];
+    return data || [];
+  },
+
+  // Accept an invite — adds the user to round_players
+  async acceptInvite(inviteId, roundId, userId, teeSelection) {
+    const { data: round } = await supabase.from('rounds').select('*').eq('id', roundId).single();
+    if (!round || round.status !== 'in_progress') throw new Error('This round is no longer active');
+
+    const { data: existing } = await supabase.from('round_players').select('id').eq('round_id', roundId).eq('user_id', userId);
+    if (existing?.length) throw new Error('You are already in this round');
+
+    const { data: rp, error: pErr } = await supabase
+      .from('round_players').insert({ round_id: roundId, user_id: userId, tee_selection: teeSelection }).select().single();
+    if (pErr) throw pErr;
+
+    await supabase.from('round_invites').update({ status: 'accepted' }).eq('id', inviteId);
+    return { round, roundPlayer: rp };
+  },
+
+  // Decline an invite
+  async declineInvite(inviteId) {
+    await supabase.from('round_invites').update({ status: 'declined' }).eq('id', inviteId);
+  },
+
   async getRoundWithPlayers(roundId) {
     const { data, error } = await supabase
       .from('rounds')

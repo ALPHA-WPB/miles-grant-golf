@@ -11,6 +11,9 @@ import { Leaderboard } from "./components/Leaderboard";
 import { Friends } from "./components/Friends";
 import { RoundHistory } from "./components/RoundHistory";
 import { Profile } from "./components/Profile";
+import { RoundInvites } from "./components/RoundInvites";
+import { AdminPanel } from "./components/AdminPanel";
+import { isAdmin } from "./services/adminService";
 
 const HOLES = [
   // ── Front Nine ──────────────────────────────────────────────
@@ -424,6 +427,7 @@ export default function App() {
 // ── Main game app (authenticated) ────────────────────────────────
 function GolfApp({ user, profile, onProfileUpdate }) {
   const [socialTab, setSocialTab]   = useState(null); // null | 'leaderboard' | 'friends' | 'history' | 'profile'
+  const [showAdmin, setShowAdmin]   = useState(false);
   const [activeRound, setActiveRound] = useState(null); // { round, roundPlayer, tee, roundType }
 
   const [screen, setScreen]         = useState("lobby");
@@ -456,6 +460,9 @@ function GolfApp({ user, profile, onProfileUpdate }) {
     return () => navigator.geolocation.clearWatch(watchRef.current);
   }, [screen]);
 
+  // Admin panel
+  if (showAdmin && isAdmin(user)) return <AdminPanel onClose={() => setShowAdmin(false)} />;
+
   // Social screens
   if (socialTab === 'leaderboard') return (
     <div className="app" style={{ display: 'flex', flexDirection: 'column' }}>
@@ -487,26 +494,47 @@ function GolfApp({ user, profile, onProfileUpdate }) {
   );
 
   // Lobby (pre-round)
+  const handleRoundStart = ({ round, roundPlayer, tee, roundType }) => {
+    setActiveRound({ round, roundPlayer, tee, roundType });
+    setPlayerTee(tee);
+    const start = roundType === 'back9' ? 9 : 0;
+    const end   = roundType === 'front9' ? 9 : 18;
+    setRoundStart(start);
+    setRoundEnd(end);
+    setHoleIdx(start);
+    setHoleComplete(false);
+    setScores(Array(HOLES.length).fill(0));
+    setSkipped(Array(HOLES.length).fill(false));
+    setShots(Array(HOLES.length).fill(null).map(() => []));
+    setShotFrom(null);
+    setScreen("hole");
+  };
+
   if (screen === "lobby") return (
-    <RoundLobby
-      user={user}
-      profile={profile}
-      onRoundStart={({ round, roundPlayer, tee, roundType }) => {
-        setActiveRound({ round, roundPlayer, tee, roundType });
-        setPlayerTee(tee);
-        const start = roundType === 'back9' ? 9 : 0;
-        const end   = roundType === 'front9' ? 9 : 18;
-        setRoundStart(start);
-        setRoundEnd(end);
-        setHoleIdx(start);
-        setHoleComplete(false);
-        setScores(Array(HOLES.length).fill(0));
-        setSkipped(Array(HOLES.length).fill(false));
-        setShots(Array(HOLES.length).fill(null).map(() => []));
-        setShotFrom(null);
-        setScreen("hole");
-      }}
-    />
+    <div style={{ position: 'relative', height: '100vh' }}>
+      <RoundLobby user={user} profile={profile} onRoundStart={handleRoundStart} />
+      {/* Floating invite banner at the top */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50, padding: '12px 16px 0', pointerEvents: 'none' }}>
+        <div style={{ pointerEvents: 'auto' }}>
+          <RoundInvites userId={user.id} onJoin={handleRoundStart} />
+        </div>
+      </div>
+      {/* Admin button — only visible to admins */}
+      {isAdmin(user) && (
+        <button
+          onClick={() => setShowAdmin(true)}
+          style={{
+            position: 'absolute', bottom: 24, right: 20, zIndex: 50,
+            background: 'rgba(201,168,76,0.15)', border: '0.5px solid rgba(201,168,76,0.5)',
+            borderRadius: 12, color: '#c9a84c', fontSize: 13, fontWeight: 600,
+            padding: '10px 16px', cursor: 'pointer', backdropFilter: 'blur(8px)',
+            fontFamily: 'Inter,sans-serif', display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          ⚙️ Admin
+        </button>
+      )}
+    </div>
   );
 
   async function saveScore(holeNum, strokes) {
