@@ -15,7 +15,7 @@ const css = `
   .auth-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Inter',sans-serif; }
   .auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
   .auth-btn-primary { background: linear-gradient(135deg, #c9a84c, #b8952f); color: #0f2818; }
-  .auth-btn-guest { background: rgba(255,255,255,0.06); border: 0.5px solid rgba(255,255,255,0.15) !important; color: #f0ead6; }
+  .auth-btn-guest { background: rgba(74,222,128,0.12); border: 1.5px solid rgba(74,222,128,0.5) !important; color: #4ade80; font-size: 18px; padding: 18px; }
   .auth-btn-social { background: rgba(255,255,255,0.08); border: 0.5px solid rgba(255,255,255,0.2) !important; color: #f0ead6; display: flex; align-items: center; justify-content: center; gap: 10px; }
   .auth-divider { display: flex; align-items: center; gap: 12px; color: #4a6a54; font-size: 11px; }
   .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 0.5px; background: rgba(255,255,255,0.12); }
@@ -122,7 +122,7 @@ export default function Auth({ onGuest, onShowInstructions }) {
           </div>
 
           <button className="auth-btn auth-btn-guest" onClick={onGuest} disabled={loading} style={{marginBottom:4}}>
-            Continue as Guest
+            ⛳ Continue as Guest
           </button>
           <p style={{fontSize:11, color:"#7a9e84", textAlign:"center", marginTop:8, lineHeight:1.5}}>
             Guests can play a full round with GPS yardage and scoring free of charge.
