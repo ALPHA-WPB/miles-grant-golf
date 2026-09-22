@@ -379,6 +379,12 @@ const css = `
   .shot-flash-label { font-size: 18px; color: #f0ead6; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; }
   @keyframes shot-flash-bg { 0% { opacity: 0; } 6% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes shot-flash-pop { 0% { opacity: 0; transform: scale(0.75); } 8% { opacity: 1; transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.92); } }
+  .tap-hint-overlay { position: fixed; inset: 0; z-index: 2900; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(5,16,10,0.6); animation: tap-hint-bg 4s ease forwards; }
+  .tap-hint-inner { text-align: center; padding: 0 2rem; animation: tap-hint-pop 4s cubic-bezier(.2,.9,.3,1) forwards; }
+  .tap-hint-title { font-family: 'Playfair Display',serif; font-size: 34px; font-weight: 700; color: #fbbf24; line-height: 1.2; text-shadow: 0 4px 24px rgba(251,191,36,0.4); }
+  .tap-hint-sub { font-size: 14px; color: #f0ead6; margin-top: 10px; letter-spacing: 0.02em; }
+  @keyframes tap-hint-bg { 0% { opacity: 0; } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes tap-hint-pop { 0% { opacity: 0; transform: scale(0.85); } 12% { opacity: 1; transform: scale(1); } 75% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.95); } }
 `;
 
 function GuestUpsell({ feature, onExitGuest }) {
@@ -433,6 +439,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [gpsError, setGpsError]     = useState(null);
   const [shotFrom, setShotFrom]     = useState(null);
   const [shotFlash, setShotFlash]   = useState(null);
+  const [tapHint, setTapHint]       = useState(null);
   const watchRef                    = useRef(null);
 
   useEffect(() => {
@@ -450,10 +457,25 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   }, [screen]);
 
   useEffect(() => {
+    if (screen !== "hole") return;
+    try {
+      if (localStorage.getItem("mg_seen_tap_hint")) return;
+      localStorage.setItem("mg_seen_tap_hint", "1");
+      setTapHint({ id: Date.now() });
+    } catch { /* ignore */ }
+  }, [screen]);
+
+  useEffect(() => {
     if (!shotFlash) return;
     const t = setTimeout(() => setShotFlash(null), 7000);
     return () => clearTimeout(t);
   }, [shotFlash]);
+
+  useEffect(() => {
+    if (!tapHint) return;
+    const t = setTimeout(() => setTapHint(null), 4000);
+    return () => clearTimeout(t);
+  }, [tapHint]);
 
   if (tab === "leaderboard") return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
@@ -546,6 +568,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   function markShot() {
     if (!gps) return;
+    setTapHint(null);
     if (shotFrom) {
       const yards = Math.round(haversineYards(shotFrom.lat, shotFrom.lng, gps.lat, gps.lng));
       setShots(prev => {
@@ -632,6 +655,16 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <div className="shot-flash-inner">
         <p className="shot-flash-yards">{shotFlash.yards}</p>
         <p className="shot-flash-label">yards</p>
+      </div>
+    </div>
+  );
+
+  const tapHintOverlay = tapHint && (
+    <div key={tapHint.id} className="tap-hint-overlay">
+      <div className="tap-hint-inner">
+        <p className="tap-hint-title">🏌️ Tap the button</p>
+        <p className="tap-hint-title">before every swing</p>
+        <p className="tap-hint-sub">We'll track how far you hit it</p>
       </div>
     </div>
   );
@@ -842,6 +875,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     <div className="app">
       <style>{css}</style>
       {shotFlashOverlay}
+      {tapHintOverlay}
 
       {/* Header */}
       <div style={{padding:"6px 16px 5px", flexShrink:0, borderBottom:"0.5px solid #1a3a24"}}>
