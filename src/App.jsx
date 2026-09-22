@@ -2,6 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-rotate";
+import { supabase } from "./lib/supabase";
+import { authService } from "./services/authService";
+import { roundService } from "./services/roundService";
+import Auth from "./components/Auth";
+import Instructions from "./components/Instructions";
+import RoundLobby from "./components/RoundLobby";
+import RoundInvites from "./components/RoundInvites";
+import Friends from "./components/Friends";
+import Leaderboard from "./components/Leaderboard";
+import RoundHistory from "./components/RoundHistory";
+import Profile from "./components/Profile";
 
 const HOLES = [
   // ── Front Nine ──────────────────────────────────────────────
@@ -170,8 +181,6 @@ const HOLES = [
   },
 ];
 
-const TEE_LABELS = { champ: "Blue", mens: "White", womens: "Red" };
-const TEE_ORDER  = ["champ", "mens", "womens"];
 const PLAYER_COLOR = "#4ade80";
 
 function haversineYards(lat1, lng1, lat2, lng2) {
@@ -181,10 +190,6 @@ function haversineYards(lat1, lng1, lat2, lng2) {
   const dl = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
   return 2 * R * Math.asin(Math.sqrt(a)) * 1.09361;
-}
-
-function HOLE_TEE_COLOR(tee) {
-  return { champ:"#3b82f6", mens:"#d1d5db", womens:"#ef4444" }[tee];
 }
 
 function calcBearing(lat1, lng1, lat2, lng2) {
@@ -261,7 +266,7 @@ function HoleMap({ hole, gps, holeShots }) {
     };
 
     // Enable leaflet-rotate if available
-    try { mapOpts.rotate = true; } catch(_) {}
+    try { mapOpts.rotate = true; } catch { /* ignore */ }
 
     const map = L.map(mapRef.current, mapOpts);
 
@@ -275,7 +280,7 @@ function HoleMap({ hole, gps, holeShots }) {
     // Apply rotation after bounds are set
     try {
       if (typeof map.setBearing === "function") map.setBearing(rotation);
-    } catch(_) {}
+    } catch { /* ignore */ }
 
     // Fairway guide line
     L.polyline(
@@ -293,7 +298,7 @@ function HoleMap({ hole, gps, holeShots }) {
     shotLayersRef.current = [];
     gpsMarkerRef.current = null;
 
-    return () => { try { map.remove(); } catch(_) {} leafletRef.current = null; };
+    return () => { try { map.remove(); } catch { /* ignore */ } leafletRef.current = null; };
   }, [hole.number]);
 
   // GPS dot
@@ -307,7 +312,7 @@ function HoleMap({ hole, gps, holeShots }) {
           .bindTooltip("You", { permanent: true, direction: "right", className: "gps-tip", offset: [6, 0] })
           .addTo(map);
       }
-    } catch(_) {}
+    } catch { /* ignore */ }
   }, [gps]);
 
   // Shot lines
@@ -327,7 +332,7 @@ function HoleMap({ hole, gps, holeShots }) {
         const label = L.marker([midLat, midLng], { icon: shotLineIcon(shot.yards) }).addTo(map);
         shotLayersRef.current.push(line, label);
       });
-    } catch(_) {}
+    } catch { /* ignore */ }
   }, [holeShots]);
 
   return <div ref={mapRef} style={{ width: "100%", height: "100%" }} />;
@@ -343,11 +348,12 @@ const css = `
   .bottom-panel { flex: 1; min-height: 0; background: #0a1c12; border-top: 1px solid rgba(45,90,61,0.5); overflow-y: auto; }
   .label { font-size: 10px; color: #7a9e84; text-transform: uppercase; letter-spacing: 0.08em; }
   .tab-bar { display: flex; background: rgba(6,14,9,0.95); border-top: 0.5px solid rgba(45,90,61,0.5); flex-shrink: 0; backdrop-filter: blur(12px); }
-  .tab { flex: 1; padding: 12px 0 14px; background: transparent; border: none; color: #7a9e84; font-size: 13px; cursor: pointer; font-family: 'Inter',sans-serif; }
-  .tab.active { color: #c9a84c; font-weight: 600; }
+  .tab { flex: 1; padding: 10px 0 13px; background: transparent; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; border-top: 2px solid transparent; }
+  .tab.active { color: #c9a84c; font-weight: 700; border-top: 2px solid #c9a84c; }
   .glass-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
   .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
   .hole-pill { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); border-radius: 50px; padding: 6px 16px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none; }
+  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 32px; height: 32px; border-radius: 50%; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); color: #c9a84c; font-family: 'Playfair Display',serif; font-weight: 700; font-size: 15px; cursor: pointer; }
   .shot-pill { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; border: none; border-radius: 50px; cursor: pointer; font-family: 'Inter',sans-serif; font-size: 16px; font-weight: 700; padding: 14px 32px; white-space: nowrap; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: all 0.2s; }
   .shot-pill-idle { background: rgba(255,255,255,0.15); color: #4ade80; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
   .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
@@ -361,19 +367,59 @@ const css = `
   .gps-tip::before { display: none !important; }
   .pickup-link { background: none; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; text-decoration: underline; padding: 0 0 0 4px; }
   .pickup-link:hover { color: #f87171; }
-  .setup-bg { position: fixed; inset: 0; background-image: url('/course-bg.jpg'); background-size: cover; background-position: center 30%; z-index: 0; }
-  .setup-overlay { position: fixed; inset: 0; background: linear-gradient(to bottom, rgba(5,16,10,0.2) 0%, rgba(5,16,10,0.55) 38%, rgba(5,16,10,0.96) 62%, rgba(5,16,10,1) 100%); z-index: 1; }
-  .setup-content { position: relative; z-index: 2; height: 100vh; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 1.5rem; padding-bottom: calc(20vh + max(env(safe-area-inset-bottom), 14px)); }
   .hole-nav-bar { display: flex; align-items: center; background: rgba(6,14,9,0.95); border-bottom: 0.5px solid rgba(45,90,61,0.5); padding: 0; flex-shrink: 0; backdrop-filter: blur(12px); }
   .hole-nav-btn { flex: 1; background: transparent; border: none; color: #e8dfc8; font-size: 15px; font-weight: 600; cursor: pointer; padding: 13px 10px; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
   .hole-nav-btn:disabled { color: #2d5a3d; cursor: default; }
   .hole-nav-info { flex: 2; text-align: center; }
   .hole-nav-label { font-size: 13px; color: #c9a84c; font-weight: 700; font-family: 'Playfair Display',serif; }
   .hole-nav-sub { font-size: 10px; color: #7a9e84; }
+  .shot-flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(5,16,10,0.55); animation: shot-flash-bg 7s ease forwards; }
+  .shot-flash-inner { text-align: center; animation: shot-flash-pop 7s cubic-bezier(.2,.9,.3,1) forwards; }
+  .shot-flash-yards { font-family: 'Playfair Display',serif; font-size: 104px; font-weight: 700; color: #4ade80; line-height: 1; text-shadow: 0 4px 32px rgba(74,222,128,0.5); }
+  .shot-flash-label { font-size: 18px; color: #f0ead6; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; }
+  @keyframes shot-flash-bg { 0% { opacity: 0; } 6% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes shot-flash-pop { 0% { opacity: 0; transform: scale(0.75); } 8% { opacity: 1; transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.92); } }
 `;
 
-export default function App() {
-  const [screen, setScreen]         = useState("setup");
+function GuestUpsell({ feature, onExitGuest }) {
+  return (
+    <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem", background:"#0a1c12", textAlign:"center", gap:14}}>
+      <p style={{fontSize:34}}>🔒</p>
+      <p style={{fontFamily:"'Playfair Display',serif", fontSize:20, color:"#c9a84c"}}>{feature} needs an account</p>
+      <p style={{fontSize:13, color:"#7a9e84", maxWidth:280, lineHeight:1.5}}>
+        Create a free account to unlock {feature.toLowerCase()}. Your current round keeps playing normally either way — nothing you've scored is lost.
+      </p>
+      <button onClick={onExitGuest}
+        style={{padding:"12px 24px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#c9a84c,#b8952f)", color:"#0f2818", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+        Create Account
+      </button>
+    </div>
+  );
+}
+
+function TabBar({ active, onSelect, onGame }) {
+  const tabs = [
+    { key: "hole", label: "⛳ Play", action: onGame },
+    { key: "history", label: "📋 History", action: () => onSelect("history") },
+    { key: "leaderboard", label: "🏆 Leaders", action: () => onSelect("leaderboard") },
+    { key: "friends", label: "👥 Friends", action: () => onSelect("friends") },
+    { key: "profile", label: "👤 Me", action: () => onSelect("profile") },
+  ];
+  return (
+    <div className="tab-bar">
+      {tabs.map(t => (
+        <button key={t.key} className={`tab ${active === t.key ? "active" : ""}`} onClick={t.action}>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowInstructions }) {
+  const [tab, setTab]               = useState(null); // null | history | leaderboard | friends | profile
+  const [round, setRound]           = useState(null); // { round, roundPlayer } from Supabase, or null for guests
+  const [screen, setScreen]         = useState("lobby");
   const [playerTee, setPlayerTee]   = useState("mens");
   const [roundStart, setRoundStart] = useState(0);
   const [roundEnd, setRoundEnd]     = useState(18);
@@ -386,21 +432,8 @@ export default function App() {
   const [gps, setGps]               = useState(null);
   const [gpsError, setGpsError]     = useState(null);
   const [shotFrom, setShotFrom]     = useState(null);
+  const [shotFlash, setShotFlash]   = useState(null);
   const watchRef                    = useRef(null);
-
-  function startRound(start, end) {
-    setRoundStart(start);
-    setRoundEnd(end);
-    setHoleIdx(start);
-    setHoleComplete(false);
-    setScreen("hole");
-  }
-
-  const hole = HOLES[holeIdx];
-  const holeShots = shots[holeIdx];
-  const completedShots = holeShots.length;
-  const inProgress = shotFrom !== null;
-  const shotBasedScore = Math.max(1, completedShots + (inProgress ? 1 : 0));
 
   useEffect(() => {
     if (screen !== "hole") return;
@@ -415,6 +448,95 @@ export default function App() {
     );
     return () => navigator.geolocation.clearWatch(watchRef.current);
   }, [screen]);
+
+  useEffect(() => {
+    if (!shotFlash) return;
+    const t = setTimeout(() => setShotFlash(null), 7000);
+    return () => clearTimeout(t);
+  }, [shotFlash]);
+
+  if (tab === "leaderboard") return (
+    <div className="app" style={{display:"flex", flexDirection:"column"}}>
+      <style>{css}</style>
+      <Leaderboard onClose={() => setTab(null)} />
+      <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
+    </div>
+  );
+  if (tab === "friends") return (
+    <div className="app" style={{display:"flex", flexDirection:"column"}}>
+      <style>{css}</style>
+      {isGuest ? <GuestUpsell feature="Friends" onExitGuest={onExitGuest} /> : <Friends userId={user.id} />}
+      <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
+    </div>
+  );
+  if (tab === "history") return (
+    <div className="app" style={{display:"flex", flexDirection:"column"}}>
+      <style>{css}</style>
+      {isGuest ? <GuestUpsell feature="Round history" onExitGuest={onExitGuest} /> : <RoundHistory userId={user.id} />}
+      <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
+    </div>
+  );
+  if (tab === "profile") return (
+    <div className="app" style={{display:"flex", flexDirection:"column"}}>
+      <style>{css}</style>
+      {isGuest ? (
+        <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem", background:"#0a1c12", textAlign:"center", gap:14}}>
+          <p style={{fontSize:34}}>⛳</p>
+          <p style={{fontFamily:"'Playfair Display',serif", fontSize:20, color:"#c9a84c"}}>Playing as Guest</p>
+          <p style={{fontSize:13, color:"#7a9e84", maxWidth:280, lineHeight:1.5}}>
+            Your round is tracked on this device only. Create a free account any time to save it, add friends, and join the leaderboard.
+          </p>
+          <button onClick={onExitGuest}
+            style={{padding:"12px 24px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#c9a84c,#b8952f)", color:"#0f2818", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+            Create Account
+          </button>
+        </div>
+      ) : (
+        <Profile user={user} profile={profile} onProfileUpdate={onProfileUpdate} onSignOut={() => authService.signOut()} />
+      )}
+      <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
+    </div>
+  );
+
+  function onRoundStart({ round: r, roundPlayer, tee, roundType }) {
+    setRound({ round: r, roundPlayer });
+    setPlayerTee(tee);
+    const start = roundType === "back9" ? 9 : 0;
+    const end   = roundType === "front9" ? 9 : 18;
+    setRoundStart(start);
+    setRoundEnd(end);
+    setHoleIdx(start);
+    setHoleComplete(false);
+    setScores(Array(HOLES.length).fill(0));
+    setSkipped(Array(HOLES.length).fill(false));
+    setShots(Array(HOLES.length).fill(null).map(() => []));
+    setShotFlash(null);
+    setScreen("hole");
+  }
+
+  if (screen === "lobby") return (
+    <div style={{position:"relative", height:"100vh"}}>
+      <RoundLobby user={user} profile={profile} isGuest={isGuest} onRoundStart={onRoundStart} onShowInstructions={onShowInstructions} />
+      {!isGuest && (
+        <div style={{position:"absolute", top:0, left:0, right:0, zIndex:50, padding:"12px 16px 0", pointerEvents:"none"}}>
+          <div style={{pointerEvents:"auto"}}>
+            <RoundInvites userId={user.id} onJoin={onRoundStart} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  async function syncScore(holeNumber, strokes) {
+    if (!round?.roundPlayer?.id) return;
+    try { await roundService.upsertScore(round.roundPlayer.id, holeNumber, strokes); } catch { /* ignore */ }
+  }
+
+  const hole = HOLES[holeIdx];
+  const holeShots = shots[holeIdx];
+  const completedShots = holeShots.length;
+  const inProgress = shotFrom !== null;
+  const shotBasedScore = Math.max(1, completedShots + (inProgress ? 1 : 0));
 
   function distToGreen() {
     if (!gps) return null;
@@ -431,6 +553,7 @@ export default function App() {
         next[holeIdx] = [...next[holeIdx], { from: shotFrom, to: { lat: gps.lat, lng: gps.lng }, yards }];
         return next;
       });
+      setShotFlash({ yards, id: Date.now() });
     }
     setShotFrom({ lat: gps.lat, lng: gps.lng });
   }
@@ -442,11 +565,14 @@ export default function App() {
     setShotFrom(null);
     setPickupConfirm(false);
     setHoleComplete(true);
+    syncScore(hole.number, final);
   }
 
   function adjustScore(delta) {
-    setScores(prev => { const n = [...prev]; n[holeIdx] = Math.max(1, (n[holeIdx] || shotBasedScore) + delta); return n; });
+    const next = Math.max(1, (scores[holeIdx] || shotBasedScore) + delta);
+    setScores(prev => { const n = [...prev]; n[holeIdx] = next; return n; });
     setSkipped(prev => { const n = [...prev]; n[holeIdx] = false; return n; });
+    syncScore(hole.number, next);
   }
 
   function skipHole() {
@@ -479,77 +605,33 @@ export default function App() {
   function totalScore() { return scores.reduce((s, v, i) => s + (skipped[i] ? 0 : (v || 0)), 0); }
   function totalPar()   { return HOLES.slice(roundStart, roundEnd).reduce((s, h) => s + h.par, 0); }
 
+  function endRound() {
+    if (round?.round?.id) roundService.finalizeRound(round.round.id).catch(() => {});
+    setRound(null);
+    setScreen("lobby");
+    setHoleIdx(0);
+    setScores(Array(HOLES.length).fill(0));
+    setSkipped(Array(HOLES.length).fill(false));
+    setShots(Array(HOLES.length).fill(null).map(() => []));
+    setShotFrom(null);
+    setPickupConfirm(false);
+    setShotFlash(null);
+    setRoundStart(0);
+    setRoundEnd(18);
+    setHoleComplete(false);
+  }
+
   const dtg = distToGreen();
   const displayScore = scores[holeIdx] || (inProgress || completedShots > 0 ? shotBasedScore : 0);
   const scoreForDisplay = skipped[holeIdx] ? null : displayScore;
   const diff = scoreForDisplay ? scoreForDisplay - hole.par : null;
   const lastShot = holeShots.length > 0 ? holeShots[holeShots.length - 1].yards : null;
 
-  // ── Setup screen ──────────────────────────────────────────────
-  if (screen === "setup") return (
-    <div style={{position:"relative", height:"100vh", overflow:"hidden", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
-      <style>{css}</style>
-      <div className="setup-bg" />
-      <div className="setup-overlay" />
-      <div className="setup-content">
-        {/* Title block */}
-        <div style={{textAlign:"center", marginBottom:"1rem"}}>
-          <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:42, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:6, textShadow:"0 2px 16px rgba(0,0,0,0.7)"}}>
-            Miles Grant<br/>Country Club
-          </h1>
-          <p style={{fontSize:13, fontWeight:600, color:"rgba(201,168,76,0.9)", letterSpacing:"0.06em", marginBottom:8, textTransform:"uppercase"}}>
-            Unofficial Free Golf App
-          </p>
-          <p style={{fontSize:13, color:"rgba(240,234,214,0.7)", marginBottom:6}}>Stuart, Florida · 18 Holes</p>
-          <p style={{fontSize:12, color:"rgba(201,168,76,0.65)", lineHeight:1.5, padding:"0 0.5rem"}}>
-            Real-time GPS yardage to the pin,<br/>with automatic shot distance tracking
-          </p>
-        </div>
-
-        {/* Tee selector */}
-        <div style={{background:"rgba(8,26,16,0.75)", border:"0.5px solid rgba(45,90,61,0.7)", borderRadius:14, padding:"0.85rem 1.25rem 1rem", backdropFilter:"blur(14px)", marginBottom:"0.75rem"}}>
-          <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>Select tee</p>
-          <div style={{display:"flex", gap:8}}>
-            {TEE_ORDER.map(t => (
-              <button key={t} onClick={() => setPlayerTee(t)}
-                style={{flex:1, padding:"11px 0", borderRadius:10, cursor:"pointer",
-                  fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:playerTee===t?600:400,
-                  background:playerTee===t?(t==="champ"?"rgba(30,58,95,0.9)":t==="mens"?"rgba(58,58,58,0.9)":"rgba(90,26,26,0.9)"):"rgba(255,255,255,0.05)",
-                  color:playerTee===t?(t==="champ"?"#60a5fa":t==="mens"?"#e8e8e8":"#f87171"):"#7a9e84",
-                  border:playerTee===t?`1.5px solid ${HOLE_TEE_COLOR(t)}`:"0.5px solid rgba(255,255,255,0.08)"}}>
-                {TEE_LABELS[t]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Round selection — 3 glass rectangles */}
-        <div style={{display:"flex", gap:10, marginBottom:"0.75rem", height:130}}>
-          {[
-            { label:"Front 9", sub:"Holes 1–9", emoji:"🌅", start:0, end:9 },
-            { label:"All 18", sub:"Full Round", emoji:"⛳", start:0, end:18 },
-            { label:"Back 9", sub:"Holes 10–18", emoji:"🌇", start:9, end:18 },
-          ].map(opt => (
-            <button key={opt.label} onClick={() => startRound(opt.start, opt.end)}
-              style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                gap:6, borderRadius:16, cursor:"pointer", fontFamily:"'Inter',sans-serif",
-                background:"rgba(255,255,255,0.06)",
-                border:"0.5px solid rgba(255,255,255,0.12)",
-                backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
-                boxShadow:"0 4px 16px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
-                transition:"all 0.15s"}}>
-              <span style={{fontSize:22}}>{opt.emoji}</span>
-              <span style={{fontSize:15, fontWeight:700, color:"#f0ead6"}}>{opt.label}</span>
-              <span style={{fontSize:10, color:"#7a9e84", letterSpacing:"0.04em"}}>{opt.sub}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Disclaimer */}
-        <p style={{fontSize:10, color:"rgba(240,234,214,0.35)", textAlign:"center", lineHeight:1.55, padding:"0 0.5rem"}}>
-          Unofficial app · Not affiliated with Miles Grant Country Club<br/>
-          Free for all members &amp; guests · No data saved or tracked
-        </p>
+  const shotFlashOverlay = shotFlash && (
+    <div key={shotFlash.id} className="shot-flash-overlay">
+      <div className="shot-flash-inner">
+        <p className="shot-flash-yards">{shotFlash.yards}</p>
+        <p className="shot-flash-label">yards</p>
       </div>
     </div>
   );
@@ -614,23 +696,12 @@ export default function App() {
             </button>
           </div>
 
-          <button onClick={() => {
-            setScreen("setup"); setHoleIdx(0);
-            setScores(Array(HOLES.length).fill(0));
-            setSkipped(Array(HOLES.length).fill(false));
-            setShots(Array(HOLES.length).fill(null).map(()=>[]));
-            setShotFrom(null); setPickupConfirm(false);
-            setRoundStart(0); setRoundEnd(18); setHoleComplete(false);
-          }} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
+          <button onClick={endRound} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
             background:"transparent", fontSize:14, cursor:"pointer", color:"#f87171", fontFamily:"'Inter',sans-serif"}}>
             End Round · Start New
           </button>
         </div>
-        <div className="tab-bar">
-          <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
-          <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
-          <button className="tab active">🏁 Done</button>
-        </div>
+        <TabBar active={null} onSelect={setTab} onGame={() => setScreen("hole")} />
       </div>
     );
   }
@@ -656,7 +727,6 @@ export default function App() {
             <p style={{fontSize:12, color:"#7a9e84"}}>Tap any hole to jump to it</p>
           </div>
 
-          {/* Front 9 */}
           {["Front Nine · 1–9", "Back Nine · 10–18"].map((label, half) => (
             <div key={half} style={{marginBottom:16}}>
               <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>{label}</p>
@@ -687,11 +757,7 @@ export default function App() {
             </div>
           ))}
         </div>
-        <div className="tab-bar">
-          <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
-          <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
-          <button className="tab active">🗺 Holes</button>
-        </div>
+        <TabBar active={null} onSelect={setTab} onGame={() => setScreen("hole")} />
       </div>
     );
   }
@@ -705,7 +771,6 @@ export default function App() {
           <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c"}}>Scorecard</h2>
           <p style={{fontSize:12, color:"#7a9e84"}}>Miles Grant CC · 18 Holes · Par {totalPar()}</p>
         </div>
-        {/* Front 9 */}
         {[{label:"Front Nine", start:0, end:9}, {label:"Back Nine", start:9, end:18}].filter(({start,end}) => start < roundEnd && end > roundStart).map(({label,start,end}) => (
           <div key={label} style={{marginBottom:10}}>
             <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", padding:"4px 2px 4px", marginBottom:4}}>{label}</p>
@@ -750,7 +815,6 @@ export default function App() {
             </div>
           </div>
         ))}
-        {/* Total */}
         <div style={{background:"#1a3a24", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"12px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
           <span style={{fontWeight:600, fontSize:15}}>Total</span>
           <div style={{display:"flex", gap:16, alignItems:"center"}}>
@@ -764,23 +828,12 @@ export default function App() {
             </span>
           </div>
         </div>
-        <button onClick={() => {
-          setScreen("setup"); setHoleIdx(0);
-          setScores(Array(HOLES.length).fill(0));
-          setSkipped(Array(HOLES.length).fill(false));
-          setShots(Array(HOLES.length).fill(null).map(()=>[]));
-          setShotFrom(null); setPickupConfirm(false);
-          setRoundStart(0); setRoundEnd(18); setHoleComplete(false);
-        }} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
+        <button onClick={endRound} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
           background:"transparent", fontSize:14, cursor:"pointer", color:"#f87171", fontFamily:"'Inter',sans-serif"}}>
           End Round
         </button>
       </div>
-      <div className="tab-bar">
-        <button className="tab" onClick={() => setScreen("hole")}>⛳ Hole</button>
-        <button className="tab active">📋 Scores</button>
-        <button className="tab" onClick={() => setScreen("browser")}>🗺 Holes</button>
-      </div>
+      <TabBar active={null} onSelect={setTab} onGame={() => setScreen("hole")} />
     </div>
   );
 
@@ -788,6 +841,7 @@ export default function App() {
   return (
     <div className="app">
       <style>{css}</style>
+      {shotFlashOverlay}
 
       {/* Header */}
       <div style={{padding:"6px 16px 5px", flexShrink:0, borderBottom:"0.5px solid #1a3a24"}}>
@@ -806,6 +860,9 @@ export default function App() {
           </span>
           <span style={{fontSize:11, color:"rgba(240,234,214,0.6)", marginLeft:6}}>Par {hole.par}</span>
         </div>
+        {onShowInstructions && (
+          <button className="help-pill" onClick={onShowInstructions} aria-label="How this app works">?</button>
+        )}
         {/* Floating shot pill — only when hole not complete */}
         {!holeComplete && (
           <button
@@ -978,11 +1035,68 @@ export default function App() {
         </div>
       </div>
 
-      <div className="tab-bar">
-        <button className="tab active">⛳ Hole</button>
-        <button className="tab" onClick={() => setScreen("scorecard")}>📋 Scores</button>
-        <button className="tab" onClick={() => setScreen("browser")}>🗺 Holes</button>
-      </div>
+      <TabBar active="hole" onSelect={setTab} onGame={() => {}} />
     </div>
+  );
+}
+
+const GUEST_USER = { id: null, email: "" };
+const GUEST_PROFILE = { full_name: "Guest" };
+
+export default function App() {
+  const [user, setUser]       = useState(undefined); // undefined = checking session, null = signed out
+  const [profile, setProfile] = useState(null);
+  const [guest, setGuest]     = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+
+  async function loadProfile(u) {
+    try {
+      await authService.upsertProfile(u);
+      setProfile(await authService.getProfile(u.id));
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      if (session?.user) loadProfile(session.user);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (session?.user) loadProfile(session.user); else setProfile(null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const instructionsOverlay = showInstructions && <Instructions onClose={() => setShowInstructions(false)} />;
+  const openInstructions = () => setShowInstructions(true);
+
+  if (guest) {
+    return (
+      <>
+        <MainApp user={GUEST_USER} profile={GUEST_PROFILE} isGuest onExitGuest={() => setGuest(false)} onShowInstructions={openInstructions} />
+        {instructionsOverlay}
+      </>
+    );
+  }
+
+  if (user === undefined) return (
+    <div style={{height:"100vh", background:"#0a1c12", display:"flex", alignItems:"center", justifyContent:"center", color:"#c9a84c", fontFamily:"'Playfair Display',serif", fontSize:22}}>
+      Loading…
+    </div>
+  );
+
+  if (user) return (
+    <>
+      <MainApp user={user} profile={profile} onProfileUpdate={setProfile} onShowInstructions={openInstructions} />
+      {instructionsOverlay}
+    </>
+  );
+
+  return (
+    <>
+      <Auth onGuest={() => setGuest(true)} onShowInstructions={openInstructions} />
+      {instructionsOverlay}
+    </>
   );
 }
