@@ -12,6 +12,7 @@ import RoundLobby from "./components/RoundLobby";
 import Leaderboard from "./components/Leaderboard";
 import RoundHistory from "./components/RoundHistory";
 import Profile from "./components/Profile";
+import AdminUsers, { isAdmin } from "./components/AdminUsers";
 
 const HOLES = [
   // ── Front Nine ──────────────────────────────────────────────
@@ -588,6 +589,13 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
     </div>
   );
+  if (tab === "admin" && isAdmin(user)) return (
+    <div className="app" style={{display:"flex", flexDirection:"column"}}>
+      <style>{css}</style>
+      <AdminUsers onClose={() => setTab("profile")} />
+      <TabBar active="profile" onSelect={setTab} onGame={() => setTab(null)} />
+    </div>
+  );
   if (tab === "profile") return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
       <style>{css}</style>
@@ -604,7 +612,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           </button>
         </div>
       ) : (
-        <Profile user={user} profile={profile} onProfileUpdate={onProfileUpdate} onSignOut={() => authService.signOut()} />
+        <Profile user={user} profile={profile} onProfileUpdate={onProfileUpdate} onSignOut={() => authService.signOut()} onAdmin={isAdmin(user) ? () => setTab("admin") : null} />
       )}
       <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
     </div>
