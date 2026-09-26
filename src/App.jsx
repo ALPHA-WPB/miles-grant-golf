@@ -189,17 +189,18 @@ function longestKey() {
   return `mg_longest_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 }
 
+const TEE_NAMES = { champ: "Blue", mens: "White", womens: "Red" };
+
 function fmtYds(v) {
   return v == null || !isFinite(v) || v > 1000 ? "—" : Math.round(v);
 }
 
 // Pop-up sequence after a shot: count-up yardage, then "Pin is: XXX"
-function ShotFlash({ yards, pin }) {
-  const [phase, setPhase] = useState("hit");
+function ShotFlash({ yards, pin, shotNum }) {
   const [shown, setShown] = useState(0);
   useEffect(() => {
     const target = typeof yards === "number" && yards <= 1000 ? yards : 0;
-    const dur = 3500, t0 = performance.now();
+    const dur = 3000, t0 = performance.now();
     let raf;
     const tick = now => {
       const k = Math.min(1, (now - t0) / dur);
@@ -207,27 +208,32 @@ function ShotFlash({ yards, pin }) {
       if (k < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    const t = setTimeout(() => setPhase("pin"), 5000);
-    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+    return () => cancelAnimationFrame(raf);
   }, [yards]);
-  if (phase === "hit") return (
+  return (
     <div className="flash-overlay flash-hit">
       <div className="flash-inner">
         <p className="flash-emoji">🎉 ⛳ 🎉</p>
+        <p className="flash-shotnum">Shot {shotNum}</p>
         <p className="flash-big">{yards > 1000 ? "—" : shown}</p>
         <p className="flash-label">yards</p>
+        <div className="flash-pin-box">
+          <span className="flash-pin-num">{fmtYds(pin)}</span>
+          <span className="flash-pin-label">yards to the pin</span>
+        </div>
       </div>
     </div>
   );
-  return (
-    <div className="flash-overlay flash-pin">
-      <div className="flash-inner">
-        <p className="flash-label" style={{fontSize:32}}>Pin is</p>
-        <p className="flash-big" style={{color:"#d4af37"}}>{fmtYds(pin)}</p>
-        <p className="flash-label">yards</p>
-      </div>
-    </div>
-  );
+}
+
+// Shortest distance (yards) from a point to the tee→green line of a hole
+function distToSegmentYards(p, a, b) {
+  const k = 111320 * 1.09361, c = Math.cos(a.lat * Math.PI / 180);
+  const ax = 0, ay = 0, bx = (b.lng - a.lng) * k * c, by = (b.lat - a.lat) * k;
+  const px = (p.lng - a.lng) * k * c, py = (p.lat - a.lat) * k;
+  const L = bx * bx + by * by;
+  const t = L ? Math.max(0, Math.min(1, ((px - ax) * bx + (py - ay) * by) / L)) : 0;
+  return Math.hypot(px - t * bx, py - t * by);
 }
 
 function haversineYards(lat1, lng1, lat2, lng2) {
@@ -418,7 +424,11 @@ const css = `
   .big-dist-num { font-family: 'Inter',sans-serif; font-size: clamp(48px, 15vw, 68px); font-weight: 900; line-height: 1; color: #d4af37; margin: 2px 0 0; letter-spacing: -0.02em; }
   .big-dist-unit { font-size: 13px; color: #c8d8cc; font-weight: 600; }
   .flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,0.82); }
-  .flash-hit { animation: flash-fade 5s ease forwards; }
+  .flash-hit { animation: flash-fade 7s ease forwards; }
+  .flash-shotnum { font-size: 30px; font-weight: 900; color: #f0ead6; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+  .flash-pin-box { margin-top: 22px; display: inline-flex; flex-direction: column; align-items: center; border: 3px solid #d4af37; border-radius: 18px; padding: 10px 26px; background: rgba(0,0,0,0.5); }
+  .flash-pin-num { font-size: 72px; font-weight: 900; color: #d4af37; line-height: 1; }
+  .flash-pin-label { font-size: 20px; font-weight: 700; color: #f0ead6; margin-top: 4px; }
   .flash-pin { animation: flash-fade 3s ease forwards; }
   .flash-inner { text-align: center; }
   .flash-emoji { font-size: 56px; margin-bottom: 8px; }
@@ -503,8 +513,11 @@ function TabBar({ active, onSelect, onGame }) {
 function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowInstructions }) {
   const [tab, setTab]               = useState(null); // null | history | leaderboard | friends | profile
   const [round, setRound]           = useState(null); // { round, roundPlayer } from Supabase, or null for guests
-  const [screen, setScreen]         = useState("lobby");
-  const [playerTee, setPlayerTee]   = useState("mens");
+  const [screen, setScreen]         = useState("hole");
+  const [playerTee, setPlayerTee]   = useState(() => { try { return localStorage.getItem("mg_tee") || "mens"; } catch { return "mens"; } });
+  const [scoring, setScoring]       = useState(false);   // "Keep score" mode
+  const [offCourse, setOffCourse]   = useState(false);
+  const startDoneRef                = useRef(false);
   const [roundStart, setRoundStart] = useState(0);
   const [roundEnd, setRoundEnd]     = useState(18);
   const [holeIdx, setHoleIdx]       = useState(0);
@@ -581,7 +594,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   useEffect(() => {
     if (!shotFlash) return;
-    const t = setTimeout(() => setShotFlash(null), 8000);
+    const t = setTimeout(() => setShotFlash(null), 7000);
     return () => clearTimeout(t);
   }, [shotFlash]);
 
@@ -590,6 +603,20 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     const t = setTimeout(() => setTapHint(null), 4000);
     return () => clearTimeout(t);
   }, [tapHint]);
+
+  // ── Smart start: open on the hole you're nearest ───────────
+  useEffect(() => {
+    if (screen !== "hole" || !gps || startDoneRef.current) return;
+    if (gps.acc && gps.acc > 60) return;           // wait for a decent fix
+    startDoneRef.current = true;
+    let best = null, bestD = Infinity;
+    HOLES.forEach((h, i) => {
+      const d = Math.min(...Object.values(h.tees).map(t => distToSegmentYards(gps, t, h.green)));
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    if (best !== null && bestD <= 100) { setHoleIdx(best); setOffCourse(false); }
+    else setOffCourse(true);
+  }, [gps, screen]);
 
   // ── Automatic hole detection ─────────────────────────────
   // When you walk up to a different hole's tee box, ask "On Hole X?"
@@ -616,8 +643,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     const pick = cands.includes(holeIdx + 1) ? holeIdx + 1 : cands.reduce((a, b) => (toTee(a) <= toTee(b) ? a : b));
     const c = candidateRef.current;
     candidateRef.current = c.idx === pick ? { idx: pick, count: c.count + 1 } : { idx: pick, count: 1 };
-    if (candidateRef.current.count >= 2) setHolePrompt(pick);          // two readings in a row = confident
-  }, [gps, screen, holeIdx, holeComplete, holePrompt, roundStart, roundEnd]);
+    if (candidateRef.current.count >= 2) {                              // two readings in a row = confident
+      if (!scoring) goToHole(pick);                // just checking distances: switch quietly
+      else setHolePrompt(pick);                    // keeping score or mid-shot: ask first
+    }
+  }, [gps, screen, holeIdx, holeComplete, holePrompt, roundStart, roundEnd, scoring]);
 
   if (tab === "leaderboard") return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
@@ -640,9 +670,26 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <TabBar active="profile" onSelect={setTab} onGame={() => setTab(null)} />
     </div>
   );
+  const teeSetting = (
+    <div style={{background:"#0a1c12", padding:"1rem 1rem 0"}}>
+      <p style={{fontSize:16, fontWeight:800, color:"#f0ead6", marginBottom:8}}>Your tee</p>
+      <div style={{display:"flex", gap:8}}>
+        {[["champ","Blue","#1e3a5f","#60a5fa"],["mens","White","#3a3a3a","#f0f0f0"],["womens","Red","#5a1a1a","#f87171"]].map(([k,l,bg,fg]) => (
+          <button key={k} onClick={() => setTee(k)}
+            style={{flex:1, padding:"14px 0", borderRadius:12, fontSize:18, fontWeight:800, cursor:"pointer", fontFamily:"'Inter',sans-serif",
+              background: playerTee===k ? bg : "rgba(255,255,255,0.04)", color: playerTee===k ? fg : "#c8d8cc",
+              border: playerTee===k ? `2px solid ${fg}` : "1px solid #2d5a3d"}}>
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   if (tab === "profile") return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
       <style>{css}</style>
+      {teeSetting}
       {isGuest ? (
         <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem", background:"#0a1c12", textAlign:"center", gap:14}}>
           <p style={{fontSize:34}}>⛳</p>
@@ -712,7 +759,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         return next;
       });
       const pin = Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
-      setShotFlash({ yards, pin, id: Date.now() });
+      setShotFlash({ yards, pin, shotNum: holeShots.length + 1, id: Date.now() });
       if (yards <= 1000 && yards > longestToday) {
         setLongestToday(yards);
         try { localStorage.setItem(longestKey(), String(yards)); } catch { /* ignore */ }
@@ -758,7 +805,20 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     setHoleComplete(false);
     setHolePrompt(null);
     setShowPicker(false);
+    setOffCourse(false);
     candidateRef.current = { idx: null, count: 0 };
+  }
+
+  // Hole chosen by hand: don't auto-switch away to a tee you're standing near
+  function pickHole(i) {
+    if (gps) {
+      HOLES.forEach((h, j) => {
+        if (j === i) return;
+        const d = Math.min(...Object.values(h.tees).map(t => haversineYards(gps.lat, gps.lng, t.lat, t.lng)));
+        if (d <= 45) dismissedRef.current.add(j);
+      });
+    }
+    goToHole(i);
   }
 
   function declineHolePrompt() {
@@ -781,13 +841,45 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   }
 
   function totalScore() { return scores.reduce((s, v, i) => s + (skipped[i] ? 0 : (v || 0)), 0); }
-  function totalPar()   { return HOLES.slice(roundStart, roundEnd).reduce((s, h) => s + h.par, 0); }
+  function totalPar()   { return playedHoles().reduce((s, i) => s + HOLES[i].par, 0); }
+
+  function setTee(t) {
+    setPlayerTee(t);
+    try { localStorage.setItem("mg_tee", t); } catch { /* ignore */ }
+  }
+
+  async function startScoring() {
+    setScores(Array(HOLES.length).fill(0));
+    setSkipped(Array(HOLES.length).fill(false));
+    setShots(Array(HOLES.length).fill(null).map(() => []));
+    setShotFrom(null);
+    setHoleComplete(false);
+    setScoring(true);
+    if (!isGuest && user?.id) {
+      try {
+        const r = await roundService.createRound(user.id, TEE_NAMES[playerTee] || "White", "open");
+        setRound(r);
+      } catch { /* scoring still works on the phone */ }
+    }
+  }
+
+  function playedHoles() {
+    return HOLES.map((_, i) => i).filter(i => !skipped[i] && scores[i] > 0);
+  }
+  function roundLabel(idx) {
+    const n = idx.length;
+    const front = idx.every(i => i < 9), back = idx.every(i => i >= 9);
+    if (n === 18) return { type: "all18", text: "18 holes" };
+    if (n === 9) return front ? { type: "front9", text: "Front 9" } : back ? { type: "back9", text: "Back 9" } : { type: "nine", text: "9 holes" };
+    return { type: "partial", text: `${n} hole${n === 1 ? "" : "s"}` };
+  }
 
   function endRound() {
-    if (round?.round?.id) roundService.finalizeRound(round.round.id).catch(() => {});
+    const played = playedHoles();
+    if (round?.round?.id && played.length) roundService.finalizeRound(round.round.id, roundLabel(played).type).catch(() => {});
     setRound(null);
-    setScreen("lobby");
-    setHoleIdx(0);
+    setScoring(false);
+    setScreen("hole");
     setScores(Array(HOLES.length).fill(0));
     setSkipped(Array(HOLES.length).fill(false));
     setShots(Array(HOLES.length).fill(null).map(() => []));
@@ -805,9 +897,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const diff = scoreForDisplay ? scoreForDisplay - hole.par : null;
   const lastShot = holeShots.length > 0 ? holeShots[holeShots.length - 1].yards : null;
 
-  const shotFlashOverlay = shotFlash && <ShotFlash key={shotFlash.id} yards={shotFlash.yards} pin={shotFlash.pin} />;
+  const shotFlashOverlay = shotFlash && <ShotFlash key={shotFlash.id} yards={shotFlash.yards} pin={shotFlash.pin} shotNum={shotFlash.shotNum} />;
 
-  const unfinished = !holeComplete && !skipped[holeIdx] && (holeShots.length > 0 || scores[holeIdx] > 0);
+  const unfinished = scoring && !holeComplete && !skipped[holeIdx] && (holeShots.length > 0 || scores[holeIdx] > 0);
   const holePromptSheet = holePrompt !== null && !shotFlash && !showPicker && (
     <div className="hp-backdrop">
       <div className="hp-sheet" role="dialog" aria-modal="true">
@@ -828,7 +920,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           {HOLES.slice(roundStart, roundEnd).map((h, k) => {
             const i = roundStart + k;
             return (
-              <button key={h.number} onClick={() => goToHole(i)}
+              <button key={h.number} onClick={() => pickHole(i)}
                 className={`hp-num ${i === holeIdx ? "hp-num-current" : ""} ${i === holePrompt ? "hp-num-suggest" : ""}`}>
                 {h.number}
               </button>
@@ -853,9 +945,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   // ── Round Complete screen ─────────────────────────────────────
   if (screen === "complete") {
     const ts = totalScore(), tp = totalPar(), diff2 = ts - tp;
-    const playedFront = roundStart === 0;
-    const playedBack  = roundEnd === 18;
-    const playedAll   = playedFront && playedBack;
+    const label = roundLabel(playedHoles());
     return (
       <div className="app" style={{overflowY:"auto"}}>
         <style>{css}</style>
@@ -864,7 +954,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             <p style={{fontSize:36, marginBottom:8}}>🏁</p>
             <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:28, color:"#c9a84c", marginBottom:4}}>Round Complete</h2>
             <p style={{fontSize:13, color:"#7a9e84"}}>
-              {playedAll ? "All 18 Holes" : playedFront ? "Front 9 · Holes 1–9" : "Back 9 · Holes 10–18"} · Miles Grant CC
+              {label.text} · Miles Grant CC
             </p>
           </div>
 
@@ -881,18 +971,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             </div>
           </div>
 
-          {/* Continue with other 9 */}
-          {!playedAll && (
-            <button onClick={() => {
-              const ns = playedFront ? 9 : 0, ne = playedFront ? 18 : 9;
-              setRoundStart(ns); setRoundEnd(ne); setHoleIdx(ns); setHoleComplete(false); setScreen("hole");
-            }} className="glass-card"
-              style={{width:"100%", padding:"14px", borderRadius:14, cursor:"pointer", border:"0.5px solid rgba(201,168,76,0.35)",
-                fontFamily:"'Inter',sans-serif", fontSize:15, fontWeight:600, color:"#c9a84c", marginBottom:10,
-                background:"rgba(201,168,76,0.08)", display:"block", textAlign:"center"}}>
-              Continue with {playedFront ? "Back 9 →" : "← Front 9"}
-            </button>
-          )}
+          <button onClick={() => setScreen("hole")}
+            style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer", border:"1px solid rgba(201,168,76,0.45)",
+              fontFamily:"'Inter',sans-serif", fontSize:18, fontWeight:700, color:"#d4af37", marginBottom:10, background:"transparent"}}>
+            ← Keep playing
+          </button>
 
           {/* Action buttons */}
           <div style={{display:"flex", gap:10, marginBottom:10}}>
@@ -912,7 +995,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
           <button onClick={endRound} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
             background:"transparent", fontSize:14, cursor:"pointer", color:"#f87171", fontFamily:"'Inter',sans-serif"}}>
-            End Round · Start New
+            Save &amp; finish round
           </button>
         </div>
         <TabBar active={null} onSelect={setTab} onGame={() => setScreen("hole")} />
@@ -1060,7 +1143,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       {holePromptSheet}
       {holePicker}
       {locChecked && !locationReady && (
-        <LocationGate onGranted={() => setLocationReady(true)} onBack={() => setScreen("lobby")} />
+        <LocationGate onGranted={() => setLocationReady(true)} />
       )}
 
       {/* Map + overlays */}
@@ -1100,12 +1183,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         </button>
         <div className="hole-nav-info" role="button" onClick={() => setShowPicker(true)} style={{cursor:"pointer"}}>
           <div className="hole-nav-label">Hole {hole.number}</div>
-          <div className="hole-nav-sub">{holeIdx - roundStart + 1} of {roundEnd - roundStart}</div>
+          <div className="hole-nav-sub" style={{color:"#d4af37", fontWeight:700}}>Change hole ▾</div>
         </div>
         <button className="hole-nav-btn" onClick={nextHole} disabled={holeIdx===roundEnd-1}>
           {holeIdx===roundEnd-1 ? "— ›" : `Hole ${hole.number + 1} ›`}
         </button>
       </div>
+
+      {offCourse && (
+        <button onClick={() => setShowPicker(true)}
+          style={{flexShrink:0, border:"none", background:"#3a2e0a", color:"#fbbf24", fontSize:16, fontWeight:700, padding:"8px 12px", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+          You don't seem to be on the course · Tap to pick a hole
+        </button>
+      )}
 
       {/* Bottom panel */}
       <div className="bottom-panel">
@@ -1119,7 +1209,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               <p className="big-dist-unit">yards</p>
             </div>
             <div className="big-dist-box">
-              <p className="big-dist-label">Last shot</p>
+              <p className="big-dist-label">Last shot{holeShots.length ? ` · #${holeShots.length}` : ""}</p>
               <p className="big-dist-num" style={{color: lastShot ? "#4ade80" : "#6b8a74"}}>{fmtYds(lastShot)}</p>
               <p className="big-dist-unit">yards</p>
             </div>
@@ -1127,7 +1217,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           {gpsError && <p style={{textAlign:"center", fontSize:18, color:"#f87171", marginBottom:10}}>{gpsError}</p>}
 
           {/* Next Hole / Round Complete button (after hole completion) */}
-          {holeComplete && (
+          {scoring && holeComplete && (
             holeIdx < roundEnd - 1 ? (
               <button onClick={nextHole}
                 style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer",
@@ -1148,12 +1238,12 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                   backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
                   boxShadow:"0 4px 16px rgba(74,222,128,0.1), inset 0 1px 0 rgba(255,255,255,0.06)",
                   letterSpacing:"0.02em"}}>
-                🏁 Round Complete
+                🏁 Finish round
               </button>
             )
           )}
 
-          {/* Score row */}
+          {scoring ? (<>
           <div className="glass-card" style={{padding:"8px 10px", marginBottom:8}}>
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
               <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
@@ -1219,6 +1309,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               🏆 In the cup — score {shotBasedScore || scores[holeIdx] || 1}
             </button>
           </div>
+
+          <button onClick={() => setScreen("complete")}
+            style={{width:"100%", padding:"12px", borderRadius:12, marginBottom:8, border:"1px solid #2d5a3d", background:"transparent",
+              color:"#c8d8cc", fontSize:17, fontWeight:700, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+            🏁 Finish round
+          </button>
+          </>) : (
+            <button onClick={startScoring}
+              style={{width:"100%", padding:"14px", borderRadius:14, marginBottom:8, border:"2px solid rgba(212,175,55,0.6)", background:"transparent",
+                color:"#d4af37", fontSize:19, fontWeight:800, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+              📋 Keep score for a round
+            </button>
+          )}
 
           {/* Shot log */}
           {holeShots.length > 0 && (

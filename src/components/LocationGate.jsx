@@ -45,10 +45,10 @@ export default function LocationGate({ onGranted, onBack }) {
           style={{width:"100%", padding:"22px", borderRadius:16, border:"none", background:"#d4af37", color:"#000", fontWeight:900, fontSize:25, cursor:"pointer", fontFamily:"'Inter',sans-serif", marginBottom:14, opacity: status === "asking" ? 0.6 : 1}}>
           {status === "asking" ? "Waiting for GPS…" : status === "denied" ? "Try again" : "Allow Location"}
         </button>
-        <button onClick={onBack}
+        {onBack && <button onClick={onBack}
           style={{background:"transparent", border:"none", color:"#c8d8cc", fontSize:19, textDecoration:"underline", cursor:"pointer", padding:"10px", fontFamily:"'Inter',sans-serif"}}>
           Back to menu
-        </button>
+        </button>}
       </div>
     </div>
   );

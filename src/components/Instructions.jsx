@@ -1,23 +1,23 @@
 const SECTIONS = [
   {
     title: "⛳ Distance to the pin",
-    body: "The big gold number at the bottom of the screen is how far you are from the center of the green. It updates by itself as you walk. If you're far from the hole, it shows a dash (—).",
-  },
-  {
-    title: "🏌️ Measuring your shot",
-    body: "1. Before you swing, tap the big flashing button.\n2. Hit your shot.\n3. Walk to your ball and tap the button again.\n\nYour shot distance pops up big on the screen, then it shows how far you have left to the pin. The button is ready for your next shot right away.",
+    body: "Open the app and it finds the hole you're on by itself. The big gold number is how far you are from the center of the green. It updates as you walk.",
   },
   {
     title: "🧭 Changing holes",
-    body: "When you walk up to the next tee, the app asks \"You're at the Hole 6 tee\" — tap Yes to switch. Tap No to stay, or \"Pick a different hole\" to choose. You can also tap the hole number in the middle of the bar under the map any time.",
+    body: "Walk onto the next tee and the app switches holes by itself. If it's ever wrong, tap \"Change hole\" under the hole number and pick the right one. (When you're keeping score, it asks before switching.)",
+  },
+  {
+    title: "🏌️ Measuring your shot",
+    body: "1. Before you swing, tap the big flashing button.\n2. Hit your shot.\n3. Walk to your ball and tap the button again.\n\nThe screen shows your shot number, how far you hit it, and how far you have left to the pin.",
+  },
+  {
+    title: "🏆 Keeping score (optional)",
+    body: "Want to play a full round? Tap \"Keep score for a round\". Tap \"In the cup\" when you finish each hole, and \"Finish round\" when you're done. Play 9, 18, or just a few holes.",
   },
   {
     title: "🎯 Your tee",
-    body: "Blue = Championship, White = Men's, Red = Women's. You pick your tee when you start. The \"Tee\" line shows that tee's yardage for the hole.",
-  },
-  {
-    title: "🏆 Keeping score",
-    body: "Tap \"In the cup\" when you finish a hole. It counts your shots for you. Use the − and + buttons to fix your score. Tap \"pick up\" to skip a hole.",
+    body: "Set Blue, White, or Red once on the Me tab. The app remembers it.",
   },
   {
     title: "👤 Guest or account",

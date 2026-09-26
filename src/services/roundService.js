@@ -53,8 +53,10 @@ export const roundService = {
     if (error) throw error;
     return data;
   },
-  async finalizeRound(roundId) {
-    await supabase.from('rounds').update({ status: 'completed', end_time: new Date().toISOString() }).eq('id', roundId);
+  async finalizeRound(roundId, roundType) {
+    const patch = { status: 'completed', end_time: new Date().toISOString() };
+    if (roundType) patch.round_type = roundType;
+    await supabase.from('rounds').update(patch).eq('id', roundId);
   },
   async getRoundHistory(userId) {
     const { data: rp } = await supabase.from('round_players').select('round_id').eq('user_id', userId);
