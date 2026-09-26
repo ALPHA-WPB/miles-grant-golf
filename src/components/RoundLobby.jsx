@@ -33,37 +33,24 @@ export default function RoundLobby({ user, profile, isGuest, onRoundStart, onSho
       return;
     }
     setRoundType(type);
-    setStep('friends');
-    setSelected([]);
-    loadFriends();
-  }
-
-  async function loadFriends() {
-    setLoadingFriends(true);
-    try {
-      setFriends(await friendsService.getFriends(user.id));
-    } catch {
-      setFriends([]);
-    } finally {
-      setLoadingFriends(false);
-    }
+    startRound(type);
   }
 
   function toggleFriend(id) {
     setSelected(sel => sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id].slice(0, 3));
   }
 
-  async function startRound() {
+  async function startRound(type = roundType) {
     setStarting(true);
     try {
-      const { round, roundPlayer } = await roundService.createRound(user.id, TEE_LABELS[tee], roundType);
+      const { round, roundPlayer } = await roundService.createRound(user.id, TEE_LABELS[tee], type);
       if (selected.length) {
         await roundService.inviteFriends(round.id, selected);
         toast.success(`Round started! ${selected.length} invite${selected.length > 1 ? 's' : ''} sent.`);
       } else {
         toast.success('Round started!');
       }
-      onRoundStart({ round, roundPlayer, tee, roundType });
+      onRoundStart({ round, roundPlayer, tee, roundType: type });
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -72,17 +59,17 @@ export default function RoundLobby({ user, profile, isGuest, onRoundStart, onSho
   }
 
   return (
-    <div style={{position:"relative", height:"100vh", overflow:"hidden", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
+    <div style={{position:"relative", height:"100dvh", overflow:"hidden", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
       <style>{css}</style>
       <div className="setup-bg" />
       <div className="setup-overlay" />
       {onShowInstructions && (
         <button onClick={onShowInstructions} aria-label="How this app works"
-          style={{position:"fixed", top:"max(env(safe-area-inset-top),14px)", right:16, zIndex:10, width:34, height:34, borderRadius:"50%", background:"rgba(255,255,255,0.08)", border:"0.5px solid rgba(255,255,255,0.2)", color:"#f0ead6", fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:16, cursor:"pointer"}}>
+          style={{position:"fixed", top:"max(env(safe-area-inset-top),14px)", right:16, zIndex:10, width:52, height:52, borderRadius:"50%", background:"rgba(255,255,255,0.08)", border:"0.5px solid rgba(255,255,255,0.2)", color:"#f0ead6", fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:28, cursor:"pointer"}}>
           ?
         </button>
       )}
-      <div style={{position:"relative", zIndex:2, height:"100vh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"calc(16px + max(env(safe-area-inset-bottom),8px))"}}>
+      <div style={{position:"relative", zIndex:2, height:"100dvh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"calc(16px + max(env(safe-area-inset-bottom),8px))"}}>
         <div style={{textAlign:"center", marginBottom:"1rem"}}>
           <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:38, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:4, textShadow:"0 2px 20px rgba(0,0,0,0.8)"}}>
             Miles Grant<br/>Country Club

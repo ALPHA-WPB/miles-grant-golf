@@ -9,8 +9,6 @@ import Auth from "./components/Auth";
 import Instructions from "./components/Instructions";
 import LocationGate from "./components/LocationGate";
 import RoundLobby from "./components/RoundLobby";
-import RoundInvites from "./components/RoundInvites";
-import Friends from "./components/Friends";
 import Leaderboard from "./components/Leaderboard";
 import RoundHistory from "./components/RoundHistory";
 import Profile from "./components/Profile";
@@ -185,6 +183,11 @@ const HOLES = [
 const PLAYER_COLOR = "#4ade80";
 
 // Show a dash for missing or absurd yardages (keeps layout from breaking)
+function longestKey() {
+  const d = new Date();
+  return `mg_longest_${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
 function fmtYds(v) {
   return v == null || !isFinite(v) || v > 1000 ? "—" : Math.round(v);
 }
@@ -384,40 +387,41 @@ function HoleMap({ hole, gps, holeShots }) {
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body, #root { height: 100%; }
-  .app { height: 100vh; display: flex; flex-direction: column; background: #0f2818; color: #f0ead6; font-family: 'Inter', sans-serif; overflow: hidden; }
+  html, body, #root { height: 100%; overflow: hidden; }
+  .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: #0f2818; color: #f0ead6; font-family: 'Inter', sans-serif; overflow: hidden; }
   .serif { font-family: 'Playfair Display', serif; }
-  .map-wrap { height: 40vh; flex-shrink: 0; position: relative; overflow: hidden; }
+  .map-wrap { height: 36dvh; flex-shrink: 0; position: relative; overflow: hidden; }
   .bottom-panel { flex: 1; min-height: 0; background: #0a1c12; border-top: 1px solid rgba(45,90,61,0.5); overflow-y: auto; }
   .label { font-size: 10px; color: #7a9e84; text-transform: uppercase; letter-spacing: 0.08em; }
   .tab-bar { display: flex; background: rgba(6,14,9,0.95); border-top: 0.5px solid rgba(45,90,61,0.5); flex-shrink: 0; backdrop-filter: blur(12px); }
-  .tab { flex: 1; padding: 10px 0 13px; background: transparent; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; border-top: 2px solid transparent; }
+  .tab { flex: 1; padding: 9px 0 max(10px, env(safe-area-inset-bottom)); background: transparent; border: none; color: #c8d8cc; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'Inter',sans-serif; border-top: 2px solid transparent; }
   .tab.active { color: #c9a84c; font-weight: 700; border-top: 2px solid #c9a84c; }
   .glass-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
   .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
   .hole-pill { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); border-radius: 50px; padding: 6px 16px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none; }
-  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 52px; height: 52px; border-radius: 50%; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); color: #c9a84c; font-family: 'Playfair Display',serif; font-weight: 700; font-size: 28px; cursor: pointer; }
+  .longest-pill { position: absolute; top: 52px; left: 12px; z-index: 1000; display: flex; flex-direction: column; gap: 2px; background: rgba(0,0,0,0.78); border: 2px solid #d4af37; border-radius: 12px; padding: 5px 10px; pointer-events: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 44px; height: 44px; border-radius: 50%; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); color: #c9a84c; font-family: 'Playfair Display',serif; font-weight: 700; font-size: 24px; cursor: pointer; }
   .shot-pill { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; border: none; border-radius: 50px; cursor: pointer; font-family: 'Inter',sans-serif; font-size: 16px; font-weight: 700; padding: 14px 32px; white-space: nowrap; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: all 0.2s; }
   .shot-pill-idle { background: rgba(255,255,255,0.15); color: #4ade80; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
   .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
   .shot-pill-disabled { opacity: 0.4; cursor: not-allowed; }
-  .swing-btn { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 108px; height: 108px; border-radius: 50%; border: 4px solid #d4af37; cursor: pointer; font-family: 'Inter',sans-serif; font-weight: 800; font-size: 16px; line-height: 1.1; text-transform: uppercase; box-shadow: 0 6px 24px rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; -webkit-tap-highlight-color: transparent; }
+  .swing-btn { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 92px; height: 92px; border-radius: 50%; border: 4px solid #d4af37; cursor: pointer; font-family: 'Inter',sans-serif; font-weight: 800; font-size: 14px; line-height: 1.1; text-transform: uppercase; box-shadow: 0 6px 24px rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; -webkit-tap-highlight-color: transparent; }
   .swing-idle { animation: swing-flash 1s steps(1) infinite; }
   .swing-active { background: #d4af37; color: #000; border-color: #fff; animation: swing-pulse 1.2s ease-in-out infinite; }
   .swing-disabled { background: #333; color: #999; border-color: #666; cursor: not-allowed; animation: none; }
   @keyframes swing-flash { 0%,100% { background: #000; color: #d4af37; } 50% { background: #d4af37; color: #000; } }
   @keyframes swing-pulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.07); } }
-  .big-dist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-  .big-dist-box { background: #06140c; border: 2px solid rgba(212,175,55,0.55); border-radius: 16px; padding: 10px 6px 8px; text-align: center; }
-  .big-dist-label { font-size: 17px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.06em; }
-  .big-dist-num { font-family: 'Inter',sans-serif; font-size: clamp(64px, 21vw, 96px); font-weight: 900; line-height: 1; color: #d4af37; margin: 4px 0 2px; letter-spacing: -0.02em; }
-  .big-dist-unit { font-size: 16px; color: #c8d8cc; font-weight: 600; }
+  .big-dist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .big-dist-box { background: #06140c; border: 2px solid rgba(212,175,55,0.55); border-radius: 14px; padding: 6px 4px 4px; text-align: center; }
+  .big-dist-label { font-size: 14px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.06em; }
+  .big-dist-num { font-family: 'Inter',sans-serif; font-size: clamp(48px, 15vw, 68px); font-weight: 900; line-height: 1; color: #d4af37; margin: 2px 0 0; letter-spacing: -0.02em; }
+  .big-dist-unit { font-size: 13px; color: #c8d8cc; font-weight: 600; }
   .flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,0.82); }
   .flash-hit { animation: flash-fade 5s ease forwards; }
   .flash-pin { animation: flash-fade 3s ease forwards; }
   .flash-inner { text-align: center; }
   .flash-emoji { font-size: 56px; margin-bottom: 8px; }
-  .flash-big { font-family: 'Inter',sans-serif; font-size: 150px; font-weight: 900; color: #4ade80; line-height: 1; }
+  .flash-big { font-family: 'Inter',sans-serif; font-size: 120px; font-weight: 900; color: #4ade80; line-height: 1; }
   .flash-label { font-size: 26px; font-weight: 700; color: #f0ead6; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 6px; }
   @keyframes flash-fade { 0% { opacity: 0; transform: scale(0.85); } 8% { opacity: 1; transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes pulse-amber { 0%,100% { box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); } 50% { box-shadow: 0 4px 28px rgba(251,191,36,0.55), 0 0 0 6px rgba(251,191,36,0.12), inset 0 1px 0 rgba(255,255,255,0.1); } }
@@ -430,11 +434,11 @@ const css = `
   .pickup-link { background: none; border: none; color: #7a9e84; font-size: 11px; cursor: pointer; font-family: 'Inter',sans-serif; text-decoration: underline; padding: 0 0 0 4px; }
   .pickup-link:hover { color: #f87171; }
   .hole-nav-bar { display: flex; align-items: center; background: rgba(6,14,9,0.95); border-bottom: 0.5px solid rgba(45,90,61,0.5); padding: 0; flex-shrink: 0; backdrop-filter: blur(12px); }
-  .hole-nav-btn { flex: 1; background: transparent; border: none; color: #e8dfc8; font-size: 15px; font-weight: 600; cursor: pointer; padding: 13px 10px; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
+  .hole-nav-btn { flex: 1; background: transparent; border: none; color: #f0ead6; font-size: 17px; font-weight: 700; cursor: pointer; padding: 9px 8px; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
   .hole-nav-btn:disabled { color: #2d5a3d; cursor: default; }
   .hole-nav-info { flex: 2; text-align: center; }
-  .hole-nav-label { font-size: 13px; color: #c9a84c; font-weight: 700; font-family: 'Playfair Display',serif; }
-  .hole-nav-sub { font-size: 10px; color: #7a9e84; }
+  .hole-nav-label { font-size: 18px; color: #c9a84c; font-weight: 700; font-family: 'Playfair Display',serif; }
+  .hole-nav-sub { font-size: 13px; color: #c8d8cc; }
   .shot-flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(5,16,10,0.55); animation: shot-flash-bg 7s ease forwards; }
   .shot-flash-inner { text-align: center; animation: shot-flash-pop 7s cubic-bezier(.2,.9,.3,1) forwards; }
   .shot-flash-yards { font-family: 'Playfair Display',serif; font-size: 104px; font-weight: 700; color: #4ade80; line-height: 1; text-shadow: 0 4px 32px rgba(74,222,128,0.5); }
@@ -470,7 +474,6 @@ function TabBar({ active, onSelect, onGame }) {
     { key: "hole", label: "⛳ Play", action: onGame },
     { key: "history", label: "📋 History", action: () => onSelect("history") },
     { key: "leaderboard", label: "🏆 Leaders", action: () => onSelect("leaderboard") },
-    { key: "friends", label: "👥 Friends", action: () => onSelect("friends") },
     { key: "profile", label: "👤 Me", action: () => onSelect("profile") },
   ];
   return (
@@ -488,7 +491,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [tab, setTab]               = useState(null); // null | history | leaderboard | friends | profile
   const [round, setRound]           = useState(null); // { round, roundPlayer } from Supabase, or null for guests
   const [screen, setScreen]         = useState("lobby");
-  const [playerTee, setPlayerTee]   = useState("mens");
+  const [, setPlayerTee]            = useState("mens");
   const [roundStart, setRoundStart] = useState(0);
   const [roundEnd, setRoundEnd]     = useState(18);
   const [holeIdx, setHoleIdx]       = useState(0);
@@ -503,6 +506,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [shotFlash, setShotFlash]   = useState(null);
   const [tapHint, setTapHint]       = useState(null);
   const [locationReady, setLocationReady] = useState(false);
+  const [longestToday, setLongestToday] = useState(() => {
+    try { return Number(localStorage.getItem(longestKey())) || 0; } catch { return 0; }
+  });
   const [locChecked, setLocChecked] = useState(false);
   const watchRef                    = useRef(null);
 
@@ -575,13 +581,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
     </div>
   );
-  if (tab === "friends") return (
-    <div className="app" style={{display:"flex", flexDirection:"column"}}>
-      <style>{css}</style>
-      {isGuest ? <GuestUpsell feature="Friends" onExitGuest={onExitGuest} /> : <Friends userId={user.id} />}
-      <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
-    </div>
-  );
   if (tab === "history") return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
       <style>{css}</style>
@@ -597,7 +596,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           <p style={{fontSize:34}}>⛳</p>
           <p style={{fontFamily:"'Playfair Display',serif", fontSize:20, color:"#c9a84c"}}>Playing as Guest</p>
           <p style={{fontSize:13, color:"#7a9e84", maxWidth:280, lineHeight:1.5}}>
-            Your round is tracked on this device only. Create a free account any time to save it, add friends, and join the leaderboard.
+            Your round is tracked on this device only. Create a free account any time to save your rounds and join the leaderboard.
           </p>
           <button onClick={onExitGuest}
             style={{padding:"12px 24px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#c9a84c,#b8952f)", color:"#0f2818", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
@@ -628,15 +627,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   }
 
   if (screen === "lobby") return (
-    <div style={{position:"relative", height:"100vh"}}>
+    <div style={{position:"relative", height:"100dvh"}}>
       <RoundLobby user={user} profile={profile} isGuest={isGuest} onRoundStart={onRoundStart} onShowInstructions={onShowInstructions} />
-      {!isGuest && (
-        <div style={{position:"absolute", top:0, left:0, right:0, zIndex:50, padding:"12px 16px 0", pointerEvents:"none"}}>
-          <div style={{pointerEvents:"auto"}}>
-            <RoundInvites userId={user.id} onJoin={onRoundStart} />
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -669,6 +661,10 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       });
       const pin = Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
       setShotFlash({ yards, pin, id: Date.now() });
+      if (yards <= 1000 && yards > longestToday) {
+        setLongestToday(yards);
+        try { localStorage.setItem(longestKey(), String(yards)); } catch { /* ignore */ }
+      }
     }
     setShotFrom({ lat: gps.lat, lng: gps.lng });
   }
@@ -965,23 +961,21 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         <LocationGate onGranted={() => setLocationReady(true)} onBack={() => setScreen("lobby")} />
       )}
 
-      {/* Header */}
-      <div style={{padding:"6px 16px 5px", flexShrink:0, borderBottom:"0.5px solid #1a3a24"}}>
-        <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c", lineHeight:1.15, marginBottom:1}}>
-          The Unofficial Miles Grant Golf Companion
-        </h2>
-        <p style={{fontSize:15, color:"#c8d8cc"}}>Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}</p>
-      </div>
-
       {/* Map + overlays */}
       <div className="map-wrap">
         <HoleMap hole={hole} gps={gps} holeShots={holeShots} key={hole.number} />
         <div className="hole-pill">
-          <span style={{fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:"#c9a84c", lineHeight:1}}>
+          <span style={{fontFamily:"'Inter',sans-serif", fontSize:20, fontWeight:800, color:"#d4af37", lineHeight:1}}>
             Hole {hole.number}
           </span>
-          <span style={{fontSize:11, color:"rgba(240,234,214,0.6)", marginLeft:6}}>Par {hole.par}</span>
+          <span style={{fontSize:15, fontWeight:700, color:"#f0ead6", marginLeft:6}}>Par {hole.par}</span>
         </div>
+        {longestToday > 0 && (
+          <div className="longest-pill">
+            <span style={{fontSize:12, fontWeight:800, color:"#f0ead6", letterSpacing:"0.04em"}}>🏆 LONGEST TODAY</span>
+            <span style={{fontSize:24, fontWeight:900, color:"#d4af37", lineHeight:1}}>{longestToday} <span style={{fontSize:13, color:"#f0ead6"}}>yds</span></span>
+          </div>
+        )}
         {onShowInstructions && (
           <button className="help-pill" onClick={onShowInstructions} aria-label="How this app works">?</button>
         )}
@@ -1013,7 +1007,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
       {/* Bottom panel */}
       <div className="bottom-panel">
-        <div style={{padding:"10px 14px 16px"}}>
+        <div style={{padding:"8px 12px 12px"}}>
 
           {/* Big distance panel — the most important numbers in the app */}
           <div className="big-dist">
@@ -1028,10 +1022,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               <p className="big-dist-unit">yards</p>
             </div>
           </div>
-          <p style={{textAlign:"center", fontSize:17, color:"#c8d8cc", marginBottom:10}}>
-            Tee: <b style={{color:"#f0ead6"}}>{hole.tees[playerTee].yards} yds</b>
-            {gpsError && <span style={{color:"#f87171", marginLeft:10}}>{gpsError}</span>}
-          </p>
+          {gpsError && <p style={{textAlign:"center", fontSize:18, color:"#f87171", marginBottom:10}}>{gpsError}</p>}
 
           {/* Next Hole / Round Complete button (after hole completion) */}
           {holeComplete && (
@@ -1061,11 +1052,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           )}
 
           {/* Score row */}
-          <div className="glass-card" style={{padding:"10px 12px", marginBottom:8}}>
-            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8}}>
+          <div className="glass-card" style={{padding:"8px 10px", marginBottom:8}}>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
               <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
                 <div style={{width:9, height:9, borderRadius:"50%", background:PLAYER_COLOR}} />
-                <span style={{fontSize:20, fontWeight:700}}>Score</span>
+                <span style={{fontSize:18, fontWeight:700}}>Score</span>
                 {!skipped[holeIdx] && scoreForDisplay > 0 && diff !== null && (
                   <span style={{fontSize:16, padding:"2px 9px", borderRadius:6, fontWeight:600,
                     background:diff<=-2?"#1d4ed8":diff===-1?"#14532d":diff===0?"#3a3a2a":diff===1?"#7c2d12":"#450a0a",
@@ -1081,16 +1072,16 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               {!skipped[holeIdx] ? (
                 <div style={{display:"flex", alignItems:"center"}}>
                   <button onClick={() => adjustScore(-1)}
-                    style={{width:52, height:52, borderRadius:"8px 0 0 8px", border:"0.5px solid #2d5a3d",
-                      background:"#122018", color:"#f0ead6", fontSize:28, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>−</button>
-                  <div style={{width:52, height:52, background:"#0f2818", border:"0.5px solid #2d5a3d",
+                    style={{width:44, height:44, borderRadius:"8px 0 0 8px", border:"0.5px solid #2d5a3d",
+                      background:"#122018", color:"#f0ead6", fontSize:24, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>−</button>
+                  <div style={{width:44, height:44, background:"#0f2818", border:"0.5px solid #2d5a3d",
                     borderLeft:"none", borderRight:"none", display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:24, fontWeight:800, color:scoreForDisplay?"#f0ead6":"#7a9e84"}}>
+                    fontSize:21, fontWeight:800, color:scoreForDisplay?"#f0ead6":"#7a9e84"}}>
                     {scoreForDisplay || "·"}
                   </div>
                   <button onClick={() => adjustScore(1)}
-                    style={{width:52, height:52, borderRadius:"0 8px 8px 0", border:"0.5px solid #2d5a3d",
-                      background:"#122018", color:"#f0ead6", fontSize:28, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>+</button>
+                    style={{width:44, height:44, borderRadius:"0 8px 8px 0", border:"0.5px solid #2d5a3d",
+                      background:"#122018", color:"#f0ead6", fontSize:24, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>+</button>
                 </div>
               ) : (
                 <button onClick={() => setSkipped(prev=>{const n=[...prev];n[holeIdx]=false;return n;})}
@@ -1118,9 +1109,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             )}
 
             <button onClick={cupIn}
-              style={{width:"100%", padding:"16px", borderRadius:14, border:"0.5px solid rgba(201,168,76,0.35)",
+              style={{width:"100%", padding:"11px", borderRadius:12, border:"0.5px solid rgba(201,168,76,0.35)",
                 background:"rgba(201,168,76,0.12)", color:"#c9a84c", fontFamily:"'Inter',sans-serif",
-                fontSize:20, fontWeight:700, cursor:"pointer", letterSpacing:"0.02em",
+                fontSize:18, fontWeight:700, cursor:"pointer", letterSpacing:"0.02em",
                 backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
                 boxShadow:"inset 0 1px 0 rgba(201,168,76,0.1)"}}>
               🏆 In the cup — score {shotBasedScore || scores[holeIdx] || 1}
@@ -1207,7 +1198,7 @@ export default function App() {
   }
 
   if (user === undefined) return (
-    <div style={{height:"100vh", background:"#0a1c12", display:"flex", alignItems:"center", justifyContent:"center", color:"#c9a84c", fontFamily:"'Playfair Display',serif", fontSize:22}}>
+    <div style={{height:"100dvh", background:"#0a1c12", display:"flex", alignItems:"center", justifyContent:"center", color:"#c9a84c", fontFamily:"'Playfair Display',serif", fontSize:22}}>
       Loading…
     </div>
   );

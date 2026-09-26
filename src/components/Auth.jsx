@@ -69,14 +69,14 @@ export default function Auth({ onGuest, onShowInstructions }) {
   }
 
   return (
-    <div style={{position:"relative", height:"100vh", overflow:"hidden", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
+    <div style={{position:"relative", height:"100dvh", overflow:"hidden", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
       <style>{css}</style>
       <div className="auth-bg" />
       <div className="auth-overlay" />
       {onShowInstructions && (
         <button className="auth-help-btn" onClick={onShowInstructions} aria-label="How this app works">?</button>
       )}
-      <div style={{position:"relative", zIndex:2, height:"100vh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"max(env(safe-area-inset-bottom),28px)"}}>
+      <div style={{position:"relative", zIndex:2, height:"100dvh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"max(env(safe-area-inset-bottom),28px)"}}>
         <div style={{textAlign:"center", marginBottom:"1.5rem"}}>
           <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:38, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:6, textShadow:"0 2px 20px rgba(0,0,0,0.8)"}}>
             Miles Grant<br/>Country Club
@@ -126,7 +126,7 @@ export default function Auth({ onGuest, onShowInstructions }) {
           </button>
           <p style={{fontSize:11, color:"#7a9e84", textAlign:"center", marginTop:8, lineHeight:1.5}}>
             Guests can play a full round with GPS yardage and scoring free of charge.
-            Create an account to save round history, add friends, and join the club leaderboard.
+            Create an account to save round history and join the club leaderboard.
           </p>
 
           <p style={{textAlign:"center", marginTop:14, fontSize:13, color:"#7a9e84"}}>

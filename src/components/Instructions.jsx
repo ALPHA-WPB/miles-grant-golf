@@ -17,7 +17,7 @@ const SECTIONS = [
   },
   {
     title: "👤 Guest or account",
-    body: "Guests get everything free, but the round is erased when you close the app. A free account saves your rounds, friends, and leaderboard scores.",
+    body: "Guests get everything free, but the round is erased when you close the app. A free account saves your rounds and leaderboard scores.",
   },
   {
     title: "❓ Need this again?",
