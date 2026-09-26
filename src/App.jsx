@@ -604,7 +604,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           <p style={{fontSize:34}}>⛳</p>
           <p style={{fontFamily:"'Playfair Display',serif", fontSize:20, color:"#c9a84c"}}>Playing as Guest</p>
           <p style={{fontSize:13, color:"#7a9e84", maxWidth:280, lineHeight:1.5}}>
-            Your round is tracked on this device only. Create a free account any time to save your rounds and join the leaderboard.
+            Guest: play free — nothing is saved. Your round is erased when you close the app. Create a free account any time to save your rounds and join the club leaderboard.
           </p>
           <button onClick={onExitGuest}
             style={{padding:"12px 24px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#c9a84c,#b8952f)", color:"#0f2818", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>

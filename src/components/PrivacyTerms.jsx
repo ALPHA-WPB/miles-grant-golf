@@ -9,7 +9,7 @@ const SECTIONS = [
   ["Your location",
    "The app asks for your phone's location only to show distances on the course. Your location is used on your phone only. It is never stored, never sent to us, and never shared or sold."],
   ["What we save",
-   "Guests: nothing is saved. Your round is erased when you close the app.\n\nAccount holders: your name, email address, and round scores are saved so you can see your history and the club leaderboard. If you sign in with Google or Apple, they share only your name and email with us."],
+   "Guests: nothing is sent to or saved by us. Your round is erased when you close the app, and guests don't appear on the leaderboard.\n\nOn your phone only: your longest shot of the day and a few app settings (like whether you've seen the instructions) are remembered on your device. They never leave your phone.\n\nAccount holders: your name, email address, and round scores are saved so you can see your history and the club leaderboard. If you sign in with Google or Apple, they share only your name and email with us."],
   ["Who sees your information",
    "Other players see only your name on the leaderboard, never your email. Only the app's creator can see the list of account holders, to know how many people use the app."],
   ["No selling or sharing",

@@ -126,8 +126,8 @@ export default function Auth({ onGuest, onShowInstructions }) {
             ⛳ Continue as Guest
           </button>
           <p style={{fontSize:11, color:"#7a9e84", textAlign:"center", marginTop:8, lineHeight:1.5}}>
-            Guests can play a full round with GPS yardage and scoring free of charge.
-            Create an account to save round history and join the club leaderboard.
+            <b style={{color:"#c8d8cc"}}>Guest:</b> play free — nothing is saved.<br />
+            <b style={{color:"#c8d8cc"}}>Free account:</b> saves your rounds and puts you on the club leaderboard.
           </p>
 
           <p style={{textAlign:"center", marginTop:14, fontSize:13, color:"#7a9e84"}}>
