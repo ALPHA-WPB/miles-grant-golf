@@ -1,11 +1,11 @@
 const SECTIONS = [
   {
     title: "⛳ Distance to the pin",
-    body: "Open the app and it finds the hole you're on by itself. The big gold number is how far you are from the center of the green. It updates as you walk.",
+    body: "The big gold number is how far you are from the center of the green. It updates as you walk.",
   },
   {
     title: "🧭 Changing holes",
-    body: "Walk onto the next tee and the app switches holes by itself. If it's ever wrong, tap \"Change hole\" under the hole number and pick the right one. (When you're keeping score, it asks before switching.)",
+    body: "When you open the app, it shows the hole you're closest to — tap Start. When you walk onto the next tee, a big message asks \"Moving to Hole 6?\" — tap Yes. You can also tap \"Change hole\" under the hole number any time.",
   },
   {
     title: "🏌️ Measuring your shot",
