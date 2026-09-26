@@ -438,6 +438,18 @@ const css = `
   .hole-nav-btn { flex: 1; background: transparent; border: none; color: #f0ead6; font-size: 17px; font-weight: 700; cursor: pointer; padding: 9px 8px; font-family: 'Inter',sans-serif; display: flex; align-items: center; justify-content: center; }
   .hole-nav-btn:disabled { color: #2d5a3d; cursor: default; }
   .hole-nav-info { flex: 2; text-align: center; }
+  .hp-backdrop { position: fixed; inset: 0; z-index: 3200; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; }
+  .hp-sheet { width: 100%; max-width: 520px; background: #06140c; border-top: 3px solid #d4af37; border-radius: 22px 22px 0 0; padding: 20px 18px calc(28px + env(safe-area-inset-bottom)); font-family: 'Inter',sans-serif; color: #f0ead6; text-align: center; }
+  .hp-title { font-size: 26px; font-weight: 800; line-height: 1.2; margin-bottom: 4px; }
+  .hp-sub { font-size: 18px; color: #c8d8cc; margin-bottom: 12px; }
+  .hp-note { font-size: 16px; color: #fbbf24; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.4); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; line-height: 1.4; }
+  .hp-yes { width: 100%; padding: 20px; border-radius: 16px; border: none; background: #d4af37; color: #000; font-size: 22px; font-weight: 900; cursor: pointer; margin-bottom: 10px; font-family: 'Inter',sans-serif; }
+  .hp-alt { width: 100%; padding: 16px; border-radius: 14px; border: 2px solid #d4af37; background: transparent; color: #d4af37; font-size: 19px; font-weight: 800; cursor: pointer; margin-bottom: 10px; font-family: 'Inter',sans-serif; }
+  .hp-no { width: 100%; padding: 14px; border-radius: 14px; border: 1px solid #2d5a3d; background: transparent; color: #c8d8cc; font-size: 18px; font-weight: 700; cursor: pointer; font-family: 'Inter',sans-serif; }
+  .hp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 14px; }
+  .hp-num { padding: 16px 0; border-radius: 14px; border: 1px solid #2d5a3d; background: rgba(255,255,255,0.05); color: #f0ead6; font-size: 26px; font-weight: 800; cursor: pointer; font-family: 'Inter',sans-serif; }
+  .hp-num-current { border: 2px solid #f0ead6; }
+  .hp-num-suggest { background: #d4af37; color: #000; border-color: #d4af37; }
   .hole-nav-label { font-size: 18px; color: #c9a84c; font-weight: 700; font-family: 'Playfair Display',serif; }
   .hole-nav-sub { font-size: 13px; color: #c8d8cc; }
   .shot-flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(5,16,10,0.55); animation: shot-flash-bg 7s ease forwards; }
@@ -492,7 +504,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [tab, setTab]               = useState(null); // null | history | leaderboard | friends | profile
   const [round, setRound]           = useState(null); // { round, roundPlayer } from Supabase, or null for guests
   const [screen, setScreen]         = useState("lobby");
-  const [, setPlayerTee]            = useState("mens");
+  const [playerTee, setPlayerTee]   = useState("mens");
   const [roundStart, setRoundStart] = useState(0);
   const [roundEnd, setRoundEnd]     = useState(18);
   const [holeIdx, setHoleIdx]       = useState(0);
@@ -504,6 +516,10 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [gps, setGps]               = useState(null);
   const [gpsError, setGpsError]     = useState(null);
   const [shotFrom, setShotFrom]     = useState(null);
+  const [holePrompt, setHolePrompt] = useState(null);   // hole index we think you're at
+  const [showPicker, setShowPicker] = useState(false);  // manual hole picker
+  const dismissedRef                = useRef(new Set()); // holes you said "No" to (until you walk away)
+  const candidateRef                = useRef({ idx: null, count: 0 });
   const [shotFlash, setShotFlash]   = useState(null);
   const [tapHint, setTapHint]       = useState(null);
   const [locationReady, setLocationReady] = useState(false);
@@ -574,6 +590,34 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     const t = setTimeout(() => setTapHint(null), 4000);
     return () => clearTimeout(t);
   }, [tapHint]);
+
+  // ── Automatic hole detection ─────────────────────────────
+  // When you walk up to a different hole's tee box, ask "On Hole X?"
+  useEffect(() => {
+    if (screen !== "hole" || !gps) return;
+    if (gps.acc && gps.acc > 25) return; // GPS too fuzzy to be sure
+    const ZONE = 20, CLEAR = 45;         // yards
+    const toTee = i => Math.min(...Object.values(HOLES[i].tees).map(t => haversineYards(gps.lat, gps.lng, t.lat, t.lng)));
+    // Forget "No" answers once you've walked away from that tee
+    for (const i of [...dismissedRef.current]) if (toTee(i) > CLEAR) dismissedRef.current.delete(i);
+    if (holePrompt !== null) {
+      if (toTee(holePrompt) > CLEAR) setHolePrompt(null);
+      return;
+    }
+    const reset = () => { candidateRef.current = { idx: null, count: 0 }; };
+    if (toTee(holeIdx) <= ZONE) return reset();                       // you're at your own tee
+    const g = HOLES[holeIdx].green;
+    if (!holeComplete && haversineYards(gps.lat, gps.lng, g.lat, g.lng) <= 25) return reset(); // still putting
+    const cands = [];
+    for (let i = roundStart; i < roundEnd; i++) {
+      if (i !== holeIdx && !dismissedRef.current.has(i) && toTee(i) <= ZONE) cands.push(i);
+    }
+    if (!cands.length) return reset();
+    const pick = cands.includes(holeIdx + 1) ? holeIdx + 1 : cands.reduce((a, b) => (toTee(a) <= toTee(b) ? a : b));
+    const c = candidateRef.current;
+    candidateRef.current = c.idx === pick ? { idx: pick, count: c.count + 1 } : { idx: pick, count: 1 };
+    if (candidateRef.current.count >= 2) setHolePrompt(pick);          // two readings in a row = confident
+  }, [gps, screen, holeIdx, holeComplete, holePrompt, roundStart, roundEnd]);
 
   if (tab === "leaderboard") return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
@@ -707,6 +751,21 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     setShotFrom(null);
   }
 
+  function goToHole(i) {
+    setHoleIdx(i);
+    setShotFrom(null);
+    setPickupConfirm(false);
+    setHoleComplete(false);
+    setHolePrompt(null);
+    setShowPicker(false);
+    candidateRef.current = { idx: null, count: 0 };
+  }
+
+  function declineHolePrompt() {
+    if (holePrompt !== null) dismissedRef.current.add(holePrompt);
+    setHolePrompt(null);
+  }
+
   function nextHole() {
     setHoleIdx(i => Math.min(roundEnd - 1, i + 1));
     setShotFrom(null);
@@ -747,6 +806,39 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const lastShot = holeShots.length > 0 ? holeShots[holeShots.length - 1].yards : null;
 
   const shotFlashOverlay = shotFlash && <ShotFlash key={shotFlash.id} yards={shotFlash.yards} pin={shotFlash.pin} />;
+
+  const unfinished = !holeComplete && !skipped[holeIdx] && (holeShots.length > 0 || scores[holeIdx] > 0);
+  const holePromptSheet = holePrompt !== null && !shotFlash && !showPicker && (
+    <div className="hp-backdrop">
+      <div className="hp-sheet" role="dialog" aria-modal="true">
+        <p className="hp-title">📍 You're at the <span style={{color:"#d4af37"}}>Hole {HOLES[holePrompt].number}</span> tee</p>
+        <p className="hp-sub">Par {HOLES[holePrompt].par} · {HOLES[holePrompt].tees[playerTee]?.yards ?? ""} yds</p>
+        {unfinished && <p className="hp-note">Hole {hole.number} isn't finished yet. Its shots are kept, and you can go back to it any time.</p>}
+        <button className="hp-yes" onClick={() => goToHole(holePrompt)}>✅ Yes, go to Hole {HOLES[holePrompt].number}</button>
+        <button className="hp-alt" onClick={() => { setShowPicker(true); }}>Pick a different hole</button>
+        <button className="hp-no" onClick={declineHolePrompt}>No, stay on Hole {hole.number}</button>
+      </div>
+    </div>
+  );
+  const holePicker = showPicker && (
+    <div className="hp-backdrop">
+      <div className="hp-sheet" role="dialog" aria-modal="true">
+        <p className="hp-title">Which hole are you on?</p>
+        <div className="hp-grid">
+          {HOLES.slice(roundStart, roundEnd).map((h, k) => {
+            const i = roundStart + k;
+            return (
+              <button key={h.number} onClick={() => goToHole(i)}
+                className={`hp-num ${i === holeIdx ? "hp-num-current" : ""} ${i === holePrompt ? "hp-num-suggest" : ""}`}>
+                {h.number}
+              </button>
+            );
+          })}
+        </div>
+        <button className="hp-no" onClick={() => { setShowPicker(false); if (holePrompt !== null) declineHolePrompt(); }}>Cancel</button>
+      </div>
+    </div>
+  );
 
   const tapHintOverlay = tapHint && (
     <div key={tapHint.id} className="tap-hint-overlay">
@@ -965,6 +1057,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <style>{css}</style>
       {shotFlashOverlay}
       {tapHintOverlay}
+      {holePromptSheet}
+      {holePicker}
       {locChecked && !locationReady && (
         <LocationGate onGranted={() => setLocationReady(true)} onBack={() => setScreen("lobby")} />
       )}
@@ -1004,7 +1098,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         <button className="hole-nav-btn" onClick={prevHole} disabled={holeIdx===roundStart}>
           {holeIdx===roundStart ? "‹ —" : `‹ Hole ${hole.number - 1}`}
         </button>
-        <div className="hole-nav-info">
+        <div className="hole-nav-info" role="button" onClick={() => setShowPicker(true)} style={{cursor:"pointer"}}>
           <div className="hole-nav-label">Hole {hole.number}</div>
           <div className="hole-nav-sub">{holeIdx - roundStart + 1} of {roundEnd - roundStart}</div>
         </div>

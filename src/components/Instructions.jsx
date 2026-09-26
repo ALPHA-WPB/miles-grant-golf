@@ -8,6 +8,10 @@ const SECTIONS = [
     body: "1. Before you swing, tap the big flashing button.\n2. Hit your shot.\n3. Walk to your ball and tap the button again.\n\nYour shot distance pops up big on the screen, then it shows how far you have left to the pin. The button is ready for your next shot right away.",
   },
   {
+    title: "🧭 Changing holes",
+    body: "When you walk up to the next tee, the app asks \"You're at the Hole 6 tee\" — tap Yes to switch. Tap No to stay, or \"Pick a different hole\" to choose. You can also tap the hole number in the middle of the bar under the map any time.",
+  },
+  {
     title: "🎯 Your tee",
     body: "Blue = Championship, White = Men's, Red = Women's. You pick your tee when you start. The \"Tee\" line shows that tee's yardage for the hole.",
   },
