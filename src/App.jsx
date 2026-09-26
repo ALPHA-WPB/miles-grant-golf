@@ -721,12 +721,13 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   // ── Start screen: which hole are you starting on? ─────────
   if (screen === "start") {
     let near = null, nearD = Infinity;
-    if (gps && !(gps.acc && gps.acc > 80)) {
+    const fuzzy = gps && gps.acc && gps.acc > 150;
+    if (gps && !fuzzy) {
       HOLES.forEach((h, i) => {
         const d = Math.min(...Object.values(h.tees).map(t => distToSegmentYards(gps, t, h.green)));
         if (d < nearD) { nearD = d; near = i; }
       });
-      if (nearD > 100) near = null;
+      if (nearD > 250) near = null;   // suggestion only — player confirms with Start
     }
     const sel = near ?? 0;
     const selHole = HOLES[sel];
@@ -742,7 +743,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
           <div className="start-card">
             <p className="start-card-tag">
-              {near !== null ? "📍 Closest to you" : gps ? "You're not on the course right now" : "📡 Finding your location…"}
+              {near !== null ? "📍 Closest to you" : (gps && !fuzzy) ? "You're not on the course right now" : "📡 Finding your location…"}
             </p>
             <div className="start-card-row">
               <div className="start-num">{selHole.number}</div>
