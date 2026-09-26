@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 // Only these sign-ins can open the admin page.
-export const ADMIN_EMAILS = ["rpdwpb@gmail.com"];
+export const ADMIN_EMAILS = ["rpdwpb@gmail.com", "richard@wpbit.com"];
 export const isAdmin = (user) => !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
 function fmtDate(d) {
