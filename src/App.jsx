@@ -7,6 +7,7 @@ import { authService } from "./services/authService";
 import { roundService } from "./services/roundService";
 import Auth from "./components/Auth";
 import Instructions from "./components/Instructions";
+import LocationGate from "./components/LocationGate";
 import RoundLobby from "./components/RoundLobby";
 import RoundInvites from "./components/RoundInvites";
 import Friends from "./components/Friends";
@@ -183,6 +184,48 @@ const HOLES = [
 
 const PLAYER_COLOR = "#4ade80";
 
+// Show a dash for missing or absurd yardages (keeps layout from breaking)
+function fmtYds(v) {
+  return v == null || !isFinite(v) || v > 1000 ? "—" : Math.round(v);
+}
+
+// Pop-up sequence after a shot: count-up yardage, then "Pin is: XXX"
+function ShotFlash({ yards, pin }) {
+  const [phase, setPhase] = useState("hit");
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const target = typeof yards === "number" && yards <= 1000 ? yards : 0;
+    const dur = 3500, t0 = performance.now();
+    let raf;
+    const tick = now => {
+      const k = Math.min(1, (now - t0) / dur);
+      setShown(Math.round(target * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const t = setTimeout(() => setPhase("pin"), 5000);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, [yards]);
+  if (phase === "hit") return (
+    <div className="flash-overlay flash-hit">
+      <div className="flash-inner">
+        <p className="flash-emoji">🎉 ⛳ 🎉</p>
+        <p className="flash-big">{yards > 1000 ? "—" : shown}</p>
+        <p className="flash-label">yards</p>
+      </div>
+    </div>
+  );
+  return (
+    <div className="flash-overlay flash-pin">
+      <div className="flash-inner">
+        <p className="flash-label" style={{fontSize:32}}>Pin is</p>
+        <p className="flash-big" style={{color:"#d4af37"}}>{fmtYds(pin)}</p>
+        <p className="flash-label">yards</p>
+      </div>
+    </div>
+  );
+}
+
 function haversineYards(lat1, lng1, lat2, lng2) {
   const R = 6371000;
   const p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180;
@@ -353,11 +396,30 @@ const css = `
   .glass-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
   .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
   .hole-pill { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); border-radius: 50px; padding: 6px 16px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none; }
-  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 32px; height: 32px; border-radius: 50%; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); color: #c9a84c; font-family: 'Playfair Display',serif; font-weight: 700; font-size: 15px; cursor: pointer; }
+  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 52px; height: 52px; border-radius: 50%; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); color: #c9a84c; font-family: 'Playfair Display',serif; font-weight: 700; font-size: 28px; cursor: pointer; }
   .shot-pill { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; border: none; border-radius: 50px; cursor: pointer; font-family: 'Inter',sans-serif; font-size: 16px; font-weight: 700; padding: 14px 32px; white-space: nowrap; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: all 0.2s; }
   .shot-pill-idle { background: rgba(255,255,255,0.15); color: #4ade80; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
   .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
   .shot-pill-disabled { opacity: 0.4; cursor: not-allowed; }
+  .swing-btn { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 108px; height: 108px; border-radius: 50%; border: 4px solid #d4af37; cursor: pointer; font-family: 'Inter',sans-serif; font-weight: 800; font-size: 16px; line-height: 1.1; text-transform: uppercase; box-shadow: 0 6px 24px rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; -webkit-tap-highlight-color: transparent; }
+  .swing-idle { animation: swing-flash 1s steps(1) infinite; }
+  .swing-active { background: #d4af37; color: #000; border-color: #fff; animation: swing-pulse 1.2s ease-in-out infinite; }
+  .swing-disabled { background: #333; color: #999; border-color: #666; cursor: not-allowed; animation: none; }
+  @keyframes swing-flash { 0%,100% { background: #000; color: #d4af37; } 50% { background: #d4af37; color: #000; } }
+  @keyframes swing-pulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.07); } }
+  .big-dist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .big-dist-box { background: #06140c; border: 2px solid rgba(212,175,55,0.55); border-radius: 16px; padding: 10px 6px 8px; text-align: center; }
+  .big-dist-label { font-size: 17px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.06em; }
+  .big-dist-num { font-family: 'Inter',sans-serif; font-size: clamp(64px, 21vw, 96px); font-weight: 900; line-height: 1; color: #d4af37; margin: 4px 0 2px; letter-spacing: -0.02em; }
+  .big-dist-unit { font-size: 16px; color: #c8d8cc; font-weight: 600; }
+  .flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,0.82); }
+  .flash-hit { animation: flash-fade 5s ease forwards; }
+  .flash-pin { animation: flash-fade 3s ease forwards; }
+  .flash-inner { text-align: center; }
+  .flash-emoji { font-size: 56px; margin-bottom: 8px; }
+  .flash-big { font-family: 'Inter',sans-serif; font-size: 150px; font-weight: 900; color: #4ade80; line-height: 1; }
+  .flash-label { font-size: 26px; font-weight: 700; color: #f0ead6; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 6px; }
+  @keyframes flash-fade { 0% { opacity: 0; transform: scale(0.85); } 8% { opacity: 1; transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes pulse-amber { 0%,100% { box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); } 50% { box-shadow: 0 4px 28px rgba(251,191,36,0.55), 0 0 0 6px rgba(251,191,36,0.12), inset 0 1px 0 rgba(255,255,255,0.1); } }
   .btn-primary { background: #c9a84c; color: #0f2818; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; padding: 14px; cursor: pointer; width: 100%; font-family: 'Inter',sans-serif; letter-spacing:0.02em; }
   .btn-ghost { background: transparent; border: 0.5px solid #2d5a3d; border-radius: 8px; color: #a3b89a; font-size: 13px; padding: 6px 14px; cursor: pointer; font-family: 'Inter',sans-serif; }
@@ -440,10 +502,39 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [shotFrom, setShotFrom]     = useState(null);
   const [shotFlash, setShotFlash]   = useState(null);
   const [tapHint, setTapHint]       = useState(null);
+  const [locationReady, setLocationReady] = useState(false);
+  const [locChecked, setLocChecked] = useState(false);
   const watchRef                    = useRef(null);
 
+  // Location gate: check permission when entering the hole screen
   useEffect(() => {
-    if (screen !== "hole") return;
+    if (screen !== "hole" || locationReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (navigator.permissions?.query) {
+          const st = await navigator.permissions.query({ name: "geolocation" });
+          if (!cancelled && st.state === "granted") setLocationReady(true);
+        }
+      } catch { /* ignore */ }
+      if (!cancelled) setLocChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [screen, locationReady]);
+
+  // Keep the screen awake while playing a hole
+  useEffect(() => {
+    if (screen !== "hole" || !("wakeLock" in navigator)) return;
+    let lock = null;
+    const req = async () => { try { lock = await navigator.wakeLock.request("screen"); } catch { /* ignore */ } };
+    const onVis = () => { if (document.visibilityState === "visible") req(); };
+    req();
+    document.addEventListener("visibilitychange", onVis);
+    return () => { document.removeEventListener("visibilitychange", onVis); try { lock?.release(); } catch { /* ignore */ } };
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen !== "hole" || !locationReady) return;
     if (!navigator.geolocation) { setGpsError("GPS not available"); return; }
     watchRef.current = navigator.geolocation.watchPosition(
       pos => {
@@ -454,7 +545,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       { enableHighAccuracy: true, maximumAge: 2000 }
     );
     return () => navigator.geolocation.clearWatch(watchRef.current);
-  }, [screen]);
+  }, [screen, locationReady]);
 
   useEffect(() => {
     if (screen !== "hole") return;
@@ -467,7 +558,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   useEffect(() => {
     if (!shotFlash) return;
-    const t = setTimeout(() => setShotFlash(null), 7000);
+    const t = setTimeout(() => setShotFlash(null), 8000);
     return () => clearTimeout(t);
   }, [shotFlash]);
 
@@ -576,7 +667,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         next[holeIdx] = [...next[holeIdx], { from: shotFrom, to: { lat: gps.lat, lng: gps.lng }, yards }];
         return next;
       });
-      setShotFlash({ yards, id: Date.now() });
+      const pin = Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
+      setShotFlash({ yards, pin, id: Date.now() });
     }
     setShotFrom({ lat: gps.lat, lng: gps.lng });
   }
@@ -650,21 +742,14 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const diff = scoreForDisplay ? scoreForDisplay - hole.par : null;
   const lastShot = holeShots.length > 0 ? holeShots[holeShots.length - 1].yards : null;
 
-  const shotFlashOverlay = shotFlash && (
-    <div key={shotFlash.id} className="shot-flash-overlay">
-      <div className="shot-flash-inner">
-        <p className="shot-flash-yards">{shotFlash.yards}</p>
-        <p className="shot-flash-label">yards</p>
-      </div>
-    </div>
-  );
+  const shotFlashOverlay = shotFlash && <ShotFlash key={shotFlash.id} yards={shotFlash.yards} pin={shotFlash.pin} />;
 
   const tapHintOverlay = tapHint && (
     <div key={tapHint.id} className="tap-hint-overlay">
       <div className="tap-hint-inner">
-        <p className="tap-hint-title">🏌️ Tap the button</p>
+        <p className="tap-hint-title">🏌️ Tap the big gold button</p>
         <p className="tap-hint-title">before every swing</p>
-        <p className="tap-hint-sub">We'll track how far you hit it</p>
+        <p className="tap-hint-sub" style={{fontSize:20}}>Then tap it again when you reach your ball</p>
       </div>
     </div>
   );
@@ -757,12 +842,12 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         <div style={{padding:"1rem 1rem 5rem"}}>
           <div style={{textAlign:"center", padding:"0.8rem 0 1rem"}}>
             <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c", marginBottom:2}}>All 18 Holes</h2>
-            <p style={{fontSize:12, color:"#7a9e84"}}>Tap any hole to jump to it</p>
+            <p style={{fontSize:15, color:"#7a9e84"}}>Tap any hole to jump to it</p>
           </div>
 
           {["Front Nine · 1–9", "Back Nine · 10–18"].map((label, half) => (
             <div key={half} style={{marginBottom:16}}>
-              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>{label}</p>
+              <p style={{fontSize:13, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:8}}>{label}</p>
               <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8}}>
                 {HOLES.slice(half*9, half*9+9).map((h, i) => {
                   const hi = half*9+i;
@@ -777,9 +862,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                         backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)",
                         boxShadow:"0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)",
                         display:"flex", flexDirection:"column", alignItems:"center", gap:3}}>
-                      <span style={{fontSize:11, color:"#7a9e84"}}>Hole</span>
+                      <span style={{fontSize:14, color:"#7a9e84"}}>Hole</span>
                       <span style={{fontSize:22, fontWeight:700, color:isCurrent?"#c9a84c":"#f0ead6", lineHeight:1}}>{h.number}</span>
-                      <span style={{fontSize:10, color:"#7a9e84"}}>Par {h.par}</span>
+                      <span style={{fontSize:13, color:"#7a9e84"}}>Par {h.par}</span>
                       <span style={{fontSize:16, fontWeight:700, color:scoreColor(hi), marginTop:2}}>
                         {isSkipped ? "—" : s || "·"}
                       </span>
@@ -802,13 +887,13 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <div style={{padding:"1rem 1rem 5rem", maxWidth:420, margin:"0 auto"}}>
         <div style={{textAlign:"center", padding:"1.2rem 0 1rem"}}>
           <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c"}}>Scorecard</h2>
-          <p style={{fontSize:12, color:"#7a9e84"}}>Miles Grant CC · 18 Holes · Par {totalPar()}</p>
+          <p style={{fontSize:15, color:"#7a9e84"}}>Miles Grant CC · 18 Holes · Par {totalPar()}</p>
         </div>
         {[{label:"Front Nine", start:0, end:9}, {label:"Back Nine", start:9, end:18}].filter(({start,end}) => start < roundEnd && end > roundStart).map(({label,start,end}) => (
           <div key={label} style={{marginBottom:10}}>
-            <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", padding:"4px 2px 4px", marginBottom:4}}>{label}</p>
+            <p style={{fontSize:13, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", padding:"4px 2px 4px", marginBottom:4}}>{label}</p>
             <div style={{background:"#122018", border:"0.5px solid #2d5a3d", borderRadius:12, overflow:"hidden"}}>
-              <table style={{width:"100%", borderCollapse:"collapse", fontSize:13, tableLayout:"fixed"}}>
+              <table style={{width:"100%", borderCollapse:"collapse", fontSize:16, tableLayout:"fixed"}}>
                 <thead>
                   <tr style={{borderBottom:"0.5px solid #2d5a3d"}}>
                     <td style={{padding:"8px 10px", color:"#7a9e84", width:36}}>H</td>
@@ -849,20 +934,20 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           </div>
         ))}
         <div style={{background:"#1a3a24", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"12px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
-          <span style={{fontWeight:600, fontSize:15}}>Total</span>
+          <span style={{fontWeight:600, fontSize:18}}>Total</span>
           <div style={{display:"flex", gap:16, alignItems:"center"}}>
-            <span style={{color:"#7a9e84", fontSize:13}}>Par {totalPar()}</span>
+            <span style={{color:"#7a9e84", fontSize:16}}>Par {totalPar()}</span>
             <span style={{fontWeight:700, fontSize:18,
               color:totalScore()===0?"#2d5a3d":totalScore()-totalPar()<0?"#4ade80":totalScore()-totalPar()===0?"#c9a84c":"#f87171"}}>
               {totalScore() || "·"}
-              {totalScore()>0 && <span style={{fontSize:12, fontWeight:500, color:"#7a9e84", marginLeft:6}}>
+              {totalScore()>0 && <span style={{fontSize:15, fontWeight:500, color:"#7a9e84", marginLeft:6}}>
                 ({totalScore()-totalPar()>=0?"+":""}{totalScore()-totalPar()})
               </span>}
             </span>
           </div>
         </div>
         <button onClick={endRound} style={{width:"100%", padding:"12px", borderRadius:10, border:"0.5px solid #5a2d2d",
-          background:"transparent", fontSize:14, cursor:"pointer", color:"#f87171", fontFamily:"'Inter',sans-serif"}}>
+          background:"transparent", fontSize:17, cursor:"pointer", color:"#f87171", fontFamily:"'Inter',sans-serif"}}>
           End Round
         </button>
       </div>
@@ -876,13 +961,16 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <style>{css}</style>
       {shotFlashOverlay}
       {tapHintOverlay}
+      {locChecked && !locationReady && (
+        <LocationGate onGranted={() => setLocationReady(true)} onBack={() => setScreen("lobby")} />
+      )}
 
       {/* Header */}
       <div style={{padding:"6px 16px 5px", flexShrink:0, borderBottom:"0.5px solid #1a3a24"}}>
         <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:22, color:"#c9a84c", lineHeight:1.15, marginBottom:1}}>
           The Unofficial Miles Grant Golf Companion
         </h2>
-        <p style={{fontSize:11, color:"#7a9e84"}}>Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}</p>
+        <p style={{fontSize:15, color:"#c8d8cc"}}>Hole {hole.number} · Par {hole.par} · HCP {hole.handicap}</p>
       </div>
 
       {/* Map + overlays */}
@@ -902,8 +990,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           <button
             onClick={markShot}
             disabled={!gps}
-            className={`shot-pill ${!gps ? "shot-pill-disabled" : shotFrom ? "shot-pill-active" : "shot-pill-idle"}`}>
-            🏌️ {shotFrom ? `Shot ${completedShots + 1} — tap before next swing` : "Tap before your swing"}
+            aria-label={shotFrom ? "Tap at your ball" : "Tap before swing"}
+            className={`swing-btn ${!gps ? "swing-disabled" : shotFrom ? "swing-active" : "swing-idle"}`}>
+            {!gps ? "Finding GPS…" : shotFrom ? "Tap at ball" : "Tap before swing"}
           </button>
         )}
       </div>
@@ -926,28 +1015,23 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <div className="bottom-panel">
         <div style={{padding:"10px 14px 16px"}}>
 
-          {/* Stat row */}
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6, marginBottom:10}}>
-            <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
-              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>⛳ To pin</p>
-              <p style={{fontSize:24, fontWeight:700, lineHeight:1,
-                color:dtg?(dtg<100?"#4ade80":dtg<175?"#c9a84c":"#f0ead6"):"#7a9e84"}}>
-                {dtg ?? "—"}
-              </p>
-              <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
-              {gpsError && <p style={{fontSize:9, color:"#f87171"}}>{gpsError}</p>}
+          {/* Big distance panel — the most important numbers in the app */}
+          <div className="big-dist">
+            <div className="big-dist-box">
+              <p className="big-dist-label">⛳ To pin</p>
+              <p className="big-dist-num">{fmtYds(dtg)}</p>
+              <p className="big-dist-unit">yards</p>
             </div>
-            <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
-              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>Tee</p>
-              <p style={{fontSize:24, fontWeight:700, lineHeight:1, color:"#f0ead6"}}>{hole.tees[playerTee].yards}</p>
-              <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
-            </div>
-            <div className="glass-stat" style={{padding:"7px 8px", textAlign:"center"}}>
-              <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:2}}>⚪ Last shot</p>
-              <p style={{fontSize:24, fontWeight:700, lineHeight:1, color:lastShot?"#4ade80":"#7a9e84"}}>{lastShot ?? "—"}</p>
-              <p style={{fontSize:9, color:"#7a9e84"}}>yards</p>
+            <div className="big-dist-box">
+              <p className="big-dist-label">Last shot</p>
+              <p className="big-dist-num" style={{color: lastShot ? "#4ade80" : "#6b8a74"}}>{fmtYds(lastShot)}</p>
+              <p className="big-dist-unit">yards</p>
             </div>
           </div>
+          <p style={{textAlign:"center", fontSize:17, color:"#c8d8cc", marginBottom:10}}>
+            Tee: <b style={{color:"#f0ead6"}}>{hole.tees[playerTee].yards} yds</b>
+            {gpsError && <span style={{color:"#f87171", marginLeft:10}}>{gpsError}</span>}
+          </p>
 
           {/* Next Hole / Round Complete button (after hole completion) */}
           {holeComplete && (
@@ -981,37 +1065,37 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8}}>
               <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
                 <div style={{width:9, height:9, borderRadius:"50%", background:PLAYER_COLOR}} />
-                <span style={{fontSize:14, fontWeight:500}}>Score</span>
+                <span style={{fontSize:20, fontWeight:700}}>Score</span>
                 {!skipped[holeIdx] && scoreForDisplay > 0 && diff !== null && (
-                  <span style={{fontSize:11, padding:"1px 7px", borderRadius:6, fontWeight:600,
+                  <span style={{fontSize:16, padding:"2px 9px", borderRadius:6, fontWeight:600,
                     background:diff<=-2?"#1d4ed8":diff===-1?"#14532d":diff===0?"#3a3a2a":diff===1?"#7c2d12":"#450a0a",
                     color:diff<=-2?"#93c5fd":diff===-1?"#4ade80":diff===0?"#c9a84c":diff===1?"#fb923c":"#fca5a5"}}>
                     {diff===0?"E":diff>0?`+${diff}`:diff}
                   </span>
                 )}
-                {skipped[holeIdx] && <span style={{fontSize:11, color:"#4a6a54", fontStyle:"italic"}}>skipped</span>}
+                {skipped[holeIdx] && <span style={{fontSize:16, color:"#7a9e84", fontStyle:"italic"}}>skipped</span>}
                 {!pickupConfirm && (
-                  <button className="pickup-link" onClick={() => setPickupConfirm(true)}>pick up</button>
+                  <button className="pickup-link" style={{fontSize:16}} onClick={() => setPickupConfirm(true)}>pick up</button>
                 )}
               </div>
               {!skipped[holeIdx] ? (
                 <div style={{display:"flex", alignItems:"center"}}>
                   <button onClick={() => adjustScore(-1)}
-                    style={{width:34, height:34, borderRadius:"8px 0 0 8px", border:"0.5px solid #2d5a3d",
-                      background:"#122018", color:"#f0ead6", fontSize:20, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>−</button>
-                  <div style={{width:34, height:34, background:"#0f2818", border:"0.5px solid #2d5a3d",
+                    style={{width:52, height:52, borderRadius:"8px 0 0 8px", border:"0.5px solid #2d5a3d",
+                      background:"#122018", color:"#f0ead6", fontSize:28, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>−</button>
+                  <div style={{width:52, height:52, background:"#0f2818", border:"0.5px solid #2d5a3d",
                     borderLeft:"none", borderRight:"none", display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:15, fontWeight:700, color:scoreForDisplay?"#f0ead6":"#7a9e84"}}>
+                    fontSize:24, fontWeight:800, color:scoreForDisplay?"#f0ead6":"#7a9e84"}}>
                     {scoreForDisplay || "·"}
                   </div>
                   <button onClick={() => adjustScore(1)}
-                    style={{width:34, height:34, borderRadius:"0 8px 8px 0", border:"0.5px solid #2d5a3d",
-                      background:"#122018", color:"#f0ead6", fontSize:20, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>+</button>
+                    style={{width:52, height:52, borderRadius:"0 8px 8px 0", border:"0.5px solid #2d5a3d",
+                      background:"#122018", color:"#f0ead6", fontSize:28, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>+</button>
                 </div>
               ) : (
                 <button onClick={() => setSkipped(prev=>{const n=[...prev];n[holeIdx]=false;return n;})}
-                  style={{fontSize:11, color:"#7a9e84", background:"transparent", border:"0.5px solid #2d5a3d",
-                    borderRadius:8, padding:"4px 10px", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+                  style={{fontSize:16, color:"#c8d8cc", background:"transparent", border:"0.5px solid #2d5a3d",
+                    borderRadius:8, padding:"8px 14px", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
                   undo
                 </button>
               )}
@@ -1019,14 +1103,14 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
             {pickupConfirm && (
               <div style={{display:"flex", alignItems:"center", gap:8, paddingLeft:17, marginBottom:8}}>
-                <span style={{fontSize:12, color:"#a3b89a"}}>Skip this hole?</span>
+                <span style={{fontSize:17, color:"#a3b89a"}}>Skip this hole?</span>
                 <button onClick={skipHole}
-                  style={{fontSize:12, padding:"3px 12px", borderRadius:7, border:"none",
+                  style={{fontSize:17, padding:"8px 14px", borderRadius:7, border:"none",
                     background:"#5a2d2d", color:"#f87171", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontWeight:600}}>
                   Skip hole
                 </button>
                 <button onClick={() => setPickupConfirm(false)}
-                  style={{fontSize:12, padding:"3px 10px", borderRadius:7, border:"0.5px solid #2d5a3d",
+                  style={{fontSize:17, padding:"8px 12px", borderRadius:7, border:"0.5px solid #2d5a3d",
                     background:"transparent", color:"#7a9e84", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
                   Cancel
                 </button>
@@ -1034,9 +1118,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             )}
 
             <button onClick={cupIn}
-              style={{width:"100%", padding:"11px", borderRadius:12, border:"0.5px solid rgba(201,168,76,0.35)",
+              style={{width:"100%", padding:"16px", borderRadius:14, border:"0.5px solid rgba(201,168,76,0.35)",
                 background:"rgba(201,168,76,0.12)", color:"#c9a84c", fontFamily:"'Inter',sans-serif",
-                fontSize:14, fontWeight:600, cursor:"pointer", letterSpacing:"0.02em",
+                fontSize:20, fontWeight:700, cursor:"pointer", letterSpacing:"0.02em",
                 backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
                 boxShadow:"inset 0 1px 0 rgba(201,168,76,0.1)"}}>
               🏆 In the cup — score {shotBasedScore || scores[holeIdx] || 1}
@@ -1047,19 +1131,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           {holeShots.length > 0 && (
             <div className="glass-card" style={{padding:"8px 12px"}}>
               <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
-                <p style={{fontSize:10, color:"#7a9e84", textTransform:"uppercase", letterSpacing:"0.08em"}}>Shot log</p>
+                <p style={{fontSize:16, fontWeight:700, color:"#c8d8cc", textTransform:"uppercase", letterSpacing:"0.08em"}}>Shot log</p>
                 <button onClick={clearShots}
-                  style={{fontSize:10, color:"#7a9e84", background:"transparent", border:"none",
+                  style={{fontSize:16, color:"#c8d8cc", background:"transparent", border:"none", padding:"6px 4px",
                     cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>Clear</button>
               </div>
-              <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
+              <div style={{display:"flex", flexDirection:"column", gap:6}}>
                 {holeShots.map((s, i) => {
                   const toPin = Math.round(haversineYards(s.to.lat, s.to.lng, hole.green.lat, hole.green.lng));
                   return (
-                    <div key={i} style={{background:"#0f2818", border:"0.5px solid #2d5a3d", borderRadius:6, padding:"4px 8px", fontSize:12}}>
-                      <span style={{color:"#7a9e84"}}>#{i+1} </span>
-                      <span style={{fontWeight:600, color:PLAYER_COLOR}}>{s.yards}</span>
-                      <span style={{color:"#7a9e84"}}> yds · {toPin} to pin</span>
+                    <div key={i} style={{background:"#0f2818", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"10px 12px", fontSize:20}}>
+                      <span style={{color:"#c8d8cc"}}>Shot {i+1}: </span>
+                      <span style={{fontWeight:800, color:PLAYER_COLOR}}>{fmtYds(s.yards)}</span>
+                      <span style={{color:"#c8d8cc"}}> yds · {fmtYds(toPin)} to pin</span>
                     </div>
                   );
                 })}
@@ -1093,16 +1177,24 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
-      if (session?.user) loadProfile(session.user);
+      if (session?.user) { loadProfile(session.user); maybeShowInstructions(); }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
-      if (session?.user) loadProfile(session.user); else setProfile(null);
+      if (session?.user) { loadProfile(session.user); maybeShowInstructions(); } else setProfile(null);
     });
     return () => subscription.unsubscribe();
   }, []);
 
-  const instructionsOverlay = showInstructions && <Instructions onClose={() => setShowInstructions(false)} />;
+  function maybeShowInstructions() {
+    try { if (!localStorage.getItem("mg_instructions_seen")) setShowInstructions(true); } catch { /* ignore */ }
+  }
+  function closeInstructions() {
+    try { localStorage.setItem("mg_instructions_seen", "1"); } catch { /* ignore */ }
+    setShowInstructions(false);
+  }
+
+  const instructionsOverlay = showInstructions && <Instructions onClose={closeInstructions} />;
   const openInstructions = () => setShowInstructions(true);
 
   if (guest) {
@@ -1129,7 +1221,7 @@ export default function App() {
 
   return (
     <>
-      <Auth onGuest={() => setGuest(true)} onShowInstructions={openInstructions} />
+      <Auth onGuest={() => { setGuest(true); maybeShowInstructions(); }} onShowInstructions={openInstructions} />
       {instructionsOverlay}
     </>
   );

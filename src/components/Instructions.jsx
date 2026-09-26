@@ -1,45 +1,48 @@
 const SECTIONS = [
   {
-    title: "⛳ Distance to pin",
-    body: "While you're on a hole, your GPS position updates live and the \"To pin\" box shows straight-line yardage to that hole's green. It only shows a number within 600 yards of the green, so it won't show junk if you're between holes.",
+    title: "⛳ Distance to the pin",
+    body: "The big gold number at the bottom of the screen is how far you are from the center of the green. It updates by itself as you walk. If you're far from the hole, it shows a dash (—).",
   },
   {
-    title: "🏌️ Tracking a shot",
-    body: "Tap the pill button before you swing — it locks in your starting spot and turns gold. After you hit, tap it again. Your shot distance flashes big on screen for a few seconds, then settles into the \"Last shot\" box and the shot log below. The button immediately re-arms for your next shot.",
+    title: "🏌️ Measuring your shot",
+    body: "1. Before you swing, tap the big flashing button.\n2. Hit your shot.\n3. Walk to your ball and tap the button again.\n\nYour shot distance pops up big on the screen, then it shows how far you have left to the pin. The button is ready for your next shot right away.",
   },
   {
-    title: "🎯 Tee colors",
-    body: "Blue = Championship, White = Men's, Red = Women's. Pick yours at setup — the \"Tee\" box shows that tee's official yardage for the hole you're on.",
+    title: "🎯 Your tee",
+    body: "Blue = Championship, White = Men's, Red = Women's. You pick your tee when you start. The \"Tee\" line shows that tee's yardage for the hole.",
   },
   {
-    title: "🏆 Scoring",
-    body: "Use +/− to adjust your score by hand, or tap \"In the cup\" to lock in the score based on shots tracked. \"pick up\" lets you skip a hole without it counting against your total.",
+    title: "🏆 Keeping score",
+    body: "Tap \"In the cup\" when you finish a hole. It counts your shots for you. Use the − and + buttons to fix your score. Tap \"pick up\" to skip a hole.",
   },
   {
-    title: "👤 Guests vs. accounts",
-    body: "Playing as a guest gets you the full GPS + scoring experience for free, kept on this device only. Create a free account to save round history, add friends, invite them to a round, and show up on the club leaderboard.",
+    title: "👤 Guest or account",
+    body: "Guests get everything free, but the round is erased when you close the app. A free account saves your rounds, friends, and leaderboard scores.",
+  },
+  {
+    title: "❓ Need this again?",
+    body: "Tap the round ? button in the top-right corner of the map any time.",
   },
 ];
 
 export default function Instructions({ onClose }) {
   return (
-    <div style={{position:"fixed", inset:0, zIndex:2000, background:"rgba(5,16,10,0.96)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)", overflowY:"auto", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
-      <div style={{maxWidth:460, margin:"0 auto", padding:"max(env(safe-area-inset-top),20px) 1.25rem 3rem"}}>
-        <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1.25rem"}}>
-          <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:24, color:"#c9a84c"}}>How it works</h2>
-          <button onClick={onClose} aria-label="Close"
-            style={{width:34, height:34, borderRadius:"50%", background:"rgba(255,255,255,0.08)", border:"0.5px solid rgba(255,255,255,0.2)", color:"#f0ead6", fontSize:16, cursor:"pointer"}}>✕</button>
-        </div>
-        <div style={{display:"flex", flexDirection:"column", gap:10}}>
+    <div role="dialog" aria-modal="true"
+      style={{position:"fixed", inset:0, zIndex:4000, background:"#06140c", overflowY:"auto", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
+      <div style={{maxWidth:520, margin:"0 auto", padding:"max(env(safe-area-inset-top),24px) 1.25rem 3rem"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:34, color:"#d4af37", textAlign:"center", marginBottom:"1.25rem"}}>
+          How it works
+        </h2>
+        <div style={{display:"flex", flexDirection:"column", gap:14}}>
           {SECTIONS.map(s => (
-            <div key={s.title} style={{background:"rgba(255,255,255,0.04)", border:"0.5px solid rgba(255,255,255,0.1)", borderRadius:14, padding:"14px 16px"}}>
-              <p style={{fontWeight:700, fontSize:14, color:"#c9a84c", marginBottom:6}}>{s.title}</p>
-              <p style={{fontSize:13, color:"#d8d0bb", lineHeight:1.55}}>{s.body}</p>
+            <div key={s.title} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(212,175,55,0.35)", borderRadius:16, padding:"16px 18px"}}>
+              <p style={{fontWeight:800, fontSize:23, color:"#d4af37", marginBottom:8}}>{s.title}</p>
+              <p style={{fontSize:20, color:"#f0ead6", lineHeight:1.5, whiteSpace:"pre-line"}}>{s.body}</p>
             </div>
           ))}
         </div>
         <button onClick={onClose}
-          style={{width:"100%", marginTop:16, padding:"14px", borderRadius:12, border:"none", background:"linear-gradient(135deg,#c9a84c,#b8952f)", color:"#0f2818", fontWeight:700, fontSize:15, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+          style={{width:"100%", marginTop:22, padding:"22px", borderRadius:16, border:"none", background:"#d4af37", color:"#000", fontWeight:900, fontSize:26, cursor:"pointer", fontFamily:"'Inter',sans-serif", letterSpacing:"0.03em"}}>
           Got it
         </button>
       </div>
