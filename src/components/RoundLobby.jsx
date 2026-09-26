@@ -1,3 +1,4 @@
+import LegalFooter from "./PrivacyTerms";
 import { useState } from 'react';
 import { friendsService } from '../services/friendsService';
 import { roundService } from '../services/roundService';
@@ -155,9 +156,7 @@ export default function RoundLobby({ user, profile, isGuest, onRoundStart, onSho
           </div>
         )}
 
-        <p style={{fontSize:10, color:"#7a9e84", textAlign:"center", lineHeight:1.4, marginTop:10}}>
-          Not affiliated with or endorsed by Miles Grant Country Club. Made free by a member, for members.
-        </p>
+        <LegalFooter style={{marginTop:10}} />
       </div>
     </div>
   );

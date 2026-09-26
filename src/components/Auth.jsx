@@ -1,3 +1,4 @@
+import LegalFooter from "./PrivacyTerms";
 import { useState } from 'react';
 import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
@@ -136,9 +137,7 @@ export default function Auth({ onGuest, onShowInstructions }) {
               {mode === "signin" ? "Sign Up" : "Sign In"}
             </button>
           </p>
-          <p style={{textAlign:"center", marginTop:10, fontSize:10, color:"#7a9e84", lineHeight:1.4}}>
-            Not affiliated with or endorsed by Miles Grant Country Club. Made free by a member, for members.
-          </p>
+          <LegalFooter style={{marginTop:10}} />
         </div>
       </div>
     </div>
