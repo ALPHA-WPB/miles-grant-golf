@@ -41,6 +41,9 @@ export default function Instructions({ onClose }) {
             </div>
           ))}
         </div>
+        <p style={{textAlign:"center", fontSize:14, color:"#c8d8cc", marginTop:18, lineHeight:1.5}}>
+          The Unofficial Miles Grant Golf Companion App. Not affiliated with or endorsed by Miles Grant Country Club. Made free by a member, for members.
+        </p>
         <button onClick={onClose}
           style={{width:"100%", marginTop:22, padding:"22px", borderRadius:16, border:"none", background:"#d4af37", color:"#000", fontWeight:900, fontSize:26, cursor:"pointer", fontFamily:"'Inter',sans-serif", letterSpacing:"0.03em"}}>
           Got it

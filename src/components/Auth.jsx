@@ -77,11 +77,11 @@ export default function Auth({ onGuest, onShowInstructions }) {
         <button className="auth-help-btn" onClick={onShowInstructions} aria-label="How this app works">?</button>
       )}
       <div style={{position:"relative", zIndex:2, height:"100dvh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"max(env(safe-area-inset-bottom),28px)"}}>
-        <div style={{textAlign:"center", marginBottom:"1.5rem"}}>
+        <div style={{textAlign:"center", marginBottom:"1rem"}}>
           <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:38, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:6, textShadow:"0 2px 20px rgba(0,0,0,0.8)"}}>
             Miles Grant<br/>Country Club
           </h1>
-          <p style={{fontSize:12, color:"rgba(201,168,76,0.9)", letterSpacing:"0.06em", textTransform:"uppercase"}}>Golf Companion App</p>
+          <p style={{fontSize:10, color:"rgba(201,168,76,0.95)", letterSpacing:"0.08em", textTransform:"uppercase"}}>The Unofficial Golf Companion App</p>
         </div>
 
         <div className="auth-card" style={{padding:"1.5rem"}}>
@@ -135,6 +135,9 @@ export default function Auth({ onGuest, onShowInstructions }) {
               style={{background:"none", border:"none", color:"#c9a84c", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:600}}>
               {mode === "signin" ? "Sign Up" : "Sign In"}
             </button>
+          </p>
+          <p style={{textAlign:"center", marginTop:10, fontSize:10, color:"#7a9e84", lineHeight:1.4}}>
+            Not affiliated with or endorsed by Miles Grant Country Club. Made free by a member, for members.
           </p>
         </div>
       </div>

@@ -69,11 +69,12 @@ export default function RoundLobby({ user, profile, isGuest, onRoundStart, onSho
           ?
         </button>
       )}
-      <div style={{position:"relative", zIndex:2, height:"100dvh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"calc(16px + max(env(safe-area-inset-bottom),8px))"}}>
+      <div style={{position:"relative", zIndex:2, height:"100dvh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"calc(84px + env(safe-area-inset-bottom))"}}>
         <div style={{textAlign:"center", marginBottom:"1rem"}}>
           <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:38, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:4, textShadow:"0 2px 20px rgba(0,0,0,0.8)"}}>
             Miles Grant<br/>Country Club
           </h1>
+          <p style={{fontSize:10, color:"rgba(201,168,76,0.95)", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:4}}>The Unofficial Golf Companion App</p>
           <p style={{fontSize:12, color:"rgba(240,234,214,0.6)"}}>
             {isGuest ? "Playing as Guest" : `Welcome, ${profile?.full_name || user.email.split("@")[0]}`}
           </p>
@@ -154,8 +155,8 @@ export default function RoundLobby({ user, profile, isGuest, onRoundStart, onSho
           </div>
         )}
 
-        <p style={{fontSize:10, color:"rgba(240,234,214,0.3)", textAlign:"center", lineHeight:1.55, marginTop:12}}>
-          Unofficial app · Not affiliated with Miles Grant Country Club
+        <p style={{fontSize:10, color:"#7a9e84", textAlign:"center", lineHeight:1.4, marginTop:10}}>
+          Not affiliated with or endorsed by Miles Grant Country Club. Made free by a member, for members.
         </p>
       </div>
     </div>
