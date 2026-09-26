@@ -31,8 +31,14 @@ const SECTIONS = [
 
 export default function Instructions({ onClose }) {
   return (
-    <div role="dialog" aria-modal="true"
+    <div role="dialog" aria-modal="true" className="instr-root"
       style={{position:"fixed", inset:0, zIndex:4000, background:"#06140c", overflowY:"auto", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
+      <style>{`
+        .instr-root .skip-bar { display: block; width: 100%; margin-top: 12px; padding: 7px 10px; border-radius: 10px; border: 1px solid #d4af37;
+          font-size: 15px; font-weight: 800; letter-spacing: 0.03em; cursor: pointer; font-family: 'Inter',sans-serif;
+          animation: skip-flash 1.4s ease-in-out infinite; }
+        @keyframes skip-flash { 0%,100% { background: rgba(212,175,55,0.12); color: #d4af37; } 50% { background: #d4af37; color: #000; } }
+      `}</style>
       <div style={{maxWidth:520, margin:"0 auto", padding:"max(env(safe-area-inset-top),24px) 1.25rem 3rem"}}>
         <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:34, color:"#d4af37", textAlign:"center", marginBottom:"1.25rem"}}>
           How it works
@@ -42,6 +48,7 @@ export default function Instructions({ onClose }) {
             <div key={s.title} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(212,175,55,0.35)", borderRadius:16, padding:"16px 18px"}}>
               <p style={{fontWeight:800, fontSize:23, color:"#d4af37", marginBottom:8}}>{s.title}</p>
               <p style={{fontSize:20, color:"#f0ead6", lineHeight:1.5, whiteSpace:"pre-line"}}>{s.body}</p>
+              <button onClick={onClose} className="skip-bar">Got it — skip to the app ›</button>
             </div>
           ))}
         </div>

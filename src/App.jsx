@@ -196,7 +196,7 @@ function fmtYds(v) {
 }
 
 // Pop-up sequence after a shot: count-up yardage, then "Pin is: XXX"
-function ShotFlash({ yards, pin, shotNum }) {
+function ShotFlash({ yards, pin, shotNum, onClose }) {
   const [shown, setShown] = useState(0);
   useEffect(() => {
     const target = typeof yards === "number" && yards <= 1000 ? yards : 0;
@@ -211,7 +211,7 @@ function ShotFlash({ yards, pin, shotNum }) {
     return () => cancelAnimationFrame(raf);
   }, [yards]);
   return (
-    <div className="flash-overlay flash-hit">
+    <div className="flash-overlay flash-hit" onClick={onClose} role="button" aria-label="Close">
       <div className="flash-inner">
         <p className="flash-emoji">🎉 ⛳ 🎉</p>
         <p className="flash-shotnum">Shot {shotNum}</p>
@@ -221,6 +221,8 @@ function ShotFlash({ yards, pin, shotNum }) {
           <span className="flash-pin-num">{fmtYds(pin)}</span>
           <span className="flash-pin-label">yards to the pin</span>
         </div>
+        <div><button className="flash-close" onClick={onClose}>✕ Close</button></div>
+        <p className="flash-hint">or tap anywhere</p>
       </div>
     </div>
   );
@@ -423,8 +425,10 @@ const css = `
   .big-dist-label { font-size: 14px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.06em; }
   .big-dist-num { font-family: 'Inter',sans-serif; font-size: clamp(48px, 15vw, 68px); font-weight: 900; line-height: 1; color: #d4af37; margin: 2px 0 0; letter-spacing: -0.02em; }
   .big-dist-unit { font-size: 13px; color: #c8d8cc; font-weight: 600; }
-  .flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,0.82); }
+  .flash-overlay { position: fixed; inset: 0; z-index: 3000; display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: pointer; background: rgba(0,0,0,0.82); }
   .flash-hit { animation: flash-fade 7s ease forwards; }
+  .flash-close { margin-top: 20px; padding: 14px 36px; border-radius: 14px; border: 2px solid #f0ead6; background: rgba(255,255,255,0.1); color: #f0ead6; font-size: 20px; font-weight: 800; cursor: pointer; font-family: 'Inter',sans-serif; }
+  .flash-hint { margin-top: 8px; font-size: 15px; color: #c8d8cc; }
   .flash-shotnum { font-size: 30px; font-weight: 900; color: #f0ead6; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
   .flash-pin-box { margin-top: 22px; display: inline-flex; flex-direction: column; align-items: center; border: 3px solid #d4af37; border-radius: 18px; padding: 10px 26px; background: rgba(0,0,0,0.5); }
   .flash-pin-num { font-size: 72px; font-weight: 900; color: #d4af37; line-height: 1; }
@@ -455,7 +459,10 @@ const css = `
   .start-go { width: 100%; padding: 18px; border-radius: 16px; border: none; background: #d4af37; color: #000; font-size: 23px; font-weight: 900; cursor: pointer; font-family: 'Inter',sans-serif; }
   .start-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
   .start-cell { padding: 12px 0; border-radius: 12px; border: 1px solid #2d5a3d; background: rgba(255,255,255,0.05); color: #f0ead6; font-size: 21px; font-weight: 800; cursor: pointer; font-family: 'Inter',sans-serif; }
-  .start-cell-sel { background: #d4af37; color: #000; border-color: #d4af37; }
+  .start-cell-sel { background: #d4af37; color: #000; border-color: #d4af37; font-size: 26px; font-weight: 900; }
+  .start-cell-near { border: 3px solid #d4af37; color: #d4af37; font-size: 26px; font-weight: 900; }
+  .start-cell-far { font-size: 16px; font-weight: 600; padding: 9px 0; }
+  .start-grid { align-items: center; }
   .hp-backdrop { position: fixed; inset: 0; z-index: 3200; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; }
   .hp-sheet { width: 100%; max-width: 520px; background: #06140c; border-top: 3px solid #d4af37; border-radius: 22px 22px 0 0; padding: 20px 18px calc(28px + env(safe-area-inset-bottom)); font-family: 'Inter',sans-serif; color: #f0ead6; text-align: center; }
   .hp-title { font-size: 26px; font-weight: 800; line-height: 1.2; margin-bottom: 4px; }
@@ -541,6 +548,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [showPicker, setShowPicker] = useState(false);  // manual hole picker
   const dismissedRef                = useRef(new Set()); // holes you said "No" to (until you walk away)
   const candidateRef                = useRef({ idx: null, count: 0 });
+  const promptAtTeeRef              = useRef(false);  // prompt came from standing at a tee
   const [shotFlash, setShotFlash]   = useState(null);
   const [tapHint, setTapHint]       = useState(null);
   const [locationReady, setLocationReady] = useState(false);
@@ -622,7 +630,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     // Forget "No" answers once you've walked away from that tee
     for (const i of [...dismissedRef.current]) if (toTee(i) > CLEAR) dismissedRef.current.delete(i);
     if (holePrompt !== null) {
-      if (toTee(holePrompt) > CLEAR) setHolePrompt(null);
+      if (promptAtTeeRef.current && toTee(holePrompt) > CLEAR) setHolePrompt(null);
       return;
     }
     const reset = () => { candidateRef.current = { idx: null, count: 0 }; };
@@ -638,6 +646,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     const c = candidateRef.current;
     candidateRef.current = c.idx === pick ? { idx: pick, count: c.count + 1 } : { idx: pick, count: 1 };
     if (candidateRef.current.count >= 2) {                              // two readings in a row = confident
+      promptAtTeeRef.current = true;
       setHolePrompt(pick);                         // always ask with a big prompt
     }
   }, [gps, screen, holeIdx, holeComplete, holePrompt, roundStart, roundEnd, scoring]);
@@ -720,14 +729,14 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   // ── Start screen: which hole are you starting on? ─────────
   if (screen === "start") {
-    let near = null, nearD = Infinity;
+    let near = null, nearD = Infinity, top3 = [];
     const fuzzy = gps && gps.acc && gps.acc > 150;
     if (gps && !fuzzy) {
-      HOLES.forEach((h, i) => {
-        const d = Math.min(...Object.values(h.tees).map(t => distToSegmentYards(gps, t, h.green)));
-        if (d < nearD) { nearD = d; near = i; }
-      });
+      const ranked = HOLES.map((h, i) => ({ i, d: Math.min(...Object.values(h.tees).map(t => distToSegmentYards(gps, t, h.green))) }))
+        .sort((a, b) => a.d - b.d);
+      nearD = ranked[0].d; near = ranked[0].i;
       if (nearD > 250) near = null;   // suggestion only — player confirms with Start
+      else top3 = ranked.slice(0, 3).filter(r => r.d <= 300).map(r => r.i);
     }
     const sel = near ?? 0;
     const selHole = HOLES[sel];
@@ -757,10 +766,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             <button className="start-go" onClick={() => begin(sel)}>⛳ Start on Hole {selHole.number}</button>
           </div>
 
-          <p style={{fontSize:17, color:"#c8d8cc", fontWeight:700, margin:"14px 0 8px"}}>Or pick another hole</p>
+          <p style={{fontSize:17, color:"#c8d8cc", fontWeight:700, margin:"14px 0 8px"}}>Or pick another hole{top3.length > 1 ? " — nearest are outlined in gold" : ""}</p>
           <div className="start-grid">
             {HOLES.map((h, i) => (
-              <button key={h.number} onClick={() => begin(i)} className={`start-cell ${i === sel ? "start-cell-sel" : ""}`}>{h.number}</button>
+              <button key={h.number} onClick={() => begin(i)}
+                className={`start-cell ${i === sel ? "start-cell-sel" : top3.includes(i) ? "start-cell-near" : top3.length ? "start-cell-far" : ""}`}>{h.number}</button>
             ))}
           </div>
         </div>
@@ -820,6 +830,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     setPickupConfirm(false);
     setHoleComplete(true);
     syncScore(hole.number, final);
+    if (holeIdx < HOLES.length - 1) { promptAtTeeRef.current = false; setHolePrompt(holeIdx + 1); }
+    else setScreen("complete");
   }
 
   function adjustScore(delta) {
@@ -941,7 +953,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const diff = scoreForDisplay ? scoreForDisplay - hole.par : null;
   const lastShot = holeShots.length > 0 ? holeShots[holeShots.length - 1].yards : null;
 
-  const shotFlashOverlay = shotFlash && <ShotFlash key={shotFlash.id} yards={shotFlash.yards} pin={shotFlash.pin} shotNum={shotFlash.shotNum} />;
+  const shotFlashOverlay = shotFlash && <ShotFlash key={shotFlash.id} yards={shotFlash.yards} pin={shotFlash.pin} shotNum={shotFlash.shotNum} onClose={() => setShotFlash(null)} />;
 
   const unfinished = scoring && !holeComplete && !skipped[holeIdx] && (holeShots.length > 0 || scores[holeIdx] > 0);
   const holePromptSheet = holePrompt !== null && !shotFlash && !showPicker && (
@@ -949,7 +961,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       <div className="hp-sheet" role="dialog" aria-modal="true">
         <div className="start-num" style={{margin:"4px auto 12px"}}>{HOLES[holePrompt].number}</div>
         <p className="hp-title">Moving to <span style={{color:"#d4af37"}}>Hole {HOLES[holePrompt].number}</span>?</p>
-        <p className="hp-sub">You're at the tee · Par {HOLES[holePrompt].par} · {HOLES[holePrompt].tees[playerTee]?.yards ?? ""} yds</p>
+        <p className="hp-sub">{holeComplete ? `Nice — Hole ${hole.number} done` : "You're at the tee"} · Par {HOLES[holePrompt].par} · {HOLES[holePrompt].tees[playerTee]?.yards ?? ""} yds</p>
         {unfinished && <p className="hp-note">Hole {hole.number} isn't finished yet. Its shots are kept, and you can go back to it any time.</p>}
         <button className="hp-yes" onClick={() => goToHole(holePrompt)}>✅ Yes, go to Hole {HOLES[holePrompt].number}</button>
         <button className="hp-alt" onClick={() => { setShowPicker(true); }}>Pick a different hole</button>
