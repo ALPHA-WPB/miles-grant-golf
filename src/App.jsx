@@ -192,15 +192,21 @@ function longestKey() {
 
 const TEE_NAMES = { champ: "Blue", mens: "White", womens: "Red" };
 
-function fmtYds(v) {
-  return v == null || !isFinite(v) || v > 1000 ? "—" : Math.round(v);
+// Distances under 1,000 yds show as yards; 1,000+ switch to miles (1 decimal)
+function formatDistance(v) {
+  if (v == null || !isFinite(v)) return { num: "—", unit: "yards", short: "yds" };
+  if (v < 1000) return { num: Math.round(v), unit: "yards", short: "yds" };
+  return { num: (v / 1760).toFixed(1), unit: "miles", short: "mi" };
 }
+function fmtYds(v) { return formatDistance(v).num; }
+function fmtUnit(v) { return formatDistance(v).unit; }
+function fmtShort(v) { const d = formatDistance(v); return `${d.num} ${d.short}`; }
 
 // Pop-up sequence after a shot: count-up yardage, then "Pin is: XXX"
 function ShotFlash({ yards, pin, shotNum, onClose }) {
   const [shown, setShown] = useState(0);
   useEffect(() => {
-    const target = typeof yards === "number" && yards <= 1000 ? yards : 0;
+    const target = typeof yards === "number" && yards < 1000 ? yards : 0;
     const dur = 3000, t0 = performance.now();
     let raf;
     const tick = now => {
@@ -216,11 +222,11 @@ function ShotFlash({ yards, pin, shotNum, onClose }) {
       <div className="flash-inner">
         <p className="flash-emoji">🎉 ⛳ 🎉</p>
         <p className="flash-shotnum">Shot {shotNum}</p>
-        <p className="flash-big">{yards > 1000 ? "—" : shown}</p>
-        <p className="flash-label">yards</p>
+        <p className="flash-big">{typeof yards === "number" && yards >= 1000 ? fmtYds(yards) : shown}</p>
+        <p className="flash-label">{typeof yards === "number" && yards >= 1000 ? "miles" : "yards"}</p>
         <div className="flash-pin-box">
           <span className="flash-pin-num">{fmtYds(pin)}</span>
-          <span className="flash-pin-label">yards to the pin</span>
+          <span className="flash-pin-label">{fmtUnit(pin)} to the pin</span>
         </div>
         <div><button className="flash-close" onClick={onClose}>✕ Close</button></div>
         <p className="flash-hint">or tap anywhere</p>
@@ -256,12 +262,43 @@ function calcBearing(lat1, lng1, lat2, lng2) {
   return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 }
 
-function holeMapBearing(hole) {
-  const b = calcBearing(hole.tees.mens.lat, hole.tees.mens.lng, hole.green.lat, hole.green.lng);
-  const norm = a => ((a % 360) + 360) % 360;
-  const o1 = norm(b - 90);  const o1s = o1 > 180 ? o1 - 360 : o1;
-  const o2 = norm(b - 270); const o2s = o2 > 180 ? o2 - 360 : o2;
-  return Math.abs(o1s) <= Math.abs(o2s) ? o1s : o2s;
+// Tee for the player's chosen color, falling back to the white (mens) tee
+function holeTee(hole, tee) {
+  const t = hole.tees[tee];
+  return t && isFinite(t.lat) && isFinite(t.lng) ? t : hole.tees.mens;
+}
+
+// leaflet-rotate turns the map clockwise by its bearing, so a course line with
+// compass bearing b points straight up when the map bearing is -b.
+// Result: tee at the bottom of the screen, green at the top.
+function holeMapBearing(hole, tee) {
+  const t = holeTee(hole, tee);
+  const b = calcBearing(t.lat, t.lng, hole.green.lat, hole.green.lng);
+  return (360 - b) % 360;
+}
+
+// Fit the hole into the visible area of a rotated map, honoring uneven padding
+// (left distance boxes, top hole bar, bottom score bar + tabs).
+function fitRotated(map, latlngs, bearingDeg, pad) {
+  const size = map.getSize();
+  const availW = size.x - pad.left - pad.right;
+  const availH = size.y - pad.top - pad.bottom;
+  if (availW < 40 || availH < 40) return;
+  const th = bearingDeg * Math.PI / 180, cos = Math.cos(th), sin = Math.sin(th);
+  const rot = p => ({ x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos });
+  const unrot = p => ({ x: p.x * cos + p.y * sin, y: -p.x * sin + p.y * cos });
+  const z0 = 18;
+  const pts = latlngs.map(ll => rot(map.project(L.latLng(ll), z0)));
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = Math.max(maxX - minX, 1), h = Math.max(maxY - minY, 1);
+  const zoom = Math.min(z0 + Math.log2(Math.min(availW / w, availH / h)), 19);
+  const scale = Math.pow(2, zoom - z0);
+  // Bounds center (rotated, z0), shifted so it lands in the middle of the padded area
+  const cx = (minX + maxX) / 2 - ((pad.left - pad.right) / 2) / scale;
+  const cy = (minY + maxY) / 2 - ((pad.top - pad.bottom) / 2) / scale;
+  const center = map.unproject(L.point(unrot({ x: cx, y: cy })), z0);
+  map.setView(center, zoom, { animate: false });
 }
 
 function makeIcon(color) {
@@ -287,16 +324,18 @@ const gpsIcon = L.divIcon({
 function shotLineIcon(yards) {
   return L.divIcon({
     className: "",
-    html: `<div style="background:rgba(8,26,16,0.88);border:1px solid #4ade80;color:#4ade80;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;font-family:Inter,sans-serif;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5)">${yards} yds</div>`,
+    html: `<div style="background:rgba(8,26,16,0.88);border:1px solid #4ade80;color:#4ade80;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;font-family:Inter,sans-serif;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.5)">${fmtShort(yards)}</div>`,
     iconSize: null, iconAnchor: [24, 10],
   });
 }
 
-function HoleMap({ hole, gps, holeShots }) {
+function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick }) {
   const mapRef       = useRef(null);
   const leafletRef   = useRef(null);
   const gpsMarkerRef = useRef(null);
   const shotLayersRef = useRef([]);
+  const padRef = useRef(pad);
+  useEffect(() => { padRef.current = pad; });
 
   const holePts = [
     [hole.tees.champ.lat,  hole.tees.champ.lng],
@@ -304,14 +343,19 @@ function HoleMap({ hole, gps, holeShots }) {
     [hole.tees.womens.lat, hole.tees.womens.lng],
     [hole.green.lat,       hole.green.lng],
   ];
+  const rotation = holeMapBearing(hole, tee);
+  const fit = () => {
+    const map = leafletRef.current;
+    if (!map) return;
+    try { map.invalidateSize(false); fitRotated(map, holePts, rotation, padRef.current); }
+    catch { try { map.fitBounds(holePts, { padding: [28, 28] }); } catch { /* ignore */ } }
+  };
 
   useEffect(() => {
     if (!mapRef.current) return;
     if (leafletRef.current) { leafletRef.current.remove(); leafletRef.current = null; }
 
-    const rotation = holeMapBearing(hole);
-
-    const mapOpts = {
+    const map = L.map(mapRef.current, {
       zoomControl: false,
       attributionControl: false,
       dragging: true,
@@ -319,28 +363,26 @@ function HoleMap({ hole, gps, holeShots }) {
       doubleClickZoom: true,
       touchZoom: true,
       keyboard: false,
-    };
-
-    // Enable leaflet-rotate if available
-    try { mapOpts.rotate = true; } catch { /* ignore */ }
-
-    const map = L.map(mapRef.current, mapOpts);
+      rotate: true,          // leaflet-rotate
+      touchRotate: false,    // fixed orientation — no twisting by accident
+      shiftKeyRotate: false,
+      rotateControl: false,
+      bearing: rotation,
+    });
 
     L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       { maxZoom: 20, maxNativeZoom: 19 }
     ).addTo(map);
 
-    map.fitBounds(holePts, { padding: [28, 28] });
-
-    // Apply rotation after bounds are set
-    try {
-      if (typeof map.setBearing === "function") map.setBearing(rotation);
-    } catch { /* ignore */ }
+    try { if (typeof map.setBearing === "function") map.setBearing(rotation); } catch { /* ignore */ }
+    leafletRef.current = map;
+    fit();
 
     // Fairway guide line
+    const gt = holeTee(hole, tee);
     L.polyline(
-      [[hole.tees.mens.lat, hole.tees.mens.lng], [hole.green.lat, hole.green.lng]],
+      [[gt.lat, gt.lng], [hole.green.lat, hole.green.lng]],
       { color: "#c9a84c", weight: 2, dashArray: "6,6", opacity: 0.7 }
     ).addTo(map);
 
@@ -350,12 +392,24 @@ function HoleMap({ hole, gps, holeShots }) {
     L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444") }).addTo(map);
     L.marker([hole.green.lat, hole.green.lng], { icon: flagIcon }).addTo(map);
 
-    leafletRef.current = map;
     shotLayersRef.current = [];
     gpsMarkerRef.current = null;
 
-    return () => { try { map.remove(); } catch { /* ignore */ } leafletRef.current = null; };
-  }, [hole.number]);
+    // Re-fit when the screen size changes (rotation, address bar show/hide)
+    const onResize = () => fit();
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      try { map.remove(); } catch { /* ignore */ }
+      leafletRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hole.number, tee]);
+
+  // Re-fit when overlay sizes change or the recenter button is tapped
+  useEffect(() => { fit(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
+    [pad.top, pad.bottom, pad.left, pad.right, recenterTick]);
 
   // GPS dot
   useEffect(() => {
@@ -404,6 +458,30 @@ const css = `
   .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: #0f2818; color: #f0ead6; font-family: 'Inter', sans-serif; overflow: hidden; }
   .serif { font-family: 'Playfair Display', serif; }
   .map-wrap { height: 36dvh; flex-shrink: 0; position: relative; overflow: hidden; }
+  .play-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; background: #0d2416; }
+  .play-map { position: absolute; inset: 0; z-index: 0; }
+  .play-top { position: absolute; top: 10px; left: 10px; right: 64px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: none; }
+  .hole-bar { pointer-events: auto; display: flex; align-items: stretch; width: 100%; max-width: 420px; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); border-radius: 18px; box-shadow: 0 3px 12px rgba(0,0,0,0.5); overflow: hidden; }
+  .hole-bar-arrow { flex: 0 0 56px; min-height: 56px; background: transparent; border: none; color: #f0ead6; font-size: 34px; font-weight: 800; cursor: pointer; font-family: 'Inter',sans-serif; line-height: 1; -webkit-tap-highlight-color: transparent; }
+  .hole-bar-arrow:disabled { color: #2d5a3d; cursor: default; }
+  .hole-bar-mid { flex: 1; background: transparent; border: none; border-left: 1px solid rgba(212,175,55,0.3); border-right: 1px solid rgba(212,175,55,0.3); cursor: pointer; padding: 4px 6px; text-align: center; font-family: 'Inter',sans-serif; color: #f0ead6; }
+  .hole-bar-title { font-size: 22px; font-weight: 900; color: #d4af37; line-height: 1.1; }
+  .hole-bar-sub { font-size: 14px; font-weight: 700; color: #f0ead6; }
+  .play-top .longest-pill { position: static; }
+  .offcourse-pill { pointer-events: auto; border: 1px solid rgba(251,191,36,0.6); border-radius: 12px; background: rgba(58,46,10,0.92); color: #fbbf24; font: 700 15px 'Inter',sans-serif; padding: 8px 12px; cursor: pointer; text-align: left; }
+  .play-help { top: 16px; right: 10px; }
+  .side-boxes { position: absolute; left: 10px; z-index: 1000; display: flex; flex-direction: column; justify-content: center; gap: 10px; width: min(40vw, 168px); pointer-events: none; }
+  .side-box { background: rgba(6,20,12,0.84); border: 2px solid #d4af37; border-radius: 16px; padding: 8px 6px 6px; text-align: center; box-shadow: 0 3px 14px rgba(0,0,0,0.55); }
+  .side-box-label { font-size: 14px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.05em; }
+  .side-box-num { font-family: 'Inter',sans-serif; font-weight: 900; line-height: 1; color: #d4af37; letter-spacing: -0.02em; margin-top: 2px; white-space: nowrap; }
+  .side-box-num.big { font-size: clamp(50px, 16vw, 68px); }
+  .side-box-num.mid { font-size: clamp(38px, 12vw, 52px); }
+  .side-box-unit { font-size: 15px; color: #f0ead6; font-weight: 700; }
+  .recenter-btn { position: absolute; right: 10px; z-index: 1000; width: 48px; height: 48px; border-radius: 50%; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); color: #d4af37; font-size: 22px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+  .play-dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; display: flex; flex-direction: column; }
+  .dock-panel { background: rgba(6,16,10,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(212,175,55,0.35); padding: 8px 10px; max-height: 45dvh; overflow-y: auto; }
+  .play-dock .tab-bar { background: rgba(6,14,9,0.94); }
+  .more-toggle { width: 100%; background: transparent; border: none; color: #c8d8cc; font: 700 15px 'Inter',sans-serif; padding: 6px 0 2px; cursor: pointer; }
   .bottom-panel { flex: 1; min-height: 0; background: #0a1c12; border-top: 1px solid rgba(45,90,61,0.5); overflow-y: auto; }
   .label { font-size: 10px; color: #7a9e84; text-transform: uppercase; letter-spacing: 0.08em; }
   .tab-bar { display: flex; background: rgba(6,14,9,0.95); border-top: 0.5px solid rgba(45,90,61,0.5); flex-shrink: 0; backdrop-filter: blur(12px); }
@@ -418,12 +496,12 @@ const css = `
   .shot-pill-idle { background: rgba(255,255,255,0.15); color: #4ade80; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
   .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
   .shot-pill-disabled { opacity: 0.4; cursor: not-allowed; }
-  .swing-btn { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 92px; height: 92px; border-radius: 50%; border: 4px solid #d4af37; cursor: pointer; font-family: 'Inter',sans-serif; font-weight: 800; font-size: 14px; line-height: 1.1; text-transform: uppercase; box-shadow: 0 6px 24px rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; -webkit-tap-highlight-color: transparent; }
+  .swing-btn { position: absolute; bottom: 12px; right: 12px; z-index: 1000; width: 100px; height: 100px; border-radius: 50%; border: 4px solid #d4af37; cursor: pointer; font-family: 'Inter',sans-serif; font-weight: 800; font-size: 14px; line-height: 1.1; text-transform: uppercase; box-shadow: 0 6px 24px rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; -webkit-tap-highlight-color: transparent; }
   .swing-idle { animation: swing-flash 1s steps(1) infinite; }
   .swing-active { background: #d4af37; color: #000; border-color: #fff; animation: swing-pulse 1.2s ease-in-out infinite; }
   .swing-disabled { background: #333; color: #999; border-color: #666; cursor: not-allowed; animation: none; }
   @keyframes swing-flash { 0%,100% { background: #000; color: #d4af37; } 50% { background: #d4af37; color: #000; } }
-  @keyframes swing-pulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.07); } }
+  @keyframes swing-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
   .big-dist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .big-dist-box { background: #06140c; border: 2px solid rgba(212,175,55,0.55); border-radius: 14px; padding: 6px 4px 4px; text-align: center; }
   .big-dist-label { font-size: 14px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -536,6 +614,23 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [playerTee, setPlayerTee]   = useState(() => { try { return localStorage.getItem("mg_tee") || "mens"; } catch { return "mens"; } });
   const [scoring, setScoring]       = useState(false);   // "Keep score" mode
   const [offCourse, setOffCourse]   = useState(false);
+  // Full-screen play layout: measured overlay sizes so the map fits around them
+  const [dockH, setDockH]           = useState(150);
+  const [topH, setTopH]             = useState(70);
+  const [recenterTick, setRecenterTick] = useState(0);
+  const [showMore, setShowMore]     = useState(false);
+  const dockRef = useRef(null);
+  const topRef  = useRef(null);
+  useEffect(() => {
+    if (screen !== "hole" || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (dockRef.current) setDockH(Math.round(dockRef.current.offsetHeight));
+      if (topRef.current)  setTopH(Math.round(topRef.current.offsetTop + topRef.current.offsetHeight));
+    });
+    if (dockRef.current) ro.observe(dockRef.current);
+    if (topRef.current)  ro.observe(topRef.current);
+    return () => ro.disconnect();
+  }, [screen, tab]);
   const startDoneRef                = useRef(false);
   const [roundStart, setRoundStart] = useState(0);
   const [roundEnd, setRoundEnd]     = useState(18);
@@ -1253,81 +1348,76 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       {holePicker}
       {gpsUi}
 
-      {/* Map + overlays */}
-      <div className="map-wrap">
-        <HoleMap hole={hole} gps={gps} holeShots={holeShots} key={hole.number} />
-        <div className="hole-pill">
-          <span style={{fontFamily:"'Inter',sans-serif", fontSize:20, fontWeight:800, color:"#d4af37", lineHeight:1}}>
-            Hole {hole.number}
-          </span>
-          <span style={{fontSize:15, fontWeight:700, color:"#f0ead6", marginLeft:6}}>Par {hole.par}</span>
+      {/* Full-screen map with overlays */}
+      <div className="play-stage">
+        <div className="play-map">
+          <HoleMap hole={hole} tee={playerTee} gps={gps} holeShots={holeShots} key={hole.number}
+            recenterTick={recenterTick}
+            pad={{ top: topH + 16, bottom: dockH + 20, left: 24, right: 24 }} />
         </div>
-        {longestToday > 0 && (
-          <div className="longest-pill">
-            <span style={{fontSize:12, fontWeight:800, color:"#f0ead6", letterSpacing:"0.04em"}}>🏆 LONGEST TODAY</span>
-            <span style={{fontSize:24, fontWeight:900, color:"#d4af37", lineHeight:1}}>{longestToday} <span style={{fontSize:13, color:"#f0ead6"}}>yds</span></span>
+
+        {/* Top: hole bar with prev / next arrows */}
+        <div className="play-top" ref={topRef}>
+          <div className="hole-bar">
+            <button className="hole-bar-arrow" onClick={prevHole} disabled={holeIdx===roundStart} aria-label="Previous hole">‹</button>
+            <button className="hole-bar-mid" onClick={() => setShowPicker(true)} aria-label="Change hole">
+              <div className="hole-bar-title">Hole {hole.number} <span style={{fontSize:17, color:"#f0ead6"}}>· Par {hole.par}</span></div>
+              <div className="hole-bar-sub">{hole.tees?.[playerTee]?.yards ? `${hole.tees[playerTee].yards} yds · ` : ""}Change ▾</div>
+            </button>
+            <button className="hole-bar-arrow" onClick={nextHole} disabled={holeIdx===roundEnd-1} aria-label="Next hole">›</button>
           </div>
-        )}
+          {offCourse && (
+            <button className="offcourse-pill" onClick={() => setShowPicker(true)}>
+              You don't seem to be on the course · Tap to pick a hole
+            </button>
+          )}
+          {longestToday > 0 && (
+            <div className="longest-pill">
+              <span style={{fontSize:12, fontWeight:800, color:"#f0ead6", letterSpacing:"0.04em"}}>🏆 LONGEST TODAY</span>
+              <span style={{fontSize:24, fontWeight:900, color:"#d4af37", lineHeight:1}}>{longestToday} <span style={{fontSize:13, color:"#f0ead6"}}>yds</span></span>
+            </div>
+          )}
+        </div>
         {onShowInstructions && (
-          <button className="help-pill" onClick={onShowInstructions} aria-label="How this app works">?</button>
+          <button className="help-pill play-help" onClick={onShowInstructions} aria-label="How this app works">?</button>
         )}
-        {/* Floating shot pill — only when hole not complete */}
+
+        {/* Left: the two most important numbers */}
+        <div className="side-boxes" style={{ top: topH + 8, bottom: dockH + 8 }}>
+          <div className="side-box">
+            <p className="side-box-label">⛳ To pin</p>
+            <p className="side-box-num big">{fmtYds(dtg)}</p>
+            <p className="side-box-unit">{fmtUnit(dtg)}</p>
+          </div>
+          <div className="side-box" style={{borderColor:"rgba(212,175,55,0.6)"}}>
+            <p className="side-box-label">Last shot{holeShots.length ? ` · #${holeShots.length}` : ""}</p>
+            <p className="side-box-num mid" style={{color: lastShot ? "#4ade80" : "#6b8a74"}}>{fmtYds(lastShot)}</p>
+            <p className="side-box-unit">{fmtUnit(lastShot)}</p>
+          </div>
+        </div>
+
+        {/* Right: recenter + swing button */}
+        <button className="recenter-btn" style={{ bottom: dockH + 124 }} onClick={() => setRecenterTick(n => n + 1)} aria-label="Recenter map">⌖</button>
         {!holeComplete && (
           <button
             onClick={markShot}
             disabled={!gps}
+            style={{ bottom: dockH + 12 }}
             aria-label={shotFrom ? "Tap at your ball" : "Tap before swing"}
             className={`swing-btn ${!gps ? "swing-disabled" : shotFrom ? "swing-active" : "swing-idle"}`}>
             {!gps ? (bannerStatus === "checking" || bannerStatus === "timeout" ? "Finding GPS…" : "No GPS") : shotFrom ? "Tap at ball" : "Tap before swing"}
           </button>
         )}
-      </div>
 
-      {/* Nav bar below map */}
-      <div className="hole-nav-bar">
-        <button className="hole-nav-btn" onClick={prevHole} disabled={holeIdx===roundStart}>
-          {holeIdx===roundStart ? "‹ —" : `‹ Hole ${hole.number - 1}`}
-        </button>
-        <div className="hole-nav-info" role="button" onClick={() => setShowPicker(true)} style={{cursor:"pointer"}}>
-          <div className="hole-nav-label">Hole {hole.number}</div>
-          <div className="hole-nav-sub" style={{color:"#d4af37", fontWeight:700}}>Change hole ▾</div>
-        </div>
-        <button className="hole-nav-btn" onClick={nextHole} disabled={holeIdx===roundEnd-1}>
-          {holeIdx===roundEnd-1 ? "— ›" : `Hole ${hole.number + 1} ›`}
-        </button>
-      </div>
-
-      {offCourse && (
-        <button onClick={() => setShowPicker(true)}
-          style={{flexShrink:0, border:"none", background:"#3a2e0a", color:"#fbbf24", fontSize:16, fontWeight:700, padding:"8px 12px", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
-          You don't seem to be on the course · Tap to pick a hole
-        </button>
-      )}
-
-      {/* Bottom panel */}
-      <div className="bottom-panel">
-        <div style={{padding:"8px 12px 12px"}}>
-
-          {/* Big distance panel — the most important numbers in the app */}
-          <div className="big-dist">
-            <div className="big-dist-box">
-              <p className="big-dist-label">⛳ To pin</p>
-              <p className="big-dist-num">{fmtYds(dtg)}</p>
-              <p className="big-dist-unit">yards</p>
-            </div>
-            <div className="big-dist-box">
-              <p className="big-dist-label">Last shot{holeShots.length ? ` · #${holeShots.length}` : ""}</p>
-              <p className="big-dist-num" style={{color: lastShot ? "#4ade80" : "#6b8a74"}}>{fmtYds(lastShot)}</p>
-              <p className="big-dist-unit">yards</p>
-            </div>
-          </div>
-
+        {/* Bottom: slim score bar + tabs */}
+        <div className="play-dock" ref={dockRef}>
+          <div className="dock-panel">
           {/* Next Hole / Round Complete button (after hole completion) */}
           {scoring && holeComplete && (
             holeIdx < roundEnd - 1 ? (
               <button onClick={nextHole}
                 style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer",
-                  fontFamily:"'Inter',sans-serif", fontSize:16, fontWeight:700, marginBottom:8,
+                  fontFamily:"'Inter',sans-serif", fontSize:16, fontWeight:700, marginBottom:6,
                   background:"linear-gradient(135deg, rgba(201,168,76,0.25), rgba(201,168,76,0.12))",
                   color:"#c9a84c", border:"1px solid rgba(201,168,76,0.45)",
                   backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
@@ -1338,7 +1428,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             ) : (
               <button onClick={() => setScreen("complete")}
                 style={{width:"100%", padding:"15px", borderRadius:14, cursor:"pointer",
-                  fontFamily:"'Inter',sans-serif", fontSize:16, fontWeight:700, marginBottom:8,
+                  fontFamily:"'Inter',sans-serif", fontSize:16, fontWeight:700, marginBottom:6,
                   background:"linear-gradient(135deg, rgba(74,222,128,0.2), rgba(74,222,128,0.08))",
                   color:"#4ade80", border:"1px solid rgba(74,222,128,0.4)",
                   backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)",
@@ -1350,7 +1440,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           )}
 
           {scoring ? (<>
-          <div className="glass-card" style={{padding:"8px 10px", marginBottom:8}}>
+          <div className="glass-card" style={{padding:"8px 10px", marginBottom:4}}>
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
               <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
                 <div style={{width:9, height:9, borderRadius:"50%", background:PLAYER_COLOR}} />
@@ -1416,19 +1506,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             </button>
           </div>
 
-          <button onClick={() => setScreen("complete")}
-            style={{width:"100%", padding:"12px", borderRadius:12, marginBottom:8, border:"1px solid #2d5a3d", background:"transparent",
-              color:"#c8d8cc", fontSize:17, fontWeight:700, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
-            🏁 Finish round
-          </button>
           </>) : (
+
             <button onClick={startScoring}
-              style={{width:"100%", padding:"14px", borderRadius:14, marginBottom:8, border:"2px solid rgba(212,175,55,0.6)", background:"transparent",
+              style={{width:"100%", padding:"14px", borderRadius:14, marginBottom:2, border:"2px solid rgba(212,175,55,0.6)", background:"transparent",
                 color:"#d4af37", fontSize:19, fontWeight:800, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
               📋 Keep score for a round
             </button>
           )}
 
+            <button className="more-toggle" onClick={() => setShowMore(v => !v)}>
+              {showMore ? "▾ Less" : `▴ More${holeShots.length ? ` · ${holeShots.length} shot${holeShots.length > 1 ? "s" : ""}` : ""}`}
+            </button>
+            {showMore && (<div style={{paddingTop:6}}>
           {/* Shot log */}
           {holeShots.length > 0 && (
             <div className="glass-card" style={{padding:"8px 12px"}}>
@@ -1444,18 +1534,24 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                   return (
                     <div key={i} style={{background:"#0f2818", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"10px 12px", fontSize:20}}>
                       <span style={{color:"#c8d8cc"}}>Shot {i+1}: </span>
-                      <span style={{fontWeight:800, color:PLAYER_COLOR}}>{fmtYds(s.yards)}</span>
-                      <span style={{color:"#c8d8cc"}}> yds · {fmtYds(toPin)} to pin</span>
+                      <span style={{fontWeight:800, color:PLAYER_COLOR}}>{fmtShort(s.yards)}</span>
+                      <span style={{color:"#c8d8cc"}}> · {fmtShort(toPin)} to pin</span>
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
+          <button onClick={() => setScreen("complete")}
+            style={{width:"100%", padding:"12px", borderRadius:12, marginTop:8, border:"1px solid #2d5a3d", background:"transparent",
+              color:"#c8d8cc", fontSize:17, fontWeight:700, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+            🏁 Finish round
+          </button>
+            </div>)}
+          </div>
+          <TabBar active="hole" onSelect={setTab} onGame={() => {}} />
         </div>
       </div>
-
-      <TabBar active="hole" onSelect={setTab} onGame={() => {}} />
     </div>
   );
 }
