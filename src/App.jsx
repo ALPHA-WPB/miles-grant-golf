@@ -470,13 +470,13 @@ const css = `
   .play-top .longest-pill { position: static; }
   .offcourse-pill { pointer-events: auto; border: 1px solid rgba(251,191,36,0.6); border-radius: 12px; background: rgba(58,46,10,0.92); color: #fbbf24; font: 700 15px 'Inter',sans-serif; padding: 8px 12px; cursor: pointer; text-align: left; }
   .play-help { top: 16px; right: 10px; }
-  .side-boxes { position: absolute; left: 10px; z-index: 1000; display: flex; flex-direction: column; justify-content: center; gap: 10px; width: min(40vw, 168px); pointer-events: none; }
-  .side-box { background: rgba(6,20,12,0.84); border: 2px solid #d4af37; border-radius: 16px; padding: 8px 6px 6px; text-align: center; box-shadow: 0 3px 14px rgba(0,0,0,0.55); }
-  .side-box-label { font-size: 14px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.05em; }
+  .side-boxes { position: absolute; left: 10px; z-index: 1000; display: flex; flex-direction: column; justify-content: flex-start; gap: 6px; width: min(29vw, 118px); pointer-events: none; }
+  .side-box { background: rgba(6,20,12,0.78); border: 2px solid #d4af37; border-radius: 12px; padding: 4px 4px 3px; text-align: center; box-shadow: 0 3px 14px rgba(0,0,0,0.55); }
+  .side-box-label { font-size: 11px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
   .side-box-num { font-family: 'Inter',sans-serif; font-weight: 900; line-height: 1; color: #d4af37; letter-spacing: -0.02em; margin-top: 2px; white-space: nowrap; }
-  .side-box-num.big { font-size: clamp(50px, 16vw, 68px); }
-  .side-box-num.mid { font-size: clamp(38px, 12vw, 52px); }
-  .side-box-unit { font-size: 15px; color: #f0ead6; font-weight: 700; }
+  .side-box-num.big { font-size: clamp(36px, 11vw, 46px); }
+  .side-box-num.mid { font-size: clamp(28px, 8.5vw, 36px); }
+  .side-box-unit { font-size: 12px; color: #f0ead6; font-weight: 700; }
   .recenter-btn { position: absolute; right: 10px; z-index: 1000; width: 48px; height: 48px; border-radius: 50%; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); color: #d4af37; font-size: 22px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
   .play-dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; display: flex; flex-direction: column; }
   .dock-panel { background: rgba(6,16,10,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(212,175,55,0.35); padding: 8px 10px; max-height: 45dvh; overflow-y: auto; }
