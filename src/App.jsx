@@ -8,6 +8,7 @@ import { roundService } from "./services/roundService";
 import Auth from "./components/Auth";
 import Instructions from "./components/Instructions";
 import LocationGate from "./components/LocationGate";
+import GpsBanner from "./components/GpsBanner";
 import RoundLobby from "./components/RoundLobby";
 import Leaderboard from "./components/Leaderboard";
 import RoundHistory from "./components/RoundHistory";
@@ -397,6 +398,9 @@ const css = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body, #root { height: 100%; overflow: hidden; }
+  .gps-banner { flex-shrink: 0; width: 100%; z-index: 4000; border: 0; cursor: pointer; padding: calc(env(safe-area-inset-top) + 5px) 12px 5px; min-height: 30px; background: #d4af37; color: #0b1a10; font: 700 15px/1.25 'Inter', sans-serif; text-align: center; animation: gps-pulse 1.6s ease-in-out infinite; }
+  @keyframes gps-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+  @media (prefers-reduced-motion: reduce) { .gps-banner { animation: none; } }
   .app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: #0f2818; color: #f0ead6; font-family: 'Inter', sans-serif; overflow: hidden; }
   .serif { font-family: 'Playfair Display', serif; }
   .map-wrap { height: 36dvh; flex-shrink: 0; position: relative; overflow: hidden; }
@@ -542,7 +546,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [pickupConfirm, setPickupConfirm] = useState(false);
   const [shots, setShots]           = useState(() => Array(HOLES.length).fill(null).map(() => []));
   const [gps, setGps]               = useState(null);
-  const [gpsError, setGpsError]     = useState(null);
+  const [gpsStatus, setGpsStatus]   = useState("checking"); // checking | ok | weak | denied | timeout | unavailable | unsupported
   const [shotFrom, setShotFrom]     = useState(null);
   const [holePrompt, setHolePrompt] = useState(null);   // hole index we think you're at
   const [showPicker, setShowPicker] = useState(false);  // manual hole picker
@@ -556,7 +560,22 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     try { return Number(localStorage.getItem(longestKey())) || 0; } catch { return 0; }
   });
   const [locChecked, setLocChecked] = useState(false);
+  const [gateDismissed, setGateDismissed] = useState(() => {
+    try { return sessionStorage.getItem("mg_gps_gate_skipped") === "1"; } catch { return false; }
+  });
+  const [showGate, setShowGate]     = useState(false);  // re-opened from the GPS banner
+  const [gpsRetry, setGpsRetry]     = useState(0);      // bump to restart the GPS watch
   const watchRef                    = useRef(null);
+  const onGpsScreen = screen === "hole" || screen === "start";
+
+  // iOS doesn't reliably report permission changes, so re-check GPS
+  // whenever the player comes back to the app (e.g. from Settings).
+  useEffect(() => {
+    if (!onGpsScreen) return;
+    const onVis = () => { if (document.visibilityState === "visible") setGpsRetry(n => n + 1); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [onGpsScreen]);
 
   // Location gate: check permission when entering the hole screen
   useEffect(() => {
@@ -567,12 +586,14 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         if (navigator.permissions?.query) {
           const st = await navigator.permissions.query({ name: "geolocation" });
           if (!cancelled && st.state === "granted") setLocationReady(true);
+          // Already blocked: skip the explainer, the banner explains how to fix it
+          if (!cancelled && st.state === "denied") { setGpsStatus("denied"); setGateDismissed(true); }
         }
       } catch { /* ignore */ }
       if (!cancelled) setLocChecked(true);
     })();
     return () => { cancelled = true; };
-  }, [screen === "hole" || screen === "start", locationReady]);
+  }, [onGpsScreen, locationReady, gpsRetry]);
 
   // Keep the screen awake while playing a hole
   useEffect(() => {
@@ -586,18 +607,49 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   }, [screen]);
 
   useEffect(() => {
-    if ((screen !== "hole" && screen !== "start") || !locationReady) return;
-    if (!navigator.geolocation) { setGpsError("GPS not available"); return; }
+    if (!onGpsScreen || !locationReady) return;
+    if (!navigator.geolocation || !window.isSecureContext) { setGpsStatus("unsupported"); return; }
     watchRef.current = navigator.geolocation.watchPosition(
       pos => {
-        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) });
-        setGpsError(null);
+        const acc = Math.round(pos.coords.accuracy);
+        setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc });
+        // Precise Location off on iPhone gives ~1–5 km accuracy — useless for yardages
+        setGpsStatus(acc > 150 ? "weak" : "ok");
       },
-      () => setGpsError("GPS unavailable"),
-      { enableHighAccuracy: true, maximumAge: 2000 }
+      err => {
+        if (err.code === 1) { setGpsStatus("denied"); setGps(null); }
+        else if (err.code === 3) setGpsStatus("timeout");          // keeps trying on its own
+        else { setGpsStatus("unavailable"); setGps(null); }
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 }
     );
     return () => navigator.geolocation.clearWatch(watchRef.current);
-  }, [screen === "hole" || screen === "start", locationReady]);
+  }, [onGpsScreen, locationReady, gpsRetry]);
+
+  // What the GPS banner shows. Skipping the explainer without granting = "off".
+  const bannerStatus = (!locationReady && gateDismissed && gpsStatus === "checking") ? "off" : gpsStatus;
+  const gateOpen = showGate || (locChecked && !locationReady && !gateDismissed);
+  const skipGate = () => {
+    setGateDismissed(true); setShowGate(false);
+    try { sessionStorage.setItem("mg_gps_gate_skipped", "1"); } catch { /* ignore */ }
+  };
+  const onBannerTap = () => {
+    if (bannerStatus === "timeout" || bannerStatus === "unavailable") { setGpsStatus("checking"); setGpsRetry(n => n + 1); }
+    else if (bannerStatus !== "unsupported") setShowGate(true);
+  };
+  const gpsUi = (
+    <>
+      {!gateOpen && <GpsBanner status={bannerStatus} onTap={onBannerTap} />}
+      {gateOpen && (
+        <LocationGate
+          key={bannerStatus}
+          reason={bannerStatus}
+          onGranted={() => { setLocationReady(true); setShowGate(false); setGpsStatus("checking"); setGpsRetry(n => n + 1); }}
+          onSkip={skipGate}
+        />
+      )}
+    </>
+  );
 
   useEffect(() => {
     if (screen !== "hole") return;
@@ -745,14 +797,14 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     return (
       <div className="app">
         <style>{css}</style>
-        {locChecked && !locationReady && <LocationGate onGranted={() => setLocationReady(true)} />}
+        {gpsUi}
         <div style={{flex:1, overflowY:"auto", padding:"max(env(safe-area-inset-top),14px) 16px 16px", background:"#0a1c12", textAlign:"center"}}>
           <p style={{fontSize:13, color:"#d4af37", letterSpacing:"0.1em", textTransform:"uppercase", fontWeight:700}}>Miles Grant · Unofficial Golf Companion</p>
           <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:30, color:"#f0ead6", lineHeight:1.15, margin:"6px 0 12px"}}>Which hole are you<br/>starting on?</h1>
 
           <div className="start-card">
             <p className="start-card-tag">
-              {near !== null ? "📍 Closest to you" : (gps && !fuzzy) ? "You're not on the course right now" : "📡 Finding your location…"}
+              {near !== null ? "📍 Closest to you" : (gps && !fuzzy) ? "You're not on the course right now" : (bannerStatus === "checking" || bannerStatus === "timeout") ? "📡 Finding your location…" : "📍 No GPS — pick your hole below"}
             </p>
             <div className="start-card-row">
               <div className="start-num">{selHole.number}</div>
@@ -1199,9 +1251,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       {tapHintOverlay}
       {holePromptSheet}
       {holePicker}
-      {locChecked && !locationReady && (
-        <LocationGate onGranted={() => setLocationReady(true)} />
-      )}
+      {gpsUi}
 
       {/* Map + overlays */}
       <div className="map-wrap">
@@ -1228,7 +1278,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             disabled={!gps}
             aria-label={shotFrom ? "Tap at your ball" : "Tap before swing"}
             className={`swing-btn ${!gps ? "swing-disabled" : shotFrom ? "swing-active" : "swing-idle"}`}>
-            {!gps ? "Finding GPS…" : shotFrom ? "Tap at ball" : "Tap before swing"}
+            {!gps ? (bannerStatus === "checking" || bannerStatus === "timeout" ? "Finding GPS…" : "No GPS") : shotFrom ? "Tap at ball" : "Tap before swing"}
           </button>
         )}
       </div>
@@ -1271,7 +1321,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               <p className="big-dist-unit">yards</p>
             </div>
           </div>
-          {gpsError && <p style={{textAlign:"center", fontSize:18, color:"#f87171", marginBottom:10}}>{gpsError}</p>}
 
           {/* Next Hole / Round Complete button (after hole completion) */}
           {scoring && holeComplete && (
