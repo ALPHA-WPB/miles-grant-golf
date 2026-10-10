@@ -564,15 +564,55 @@ function GolfApp({ user, profile, onProfileUpdate }) {
     return d <= 600 ? d : null;
   }
 
+  function speak(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95;
+    u.pitch = 1;
+    window.speechSynthesis.speak(u);
+  }
+
   function markShot() {
     if (!gps) return;
     if (shotFrom) {
       const yards = Math.round(haversineYards(shotFrom.lat, shotFrom.lng, gps.lat, gps.lng));
+      const isFirstShot = holeShots.length === 0;
+      const toPin = Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
+      const teeYards = hole.tees[playerTee].yards;
       setShots(prev => {
         const next = prev.map(h => [...h]);
         next[holeIdx] = [...next[holeIdx], { from: shotFrom, to: { lat: gps.lat, lng: gps.lng }, yards }];
         return next;
       });
+
+      const badJokes = [
+        `${yards} yards? My grandma hits it farther with a broom. ${toPin} yards to the pin.`,
+        `Wow, ${yards} yards! Did you swing or sneeze? ${toPin} yards still to go.`,
+        `${yards} yards. Even the squirrels feel bad for you. ${toPin} yards to the pin.`,
+        `${yards} yards — that's more of a gentle suggestion than a drive. ${toPin} to the pin.`,
+      ];
+      const notBadPhrases = [
+        `Not bad! ${yards} yards on the drive, ${toPin} yards to the pin.`,
+        `${yards} yards, decent effort! ${toPin} yards left to the pin.`,
+        `Hey, ${yards} yards works! ${toPin} more yards to go.`,
+        `Solid contact — ${yards} yards. ${toPin} yards to the pin.`,
+      ];
+      const greatPhrases = [
+        `Boom! ${yards} yards, what a drive! ${toPin} yards to the pin.`,
+        `Outstanding! ${yards} yards, you're a machine! ${toPin} yards to the pin.`,
+        `${yards} yards — absolutely crushed it! ${toPin} to the pin.`,
+        `What a shot! ${yards} yards! Only ${toPin} yards to the pin.`,
+      ];
+      const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+      let msg = `${teeYards} yard hole. ${toPin} yards to the pin.`;
+      if (isFirstShot) {
+        if (yards < 60) msg = pick(badJokes);
+        else if (yards <= 110) msg = pick(notBadPhrases);
+        else msg = pick(greatPhrases);
+      }
+      speak(msg);
     }
     setShotFrom({ lat: gps.lat, lng: gps.lng });
   }
