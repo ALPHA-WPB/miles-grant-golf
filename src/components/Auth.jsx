@@ -141,11 +141,12 @@ export function Auth() {
           </p>
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: 14, fontSize: 13, color: '#7a9e84' }}>
-          <button onClick={handleGuest} disabled={loading}
-            style={{ background: 'none', border: 'none', color: 'rgba(201,168,76,0.6)', cursor: 'pointer', fontFamily: "'Inter',sans-serif", fontSize: 13, textDecoration: 'underline' }}>
-            Continue as Guest
-          </button>
+        <button onClick={handleGuest} disabled={loading}
+          style={{ width: '100%', marginTop: 12, padding: '16px', borderRadius: 14, border: '1.5px solid rgba(74,222,128,0.5)', background: 'rgba(20,60,30,0.85)', color: '#4ade80', cursor: 'pointer', fontFamily: "'Inter',sans-serif", fontSize: 17, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }}>
+          ⛳ Continue as Guest
+        </button>
+        <p style={{ textAlign: 'center', marginTop: 10, fontSize: 11, color: 'rgba(240,234,214,0.45)', lineHeight: 1.55 }}>
+          Guests can play a full round with GPS yardage and scoring free of charge. Create an account to save round history, add friends,
         </p>
 
         <p style={{ textAlign: 'center', fontSize: 10, color: 'rgba(240,234,214,0.3)', marginTop: 12, lineHeight: 1.55 }}>
