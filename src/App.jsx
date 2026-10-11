@@ -25,6 +25,8 @@ const HOLES = [
       womens: { lat: 27.14747901, lng: -80.17501653, yards: 450 },
     },
     green: { lat: 27.14645837, lng: -80.17895987 },
+    greenFront: { lat: 27.14649694, lng: -80.17880886 },
+    greenBack:  { lat: 27.14641980, lng: -80.17911088 },
   },
   {
     number: 2, par: 3, handicap: 15,
@@ -34,6 +36,8 @@ const HOLES = [
       womens: { lat: 27.14632678, lng: -80.17935098, yards: 108 },
     },
     green: { lat: 27.14536361, lng: -80.17929695 },
+    greenFront: { lat: 27.14550323, lng: -80.17930492 },
+    greenBack:  { lat: 27.14522399, lng: -80.17928898 },
   },
   {
     number: 3, par: 3, handicap: 13,
@@ -43,6 +47,8 @@ const HOLES = [
       womens: { lat: 27.14530151, lng: -80.17977076, yards: 118 },
     },
     green: { lat: 27.14623854, lng: -80.17980873 },
+    greenFront: { lat: 27.14609891, lng: -80.17980115 },
+    greenBack:  { lat: 27.14637817, lng: -80.17981631 },
   },
   {
     number: 4, par: 4, handicap: 5,
@@ -52,6 +58,8 @@ const HOLES = [
       womens: { lat: 27.14634566, lng: -80.18044440, yards: 340 },
     },
     green: { lat: 27.14524837, lng: -80.18304176 },
+    greenFront: { lat: 27.14530837, lng: -80.18289987 },
+    greenBack:  { lat: 27.14518837, lng: -80.18318365 },
   },
   {
     number: 5, par: 3, handicap: 9,
@@ -61,6 +69,8 @@ const HOLES = [
       womens: { lat: 27.14554823, lng: -80.18354423, yards: 122 },
     },
     green: { lat: 27.14538419, lng: -80.18464611 },
+    greenFront: { lat: 27.14540586, lng: -80.18449091 },
+    greenBack:  { lat: 27.14536252, lng: -80.18480131 },
   },
   {
     number: 6, par: 4, handicap: 1,
@@ -70,6 +80,8 @@ const HOLES = [
       womens: { lat: 27.14584275, lng: -80.18378381, yards: 360 },
     },
     green: { lat: 27.14668028, lng: -80.18116062 },
+    greenFront: { lat: 27.14664770, lng: -80.18131340 },
+    greenBack:  { lat: 27.14671286, lng: -80.18100784 },
   },
   {
     number: 7, par: 3, handicap: 17,
@@ -79,6 +91,8 @@ const HOLES = [
       womens: { lat: 27.14697594, lng: -80.18095993, yards: 110 },
     },
     green: { lat: 27.14681188, lng: -80.18013925 },
+    greenFront: { lat: 27.14684221, lng: -80.18029261 },
+    greenBack:  { lat: 27.14678155, lng: -80.17998589 },
   },
   {
     number: 8, par: 3, handicap: 11,
@@ -88,6 +102,8 @@ const HOLES = [
       womens: { lat: 27.14667765, lng: -80.17944083, yards: 112 },
     },
     green: { lat: 27.14725279, lng: -80.17856710 },
+    greenFront: { lat: 27.14717013, lng: -80.17869380 },
+    greenBack:  { lat: 27.14733545, lng: -80.17844040 },
   },
   {
     number: 9, par: 4, handicap: 7,
@@ -97,6 +113,8 @@ const HOLES = [
       womens: { lat: 27.14763077, lng: -80.17779727, yards: 340 },
     },
     green: { lat: 27.14805456, lng: -80.17481248 },
+    greenFront: { lat: 27.14803347, lng: -80.17496779 },
+    greenBack:  { lat: 27.14807565, lng: -80.17465717 },
   },
   // ── Back Nine ───────────────────────────────────────────────
   {
@@ -107,6 +125,8 @@ const HOLES = [
       womens: { lat: 27.14844817, lng: -80.17524103, yards: 350 },
     },
     green: { lat: 27.14890512, lng: -80.17838320 },
+    greenFront: { lat: 27.14888263, lng: -80.17822814 },
+    greenBack:  { lat: 27.14892761, lng: -80.17853826 },
   },
   {
     number: 11, par: 3, handicap: 18,
@@ -116,6 +136,8 @@ const HOLES = [
       womens: { lat: 27.14911947, lng: -80.17884704, yards: 90 },
     },
     green: { lat: 27.14857316, lng: -80.17955809 },
+    greenFront: { lat: 27.14866447, lng: -80.17943912 },
+    greenBack:  { lat: 27.14848185, lng: -80.17967706 },
   },
   {
     number: 12, par: 3, handicap: 14,
@@ -125,6 +147,8 @@ const HOLES = [
       womens: { lat: 27.14831201, lng: -80.17974914, yards: 110 },
     },
     green: { lat: 27.14852361, lng: -80.18081572 },
+    greenFront: { lat: 27.14849295, lng: -80.18066244 },
+    greenBack:  { lat: 27.14855427, lng: -80.18096900 },
   },
   {
     number: 13, par: 3, handicap: 10,
@@ -134,6 +158,8 @@ const HOLES = [
       womens: { lat: 27.14886700, lng: -80.18078537, yards: 148 },
     },
     green: { lat: 27.14915439, lng: -80.17934550 },
+    greenFront: { lat: 27.14912304, lng: -80.17949861 },
+    greenBack:  { lat: 27.14918574, lng: -80.17919239 },
   },
   {
     number: 14, par: 4, handicap: 8,
@@ -143,6 +169,8 @@ const HOLES = [
       womens: { lat: 27.14917035, lng: -80.17788133, yards: 275 },
     },
     green: { lat: 27.14904419, lng: -80.17550729 },
+    greenFront: { lat: 27.14905109, lng: -80.17566421 },
+    greenBack:  { lat: 27.14903729, lng: -80.17535037 },
   },
   {
     number: 15, par: 3, handicap: 12,
@@ -152,6 +180,8 @@ const HOLES = [
       womens: { lat: 27.14908789, lng: -80.17510257, yards: 115 },
     },
     green: { lat: 27.14993629, lng: -80.17450069 },
+    greenFront: { lat: 27.14981773, lng: -80.17458393 },
+    greenBack:  { lat: 27.15005485, lng: -80.17441745 },
   },
   {
     number: 16, par: 3, handicap: 16,
@@ -161,6 +191,8 @@ const HOLES = [
       womens: { lat: 27.15048586, lng: -80.17441124, yards: 88 },
     },
     green: { lat: 27.15067900, lng: -80.17520643 },
+    greenFront: { lat: 27.15064203, lng: -80.17505491 },
+    greenBack:  { lat: 27.15071597, lng: -80.17535795 },
   },
   {
     number: 17, par: 4, handicap: 2,
@@ -170,6 +202,8 @@ const HOLES = [
       womens: { lat: 27.15101706, lng: -80.17522793, yards: 310 },
     },
     green: { lat: 27.15211154, lng: -80.17215594 },
+    greenFront: { lat: 27.15205958, lng: -80.17230180 },
+    greenBack:  { lat: 27.15216350, lng: -80.17201008 },
   },
   {
     number: 18, par: 5, handicap: 6,
@@ -179,6 +213,8 @@ const HOLES = [
       womens: { lat: 27.15145738, lng: -80.17258529, yards: 420 },
     },
     green: { lat: 27.14874297, lng: -80.17481267 },
+    greenFront: { lat: 27.14885235, lng: -80.17471483 },
+    greenBack:  { lat: 27.14863359, lng: -80.17491051 },
   },
 ];
 
@@ -949,6 +985,18 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     return d <= 600 ? d : null;
   }
 
+  function distToFront() {
+    if (!gps || !hole.greenFront) return null;
+    const d = Math.round(haversineYards(gps.lat, gps.lng, hole.greenFront.lat, hole.greenFront.lng));
+    return d <= 600 ? d : null;
+  }
+
+  function distToBack() {
+    if (!gps || !hole.greenBack) return null;
+    const d = Math.round(haversineYards(gps.lat, gps.lng, hole.greenBack.lat, hole.greenBack.lng));
+    return d <= 600 ? d : null;
+  }
+
   function speak(text) {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
@@ -1132,6 +1180,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   }
 
   const dtg = distToGreen();
+  const dtf = distToFront();
+  const dtb = distToBack();
   const displayScore = scores[holeIdx] || (inProgress || completedShots > 0 ? shotBasedScore : 0);
   const scoreForDisplay = skipped[holeIdx] ? null : displayScore;
   const diff = scoreForDisplay ? scoreForDisplay - hole.par : null;
@@ -1425,6 +1475,13 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             <p className="side-box-label">⛳ To pin</p>
             <p className="side-box-num big">{fmtYds(dtg)}</p>
             <p className="side-box-unit">{fmtUnit(dtg)}</p>
+            {(dtf != null || dtb != null) && (
+              <div style={{ marginTop: 4, display: 'flex', gap: 4, justifyContent: 'center' }}>
+                <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 700 }}>F {dtf ?? '—'}</span>
+                <span style={{ fontSize: 11, color: 'rgba(200,216,204,0.5)' }}>·</span>
+                <span style={{ fontSize: 11, color: '#c8d8cc', fontWeight: 700 }}>B {dtb ?? '—'}</span>
+              </div>
+            )}
           </div>
           <div className="side-box" style={{borderColor:"rgba(212,175,55,0.6)"}}>
             <p className="side-box-label">Last shot{holeShots.length ? ` · #${holeShots.length}` : ""}</p>
