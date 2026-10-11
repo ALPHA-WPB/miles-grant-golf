@@ -736,25 +736,30 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   // Fetch wind + weather every 15 min using course GPS coords via Open-Meteo (no API key)
   useEffect(() => {
     const fetchWind = () => {
-      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m&wind_speed_unit=mph&temperature_unit=fahrenheit&hourly=precipitation_probability,precipitation&forecast_days=1&timezone=America%2FNew_York")
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m,precipitation,rain&wind_speed_unit=mph&temperature_unit=fahrenheit&hourly=precipitation_probability&forecast_days=2&timezone=America%2FNew_York")
         .then(r => r.json())
         .then(d => {
           const c = d?.current;
           if (c) {
             setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
-            // Find minutes until rain using hourly precipitation_probability
-            const times = d?.hourly?.time ?? [];
-            const probs = d?.hourly?.precipitation_probability ?? [];
-            const now = Date.now();
+            // If currently precipitating, show Now immediately
+            const currentPrecip = (c.precipitation ?? 0) + (c.rain ?? 0);
             let rainMins = null;
-            for (let i = 0; i < times.length; i++) {
-              const slotMs = new Date(times[i]).getTime();
-              if (slotMs < now - 60 * 60 * 1000) continue; // skip past slots
-              if (probs[i] >= 50) {
-                // interpolate: how far into the future is this slot?
-                const diffMins = Math.max(0, Math.round((slotMs - now) / 60000));
-                rainMins = diffMins;
-                break;
+            if (currentPrecip > 0) {
+              rainMins = 0;
+            } else {
+              // Find next hour with ≥50% probability, skipping hours that have fully passed
+              const times = d?.hourly?.time ?? [];
+              const probs = d?.hourly?.precipitation_probability ?? [];
+              const now = Date.now();
+              for (let i = 0; i < times.length; i++) {
+                const slotEnd = new Date(times[i]).getTime() + 60 * 60 * 1000;
+                if (slotEnd < now) continue; // skip fully elapsed hours
+                if (probs[i] >= 50) {
+                  const slotStart = new Date(times[i]).getTime();
+                  rainMins = Math.max(0, Math.round((slotStart - now) / 60000));
+                  break;
+                }
               }
             }
             setWeather({ tempF: Math.round(c.temperature_2m), rainMins });
