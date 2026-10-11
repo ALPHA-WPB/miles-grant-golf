@@ -736,16 +736,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   // Fetch wind + weather every 15 min using course GPS coords via Open-Meteo (no API key)
   useEffect(() => {
     const fetchWind = () => {
-      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m,precipitation,rain&wind_speed_unit=mph&temperature_unit=fahrenheit&hourly=precipitation_probability&forecast_days=2&timezone=America%2FNew_York")
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m,precipitation,rain,weather_code&wind_speed_unit=mph&temperature_unit=fahrenheit&hourly=precipitation_probability&forecast_days=2&timezone=America%2FNew_York")
         .then(r => r.json())
         .then(d => {
           const c = d?.current;
           if (c) {
             setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
-            // If currently precipitating, show Now immediately
-            const currentPrecip = (c.precipitation ?? 0) + (c.rain ?? 0);
+            // WMO codes that mean rain/drizzle/showers/thunderstorm is happening now
+            const RAIN_CODES = new Set([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99]);
+            const isRainingNow = RAIN_CODES.has(c.weather_code) ||
+                                 (c.precipitation ?? 0) > 0 ||
+                                 (c.rain ?? 0) > 0;
             let rainMins = null;
-            if (currentPrecip > 0) {
+            if (isRainingNow) {
               rainMins = 0;
             } else {
               // Find next hour with ≥50% probability, skipping hours that have fully passed
