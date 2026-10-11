@@ -1483,10 +1483,21 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               </div>
             )}
           </div>
-          <div className="side-box" style={{borderColor:"rgba(212,175,55,0.6)"}}>
-            <p className="side-box-label">Last shot{holeShots.length ? ` · #${holeShots.length}` : ""}</p>
-            <p className="side-box-num mid" style={{color: lastShot ? "#4ade80" : "#6b8a74"}}>{fmtYds(lastShot)}</p>
-            <p className="side-box-unit">{fmtUnit(lastShot)}</p>
+          <div className="side-box" style={{borderColor:"rgba(212,175,55,0.6)", padding: '6px 4px 6px'}}>
+            <p className="side-box-label">Shots{holeShots.length ? ` · ${holeShots.length}` : ""}</p>
+            {holeShots.length === 0 ? (
+              <p className="side-box-num mid" style={{color:"#6b8a74", fontSize: 28}}>—</p>
+            ) : (
+              <div style={{ overflowY: 'auto', maxHeight: 120, marginTop: 4 }}>
+                {holeShots.map((s, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 2px', borderBottom: i < holeShots.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                    <span style={{ fontSize: 10, color: 'rgba(200,216,204,0.5)', fontWeight: 700 }}>#{i + 1}</span>
+                    <span style={{ fontSize: 15, color: '#4ade80', fontWeight: 800, letterSpacing: '-0.01em' }}>{s.yards}</span>
+                    <span style={{ fontSize: 9, color: 'rgba(200,216,204,0.4)' }}>yds</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
