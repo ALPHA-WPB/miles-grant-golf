@@ -531,13 +531,13 @@ const css = `
   .play-top .longest-pill { position: static; }
   .offcourse-pill { pointer-events: auto; border: 1px solid rgba(251,191,36,0.6); border-radius: 12px; background: rgba(58,46,10,0.92); color: #fbbf24; font: 700 15px 'Inter',sans-serif; padding: 8px 12px; cursor: pointer; text-align: left; }
   .play-help { top: 16px; right: 10px; }
-  .side-boxes { position: absolute; left: 10px; z-index: 1000; display: flex; flex-direction: column; justify-content: flex-start; gap: 6px; width: min(29vw, 118px); pointer-events: none; }
+  .side-boxes { position: absolute; left: 10px; z-index: 1000; display: flex; flex-direction: column; justify-content: flex-start; gap: 6px; width: min(26vw, 104px); pointer-events: none; }
   .side-box { background: rgba(6,20,12,0.78); border: 2px solid #d4af37; border-radius: 12px; padding: 4px 4px 3px; text-align: center; box-shadow: 0 3px 14px rgba(0,0,0,0.55); }
-  .side-box-label { font-size: 11px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+  .side-box-label { font-size: 10px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
   .side-box-num { font-family: 'Inter',sans-serif; font-weight: 900; line-height: 1; color: #d4af37; letter-spacing: -0.02em; margin-top: 2px; white-space: nowrap; }
-  .side-box-num.big { font-size: clamp(36px, 11vw, 46px); }
-  .side-box-num.mid { font-size: clamp(28px, 8.5vw, 36px); }
-  .side-box-unit { font-size: 12px; color: #f0ead6; font-weight: 700; }
+  .side-box-num.big { font-size: clamp(30px, 9vw, 40px); }
+  .side-box-num.mid { font-size: clamp(24px, 7.5vw, 32px); }
+  .side-box-unit { font-size: 11px; color: #f0ead6; font-weight: 700; }
   .recenter-btn { position: absolute; right: 10px; z-index: 1000; width: 48px; height: 48px; border-radius: 50%; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); color: #d4af37; font-size: 22px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
   .play-dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; display: flex; flex-direction: column; }
   .dock-panel { background: rgba(6,16,10,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(212,175,55,0.35); padding: 8px 10px; max-height: 45dvh; overflow-y: auto; }
@@ -1636,7 +1636,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                   } catch { setCompassPermission('denied'); }
                 }
               }}
-              style={{ background: 'rgba(6,20,12,0.82)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 10, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer' }}>
+              style={{ background: 'rgba(6,20,12,0.78)', border: '2px solid #d4af37', borderRadius: 12, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer', boxShadow: '0 3px 14px rgba(0,0,0,0.55)' }}>
               <span style={{ display: 'inline-block', fontSize: 16, transform: `rotate(${compass != null ? wind.dir - compass : wind.dir}deg)`, transition: 'transform 0.3s ease', lineHeight: 1 }}>↑</span>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#d4af37', lineHeight: 1 }}>{wind.speed}</div>
