@@ -718,18 +718,37 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [gpsRetry, setGpsRetry]     = useState(0);      // bump to restart the GPS watch
   const watchRef                    = useRef(null);
   const [wind, setWind]             = useState(null);   // { speed, dir } in mph + degrees
+  const [weather, setWeather]       = useState(null);   // { tempF, rainMins } rainMins=null means clear
   const [compass, setCompass]       = useState(null);   // device heading in degrees (0=N, clockwise)
   const [compassPermission, setCompassPermission] = useState('unknown'); // unknown | granted | denied
   const onGpsScreen = screen === "hole" || screen === "start";
 
-  // Fetch wind every 15 min using course GPS coords via Open-Meteo (no API key)
+  // Fetch wind + weather every 15 min using course GPS coords via Open-Meteo (no API key)
   useEffect(() => {
     const fetchWind = () => {
-      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&forecast_days=1")
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m&wind_speed_unit=mph&temperature_unit=fahrenheit&hourly=precipitation_probability,precipitation&forecast_days=1&timezone=America%2FNew_York")
         .then(r => r.json())
         .then(d => {
           const c = d?.current;
-          if (c) setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
+          if (c) {
+            setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
+            // Find minutes until rain using hourly precipitation_probability
+            const times = d?.hourly?.time ?? [];
+            const probs = d?.hourly?.precipitation_probability ?? [];
+            const now = Date.now();
+            let rainMins = null;
+            for (let i = 0; i < times.length; i++) {
+              const slotMs = new Date(times[i]).getTime();
+              if (slotMs < now - 60 * 60 * 1000) continue; // skip past slots
+              if (probs[i] >= 50) {
+                // interpolate: how far into the future is this slot?
+                const diffMins = Math.max(0, Math.round((slotMs - now) / 60000));
+                rainMins = diffMins;
+                break;
+              }
+            }
+            setWeather({ tempF: Math.round(c.temperature_2m), rainMins });
+          }
         })
         .catch(() => {});
     };
@@ -1562,6 +1581,45 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             )}
           </div>
         </div>
+
+        {/* Bottom-left weather boxes */}
+        {weather && (
+          <div style={{ position: 'absolute', right: 12, bottom: dockH + 8, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+            {/* Temperature box */}
+            <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
+              <p className="side-box-label" style={{ fontSize: 9 }}>Temp</p>
+              <p className="side-box-num mid" style={{ fontSize: 22, lineHeight: 1.1 }}>{weather.tempF}</p>
+              <p className="side-box-unit" style={{ fontSize: 9 }}>°F</p>
+            </div>
+            {/* Rain box */}
+            <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center', borderColor: weather.rainMins === 0 ? 'rgba(248,113,113,0.6)' : weather.rainMins != null && weather.rainMins < 60 ? 'rgba(251,191,36,0.6)' : 'rgba(74,222,128,0.25)' }}>
+              <p className="side-box-label" style={{ fontSize: 9 }}>Rain</p>
+              {weather.rainMins === null ? (
+                <>
+                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>☀️</p>
+                  <p className="side-box-unit" style={{ fontSize: 9 }}>Clear</p>
+                </>
+              ) : weather.rainMins === 0 ? (
+                <>
+                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>⛈️</p>
+                  <p className="side-box-unit" style={{ fontSize: 9 }}>Now</p>
+                </>
+              ) : weather.rainMins < 60 ? (
+                <>
+                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>🌧️</p>
+                  <p className="side-box-num mid" style={{ fontSize: 18, color: '#fbbf24', lineHeight: 1 }}>{weather.rainMins}</p>
+                  <p className="side-box-unit" style={{ fontSize: 9 }}>min</p>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>🌦️</p>
+                  <p className="side-box-num mid" style={{ fontSize: 18, color: '#c8d8cc', lineHeight: 1 }}>{Math.round(weather.rainMins / 60)}</p>
+                  <p className="side-box-unit" style={{ fontSize: 9 }}>hr</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Wind indicator */}
         {wind && (
