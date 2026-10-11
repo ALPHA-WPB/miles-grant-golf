@@ -744,12 +744,12 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
       // Real-time rain from Tomorrow.io (realtime + hourly forecast)
       const rainNowFetch = TOMORROW_KEY
-        ? fetch(`https://api.tomorrow.io/v4/weather/realtime?location=27.147,-80.179&fields=precipitationIntensity,precipitationType&units=imperial&apikey=${TOMORROW_KEY}`)
+        ? fetch(`https://api.tomorrow.io/v4/weather/realtime?location=27.147,-80.179&fields=rainIntensity,snowIntensity,sleetIntensity&units=imperial&apikey=${TOMORROW_KEY}`)
             .then(r => r.json())
         : Promise.resolve(null);
 
       const rainForecastFetch = TOMORROW_KEY
-        ? fetch(`https://api.tomorrow.io/v4/weather/forecast?location=27.147,-80.179&timesteps=1h&fields=precipitationProbability&units=imperial&apikey=${TOMORROW_KEY}`)
+        ? fetch(`https://api.tomorrow.io/v4/weather/forecast?location=27.147,-80.179&timesteps=1h&fields=precipitationProbability,rainIntensity&units=imperial&apikey=${TOMORROW_KEY}`)
             .then(r => r.json())
         : Promise.resolve(null);
 
@@ -758,9 +758,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           const c = wind?.current;
           if (c) setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
 
-          // Is it raining right now? Tomorrow.io precipitationIntensity > 0 = active rain
-          const intensity = rainNow?.data?.values?.precipitationIntensity ?? 0;
-          const isRainingNow = intensity > 0;
+          // Is it raining right now? Check all precip types
+          const v = rainNow?.data?.values ?? {};
+          const isRainingNow = (v.rainIntensity ?? 0) > 0 || (v.snowIntensity ?? 0) > 0 || (v.sleetIntensity ?? 0) > 0;
 
           let rainMins = null;
           if (isRainingNow) {
@@ -770,7 +770,10 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             for (const slot of rainForecast.timelines.hourly) {
               const slotEnd = new Date(slot.time).getTime() + 60 * 60 * 1000;
               if (slotEnd < now) continue;
-              if ((slot.values?.precipitationProbability ?? 0) >= 50) {
+              // Flag if probability ≥40% OR any measurable rain intensity forecast
+              const prob = slot.values?.precipitationProbability ?? 0;
+              const intensity = slot.values?.rainIntensity ?? 0;
+              if (prob >= 40 || intensity > 0.01) {
                 rainMins = Math.max(0, Math.round((new Date(slot.time).getTime() - now) / 60000));
                 break;
               }
