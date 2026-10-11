@@ -718,6 +718,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [gpsRetry, setGpsRetry]     = useState(0);      // bump to restart the GPS watch
   const watchRef                    = useRef(null);
   const [wind, setWind]             = useState(null);   // { speed, dir } in mph + degrees
+  const [compass, setCompass]       = useState(null);   // device heading in degrees (0=N, clockwise)
+  const [compassPermission, setCompassPermission] = useState('unknown'); // unknown | granted | denied
   const onGpsScreen = screen === "hole" || screen === "start";
 
   // Fetch wind every 15 min using course GPS coords via Open-Meteo (no API key)
@@ -734,6 +736,28 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     fetchWind();
     const id = setInterval(fetchWind, 15 * 60 * 1000);
     return () => clearInterval(id);
+  }, []);
+
+  // Compass: listen for device orientation (absolute heading)
+  useEffect(() => {
+    function handleOrientation(e) {
+      // iOS Safari: webkitCompassHeading is already true north, clockwise
+      if (e.webkitCompassHeading != null) {
+        setCompass(e.webkitCompassHeading);
+        setCompassPermission('granted');
+      } else if (e.absolute && e.alpha != null) {
+        // Android: alpha is counter-clockwise from north, convert to clockwise
+        setCompass((360 - e.alpha) % 360);
+        setCompassPermission('granted');
+      }
+    }
+    // Try attaching directly (works on Android; on iOS 13+ needs permission first)
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    return () => {
+      window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+    };
   }, []);
 
   // iOS doesn't reliably report permission changes, so re-check GPS
@@ -1541,8 +1565,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
         {/* Wind indicator */}
         {wind && (
-          <div style={{ position: 'absolute', top: topH + 8, right: 12, zIndex: 500, background: 'rgba(6,20,12,0.82)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 10, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-            <span style={{ display: 'inline-block', fontSize: 16, transform: `rotate(${wind.dir}deg)`, lineHeight: 1 }}>↑</span>
+          <div
+            onClick={async () => {
+              if (typeof DeviceOrientationEvent !== 'undefined' &&
+                  typeof DeviceOrientationEvent.requestPermission === 'function' &&
+                  compassPermission !== 'granted') {
+                try {
+                  const result = await DeviceOrientationEvent.requestPermission();
+                  setCompassPermission(result === 'granted' ? 'granted' : 'denied');
+                } catch { setCompassPermission('denied'); }
+              }
+            }}
+            style={{ position: 'absolute', top: topH + 8, right: 12, zIndex: 500, background: 'rgba(6,20,12,0.82)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 10, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer' }}>
+            <span style={{ display: 'inline-block', fontSize: 16, transform: `rotate(${compass != null ? wind.dir - compass : wind.dir}deg)`, transition: 'transform 0.3s ease', lineHeight: 1 }}>↑</span>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#d4af37', lineHeight: 1 }}>{wind.speed}</div>
               <div style={{ fontSize: 9, color: 'rgba(200,216,204,0.6)', letterSpacing: '0.04em' }}>MPH</div>
