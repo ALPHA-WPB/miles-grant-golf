@@ -238,6 +238,10 @@ function fmtYds(v) { return formatDistance(v).num; }
 function fmtUnit(v) { return formatDistance(v).unit; }
 function fmtShort(v) { const d = formatDistance(v); return `${d.num} ${d.short}`; }
 
+// Within 30 yards → show feet for putting precision
+function fmtPinNum(v) { return (v != null && v <= 30) ? Math.round(v * 3) : fmtYds(v); }
+function fmtPinUnit(v) { return (v != null && v <= 30) ? "feet" : fmtUnit(v); }
+
 // Pop-up sequence after a shot: count-up yardage, then "Pin is: XXX"
 function ShotFlash({ yards, pin, shotNum, onClose }) {
   const [shown, setShown] = useState(0);
@@ -1507,8 +1511,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         <div className="side-boxes" style={{ top: topH + 8, bottom: dockH + 8 }}>
           <div className="side-box">
             <p className="side-box-label">⛳ To pin</p>
-            <p className="side-box-num big">{fmtYds(dtg)}</p>
-            <p className="side-box-unit">{fmtUnit(dtg)}</p>
+            <p className="side-box-num big">{fmtPinNum(dtg)}</p>
+            <p className="side-box-unit">{fmtPinUnit(dtg)}</p>
             {(dtf != null || dtb != null) && (
               <div style={{ marginTop: 4, display: 'flex', gap: 4, justifyContent: 'center' }}>
                 <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 700 }}>F {dtf ?? '—'}</span>
