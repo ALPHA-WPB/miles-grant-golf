@@ -1090,9 +1090,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     setTapHint(null);
     if (shotFrom) {
       const yards = Math.round(haversineYards(shotFrom.lat, shotFrom.lng, gps.lat, gps.lng));
-      const isFirstShot = holeShots.length === 0;
       const toPin = Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
-      const teeYards = hole.tees ? hole.tees[playerTee]?.yards : hole.yards;
       setShots(prev => {
         const next = prev.map(h => [...h]);
         next[holeIdx] = [...next[holeIdx], { from: shotFrom, to: { lat: gps.lat, lng: gps.lng }, yards }];
@@ -1104,32 +1102,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         setLongestToday(yards);
         try { localStorage.setItem(longestKey(), String(yards)); } catch { /* ignore */ }
       }
-      const badJokes = [
-        `${yards} yards? My grandma hits it farther with a broom. ${toPin} yards to the pin.`,
-        `Wow, ${yards} yards! Did you swing or sneeze? ${toPin} yards still to go.`,
-        `${yards} yards. Even the squirrels feel bad for you. ${toPin} yards to the pin.`,
-        `${yards} yards — that's more of a gentle suggestion than a drive. ${toPin} to the pin.`,
-      ];
-      const notBadPhrases = [
-        `${yards} yards, ${toPin} to the pin. You're in business.`,
-        `Solid contact. ${yards} yards, ${toPin} left to the flag.`,
-        `${yards} yards. Not bad at all. ${toPin} to the pin.`,
-        `Good swing. ${yards} yards, ${toPin} remaining.`,
-      ];
-      const greatPhrases = [
-        `${yards} yards — that's a BOMB! ${toPin} to the pin.`,
-        `Get out of here! ${yards} yards! ${toPin} left to the flag.`,
-        `${yards} yards, baby! You're heating up. ${toPin} to the pin.`,
-        `Absolute rocket — ${yards} yards. ${toPin} yards to go.`,
-      ];
-      const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-      let msg = teeYards ? `${teeYards} yard hole. ${toPin} yards to the pin.` : `${toPin} yards to the pin.`;
-      if (isFirstShot) {
-        if (yards < 60) msg = pick(badJokes);
-        else if (yards <= 110) msg = pick(notBadPhrases);
-        else msg = pick(greatPhrases);
-      }
-      speak(msg);
+      const shotNum = holeShots.length + 1;
+      speak(`Shot ${shotNum}, ${yards} yards. You are ${toPin} yards from the pin.`);
     }
     setShotFrom({ lat: gps.lat, lng: gps.lng });
   }
@@ -1582,16 +1556,41 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           </div>
         </div>
 
-        {/* Bottom-left weather boxes */}
-        {weather && (
-          <div style={{ position: 'absolute', left: 12, bottom: dockH + 8, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
-            {/* Temperature box */}
+        {/* Right-side column: temp → wind → rain → SC */}
+        <div style={{ position: 'absolute', top: topH + 8, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+          {/* Temperature box */}
+          {weather && (
             <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
               <p className="side-box-label" style={{ fontSize: 9 }}>Temp</p>
               <p className="side-box-num mid" style={{ fontSize: 22, lineHeight: 1.1 }}>{weather.tempF}</p>
               <p className="side-box-unit" style={{ fontSize: 9 }}>°F</p>
             </div>
-            {/* Rain box */}
+          )}
+
+          {/* Wind pill */}
+          {wind && (
+            <div
+              onClick={async () => {
+                if (typeof DeviceOrientationEvent !== 'undefined' &&
+                    typeof DeviceOrientationEvent.requestPermission === 'function' &&
+                    compassPermission !== 'granted') {
+                  try {
+                    const result = await DeviceOrientationEvent.requestPermission();
+                    setCompassPermission(result === 'granted' ? 'granted' : 'denied');
+                  } catch { setCompassPermission('denied'); }
+                }
+              }}
+              style={{ background: 'rgba(6,20,12,0.82)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 10, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer' }}>
+              <span style={{ display: 'inline-block', fontSize: 16, transform: `rotate(${compass != null ? wind.dir - compass : wind.dir}deg)`, transition: 'transform 0.3s ease', lineHeight: 1 }}>↑</span>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#d4af37', lineHeight: 1 }}>{wind.speed}</div>
+                <div style={{ fontSize: 9, color: 'rgba(200,216,204,0.6)', letterSpacing: '0.04em' }}>MPH</div>
+              </div>
+            </div>
+          )}
+
+          {/* Rain box */}
+          {weather && (
             <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
               <p className="side-box-label" style={{ fontSize: 9 }}>Rain</p>
               {weather.rainMins === null ? (
@@ -1616,37 +1615,15 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                 </>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Wind indicator */}
-        {wind && (
-          <div
-            onClick={async () => {
-              if (typeof DeviceOrientationEvent !== 'undefined' &&
-                  typeof DeviceOrientationEvent.requestPermission === 'function' &&
-                  compassPermission !== 'granted') {
-                try {
-                  const result = await DeviceOrientationEvent.requestPermission();
-                  setCompassPermission(result === 'granted' ? 'granted' : 'denied');
-                } catch { setCompassPermission('denied'); }
-              }
-            }}
-            style={{ position: 'absolute', top: topH + 8, right: 12, zIndex: 500, background: 'rgba(6,20,12,0.82)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 10, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer' }}>
-            <span style={{ display: 'inline-block', fontSize: 16, transform: `rotate(${compass != null ? wind.dir - compass : wind.dir}deg)`, transition: 'transform 0.3s ease', lineHeight: 1 }}>↑</span>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#d4af37', lineHeight: 1 }}>{wind.speed}</div>
-              <div style={{ fontSize: 9, color: 'rgba(200,216,204,0.6)', letterSpacing: '0.04em' }}>MPH</div>
-            </div>
-          </div>
-        )}
-
-        {/* Scorecard toggle button */}
-        {scoring && (
-          <button onClick={() => setShowScorecard(v => !v)} style={{ position: 'absolute', top: topH + (wind ? 62 : 8), right: 12, zIndex: 500, background: showScorecard ? 'rgba(201,168,76,0.25)' : 'rgba(6,20,12,0.82)', border: `1px solid ${showScorecard ? 'rgba(201,168,76,0.7)' : 'rgba(212,175,55,0.4)'}`, borderRadius: 10, padding: '5px 10px', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer', color: '#d4af37', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', fontFamily: "'Inter',sans-serif" }}>
-            SC
-          </button>
-        )}
+          {/* Scorecard toggle button */}
+          {scoring && (
+            <button onClick={() => setShowScorecard(v => !v)} style={{ background: showScorecard ? 'rgba(201,168,76,0.25)' : 'rgba(6,20,12,0.82)', border: `1px solid ${showScorecard ? 'rgba(201,168,76,0.7)' : 'rgba(212,175,55,0.4)'}`, borderRadius: 10, padding: '5px 10px', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer', color: '#d4af37', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', fontFamily: "'Inter',sans-serif" }}>
+              SC
+            </button>
+          )}
+        </div>
 
         {/* Scorecard overlay */}
         {scoring && showScorecard && (() => {
