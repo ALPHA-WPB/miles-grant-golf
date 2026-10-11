@@ -369,7 +369,7 @@ function shotLineIcon(yards) {
   });
 }
 
-function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode }) {
+function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, onMapTap, onMapMove, onMapMoveEnd }) {
   const mapRef       = useRef(null);
   const leafletRef   = useRef(null);
   const gpsMarkerRef = useRef(null);
@@ -438,6 +438,12 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode })
     // Re-fit when the screen size changes (rotation, address bar show/hide)
     const onResize = () => fit();
     window.addEventListener("resize", onResize);
+
+    // Map focus events for UI fade
+    if (onMapTap)     map.on('click',    onMapTap);
+    if (onMapMove)    map.on('movestart', onMapMove);
+    if (onMapMoveEnd) map.on('moveend',   onMapMoveEnd);
+    if (onMapMoveEnd) map.on('zoomend',   onMapMoveEnd);
 
     return () => {
       window.removeEventListener("resize", onResize);
@@ -673,6 +679,10 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [dockH, setDockH]           = useState(150);
   const [topH, setTopH]             = useState(70);
   const [recenterTick, setRecenterTick] = useState(0);
+  const [mapFocused, setMapFocused]     = useState(false);
+  const mapFocusedRef = useRef(false);
+  const focusTimerRef = useRef(null);
+  useEffect(() => { mapFocusedRef.current = mapFocused; }, [mapFocused]);
   const [showMore, setShowMore]     = useState(false);
   const dockRef = useRef(null);
   const topRef  = useRef(null);
@@ -1085,6 +1095,26 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     window.speechSynthesis.speak(u);
   }
 
+  function startFadeBackTimer() {
+    clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(() => {
+      setMapFocused(false);
+      setRecenterTick(n => n + 1);
+    }, 5000);
+  }
+  function handleMapTap() {
+    if (mapFocusedRef.current) {
+      clearTimeout(focusTimerRef.current);
+      setMapFocused(false);
+      setRecenterTick(n => n + 1);
+    } else {
+      setMapFocused(true);
+      startFadeBackTimer();
+    }
+  }
+  function handleMapMove() { clearTimeout(focusTimerRef.current); }
+  function handleMapMoveEnd() { if (mapFocusedRef.current) startFadeBackTimer(); }
+
   function markShot() {
     if (!gps) return;
     setTapHint(null);
@@ -1495,11 +1525,14 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           <HoleMap hole={hole} tee={playerTee} gps={gps} holeShots={holeShots} key={hole.number}
             recenterTick={recenterTick}
             approachMode={dtg != null && dtg <= 100}
+            onMapTap={handleMapTap}
+            onMapMove={handleMapMove}
+            onMapMoveEnd={handleMapMoveEnd}
             pad={{ top: topH + 16, bottom: dockH + 20, left: 24, right: 24 }} />
         </div>
 
         {/* Top: hole bar with prev / next arrows */}
-        <div className="play-top" ref={topRef}>
+        <div className="play-top" ref={topRef} style={{ opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
           <div className="hole-bar">
             <button className="hole-bar-arrow" onClick={prevHole} disabled={holeIdx===roundStart} aria-label="Previous hole">‹</button>
             <button className="hole-bar-mid" onClick={() => setShowPicker(true)} aria-label="Change hole">
@@ -1521,11 +1554,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           )}
         </div>
         {onShowInstructions && (
-          <button className="help-pill play-help" onClick={onShowInstructions} aria-label="How this app works">?</button>
+          <button className="help-pill play-help" onClick={onShowInstructions} aria-label="How this app works" style={{ opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>?</button>
         )}
 
         {/* Left: the two most important numbers */}
-        <div className="side-boxes" style={{ top: topH + 8, bottom: dockH + 8 }}>
+        <div className="side-boxes" style={{ top: topH + 8, bottom: dockH + 8, opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
           <div className="side-box">
             <p className="side-box-label">⛳ To pin</p>
             <p className="side-box-num big">{fmtPinNum(dtg)}</p>
@@ -1557,7 +1590,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         </div>
 
         {/* Right-side column: temp → wind → rain → SC */}
-        <div style={{ position: 'absolute', top: topH + 8, bottom: dockH + 140, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: topH + 8, bottom: dockH + 140, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', overflow: 'hidden', opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
           {/* Temperature box */}
           {weather && (
             <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
@@ -1669,7 +1702,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         })()}
 
         {/* Right: recenter + swing button */}
-        <button className="recenter-btn" style={{ bottom: dockH + 124 }} onClick={() => setRecenterTick(n => n + 1)} aria-label="Recenter map">⌖</button>
+        <button className="recenter-btn" style={{ bottom: dockH + 124, opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }} onClick={() => setRecenterTick(n => n + 1)} aria-label="Recenter map">⌖</button>
         {!holeComplete && (
           <button
             onClick={markShot}
@@ -1682,7 +1715,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         )}
 
         {/* Bottom: slim score bar + tabs */}
-        <div className="play-dock" ref={dockRef}>
+        <div className="play-dock" ref={dockRef} style={{ opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
           <div className="dock-panel">
           {/* Next Hole / Round Complete button (after hole completion) */}
           {scoring && holeComplete && (
