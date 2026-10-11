@@ -1592,28 +1592,26 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               <p className="side-box-unit" style={{ fontSize: 9 }}>°F</p>
             </div>
             {/* Rain box */}
-            <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center', borderColor: weather.rainMins === 0 ? 'rgba(248,113,113,0.6)' : weather.rainMins != null && weather.rainMins < 60 ? 'rgba(251,191,36,0.6)' : 'rgba(74,222,128,0.25)' }}>
+            <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
               <p className="side-box-label" style={{ fontSize: 9 }}>Rain</p>
               {weather.rainMins === null ? (
                 <>
-                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>☀️</p>
-                  <p className="side-box-unit" style={{ fontSize: 9 }}>Clear</p>
+                  <p className="side-box-num mid" style={{ fontSize: 18, color: '#c8d8cc', lineHeight: 1 }}>48h+</p>
+                  <p className="side-box-unit" style={{ fontSize: 9 }}>away</p>
                 </>
               ) : weather.rainMins === 0 ? (
                 <>
-                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>⛈️</p>
-                  <p className="side-box-unit" style={{ fontSize: 9 }}>Now</p>
+                  <p style={{ fontSize: 18, lineHeight: 1, margin: '2px 0' }}>⛈️</p>
+                  <p className="side-box-unit" style={{ fontSize: 9, color: '#f87171' }}>Now</p>
                 </>
               ) : weather.rainMins < 60 ? (
                 <>
-                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>🌧️</p>
-                  <p className="side-box-num mid" style={{ fontSize: 18, color: '#fbbf24', lineHeight: 1 }}>{weather.rainMins}</p>
+                  <p className="side-box-num mid" style={{ fontSize: 22, color: '#fbbf24', lineHeight: 1 }}>{weather.rainMins}</p>
                   <p className="side-box-unit" style={{ fontSize: 9 }}>min</p>
                 </>
               ) : (
                 <>
-                  <p style={{ fontSize: 20, lineHeight: 1, margin: '2px 0' }}>🌦️</p>
-                  <p className="side-box-num mid" style={{ fontSize: 18, color: '#c8d8cc', lineHeight: 1 }}>{Math.round(weather.rainMins / 60)}</p>
+                  <p className="side-box-num mid" style={{ fontSize: 22, color: '#c8d8cc', lineHeight: 1 }}>{Math.round(weather.rainMins / 60)}</p>
                   <p className="side-box-unit" style={{ fontSize: 9 }}>hr</p>
                 </>
               )}
