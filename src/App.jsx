@@ -733,45 +733,57 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [compassPermission, setCompassPermission] = useState('unknown'); // unknown | granted | denied
   const onGpsScreen = screen === "hole" || screen === "start";
 
-  // Fetch wind + weather every 15 min using course GPS coords via Open-Meteo (no API key)
+  // Fetch wind + weather every 15 min
+  // Wind/temp from Open-Meteo (free, no key); rain from Tomorrow.io (radar-based, real-time)
   useEffect(() => {
-    const fetchWind = () => {
-      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m,precipitation,rain,weather_code&wind_speed_unit=mph&temperature_unit=fahrenheit&hourly=precipitation_probability&forecast_days=2&timezone=America%2FNew_York")
-        .then(r => r.json())
-        .then(d => {
-          const c = d?.current;
-          if (c) {
-            setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
-            // WMO codes that mean rain/drizzle/showers/thunderstorm is happening now
-            const RAIN_CODES = new Set([51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99]);
-            const isRainingNow = RAIN_CODES.has(c.weather_code) ||
-                                 (c.precipitation ?? 0) > 0 ||
-                                 (c.rain ?? 0) > 0;
-            let rainMins = null;
-            if (isRainingNow) {
-              rainMins = 0;
-            } else {
-              // Find next hour with ≥50% probability, skipping hours that have fully passed
-              const times = d?.hourly?.time ?? [];
-              const probs = d?.hourly?.precipitation_probability ?? [];
-              const now = Date.now();
-              for (let i = 0; i < times.length; i++) {
-                const slotEnd = new Date(times[i]).getTime() + 60 * 60 * 1000;
-                if (slotEnd < now) continue; // skip fully elapsed hours
-                if (probs[i] >= 50) {
-                  const slotStart = new Date(times[i]).getTime();
-                  rainMins = Math.max(0, Math.round((slotStart - now) / 60000));
-                  break;
-                }
+    const TOMORROW_KEY = import.meta.env.VITE_TOMORROW_API_KEY;
+    const fetchWeatherData = () => {
+      // Wind + temp from Open-Meteo
+      const windFetch = fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m&wind_speed_unit=mph&temperature_unit=fahrenheit&forecast_days=1")
+        .then(r => r.json());
+
+      // Real-time rain from Tomorrow.io (realtime + hourly forecast)
+      const rainNowFetch = TOMORROW_KEY
+        ? fetch(`https://api.tomorrow.io/v4/weather/realtime?location=27.147,-80.179&fields=precipitationIntensity,precipitationType&units=imperial&apikey=${TOMORROW_KEY}`)
+            .then(r => r.json())
+        : Promise.resolve(null);
+
+      const rainForecastFetch = TOMORROW_KEY
+        ? fetch(`https://api.tomorrow.io/v4/weather/forecast?location=27.147,-80.179&timesteps=1h&fields=precipitationProbability&units=imperial&apikey=${TOMORROW_KEY}`)
+            .then(r => r.json())
+        : Promise.resolve(null);
+
+      Promise.all([windFetch, rainNowFetch, rainForecastFetch])
+        .then(([wind, rainNow, rainForecast]) => {
+          const c = wind?.current;
+          if (c) setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
+
+          // Is it raining right now? Tomorrow.io precipitationIntensity > 0 = active rain
+          const intensity = rainNow?.data?.values?.precipitationIntensity ?? 0;
+          const isRainingNow = intensity > 0;
+
+          let rainMins = null;
+          if (isRainingNow) {
+            rainMins = 0;
+          } else if (rainForecast?.timelines?.hourly) {
+            const now = Date.now();
+            for (const slot of rainForecast.timelines.hourly) {
+              const slotEnd = new Date(slot.time).getTime() + 60 * 60 * 1000;
+              if (slotEnd < now) continue;
+              if ((slot.values?.precipitationProbability ?? 0) >= 50) {
+                rainMins = Math.max(0, Math.round((new Date(slot.time).getTime() - now) / 60000));
+                break;
               }
             }
-            setWeather({ tempF: Math.round(c.temperature_2m), rainMins });
           }
+
+          const tempF = c ? Math.round(c.temperature_2m) : null;
+          if (tempF != null) setWeather({ tempF, rainMins });
         })
         .catch(() => {});
     };
-    fetchWind();
-    const id = setInterval(fetchWind, 15 * 60 * 1000);
+    fetchWeatherData();
+    const id = setInterval(fetchWeatherData, 15 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
 
