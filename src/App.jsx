@@ -1584,7 +1584,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
         {/* Bottom-left weather boxes */}
         {weather && (
-          <div style={{ position: 'absolute', right: 12, bottom: dockH + 8, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+          <div style={{ position: 'absolute', left: 12, bottom: dockH + 8, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
             {/* Temperature box */}
             <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
               <p className="side-box-label" style={{ fontSize: 9 }}>Temp</p>
