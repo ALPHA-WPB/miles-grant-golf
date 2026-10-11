@@ -697,7 +697,24 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [showGate, setShowGate]     = useState(false);  // re-opened from the GPS banner
   const [gpsRetry, setGpsRetry]     = useState(0);      // bump to restart the GPS watch
   const watchRef                    = useRef(null);
+  const [wind, setWind]             = useState(null);   // { speed, dir } in mph + degrees
   const onGpsScreen = screen === "hole" || screen === "start";
+
+  // Fetch wind every 15 min using course GPS coords via Open-Meteo (no API key)
+  useEffect(() => {
+    const fetchWind = () => {
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&forecast_days=1")
+        .then(r => r.json())
+        .then(d => {
+          const c = d?.current;
+          if (c) setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
+        })
+        .catch(() => {});
+    };
+    fetchWind();
+    const id = setInterval(fetchWind, 15 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // iOS doesn't reliably report permission changes, so re-check GPS
   // whenever the player comes back to the app (e.g. from Settings).
@@ -1500,6 +1517,17 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             )}
           </div>
         </div>
+
+        {/* Wind indicator */}
+        {wind && (
+          <div style={{ position: 'absolute', top: topH + 8, right: 12, zIndex: 500, background: 'rgba(6,20,12,0.82)', border: '1px solid rgba(212,175,55,0.4)', borderRadius: 10, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+            <span style={{ display: 'inline-block', fontSize: 16, transform: `rotate(${wind.dir}deg)`, lineHeight: 1 }}>↑</span>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: '#d4af37', lineHeight: 1 }}>{wind.speed}</div>
+              <div style={{ fontSize: 9, color: 'rgba(200,216,204,0.6)', letterSpacing: '0.04em' }}>MPH</div>
+            </div>
+          </div>
+        )}
 
         {/* Right: recenter + swing button */}
         <button className="recenter-btn" style={{ bottom: dockH + 124 }} onClick={() => setRecenterTick(n => n + 1)} aria-label="Recenter map">⌖</button>
