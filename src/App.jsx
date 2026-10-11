@@ -733,35 +733,38 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [compassPermission, setCompassPermission] = useState('unknown'); // unknown | granted | denied
   const onGpsScreen = screen === "hole" || screen === "start";
 
-  // Fetch wind + weather every 15 min
-  // Wind/temp from Open-Meteo (free, no key); rain from Tomorrow.io (radar-based, real-time)
+  // Wind + temp from Open-Meteo every 15 min (free, no key needed)
+  useEffect(() => {
+    const fetchWind = () => {
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m&wind_speed_unit=mph&temperature_unit=fahrenheit&forecast_days=1")
+        .then(r => r.json())
+        .then(d => {
+          const c = d?.current;
+          if (c) {
+            setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
+            setWeather(prev => ({ rainMins: prev?.rainMins ?? null, tempF: Math.round(c.temperature_2m) }));
+          }
+        })
+        .catch(() => {});
+    };
+    fetchWind();
+    const id = setInterval(fetchWind, 15 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Rain from Tomorrow.io every 5 min (radar-based, real-time)
   useEffect(() => {
     const TOMORROW_KEY = import.meta.env.VITE_TOMORROW_API_KEY;
-    const fetchWeatherData = () => {
-      // Wind + temp from Open-Meteo
-      const windFetch = fetch("https://api.open-meteo.com/v1/forecast?latitude=27.147&longitude=-80.179&current=wind_speed_10m,wind_direction_10m,temperature_2m&wind_speed_unit=mph&temperature_unit=fahrenheit&forecast_days=1")
+    if (!TOMORROW_KEY) return;
+    const fetchRain = () => {
+      const rainNowFetch = fetch(`https://api.tomorrow.io/v4/weather/realtime?location=27.147,-80.179&fields=rainIntensity,snowIntensity,sleetIntensity&units=imperial&apikey=${TOMORROW_KEY}`)
         .then(r => r.json());
-
-      // Real-time rain from Tomorrow.io (realtime + hourly forecast)
-      const rainNowFetch = TOMORROW_KEY
-        ? fetch(`https://api.tomorrow.io/v4/weather/realtime?location=27.147,-80.179&fields=rainIntensity,snowIntensity,sleetIntensity&units=imperial&apikey=${TOMORROW_KEY}`)
-            .then(r => r.json())
-        : Promise.resolve(null);
-
-      const rainForecastFetch = TOMORROW_KEY
-        ? fetch(`https://api.tomorrow.io/v4/weather/forecast?location=27.147,-80.179&timesteps=1h&fields=precipitationProbability,rainIntensity&units=imperial&apikey=${TOMORROW_KEY}`)
-            .then(r => r.json())
-        : Promise.resolve(null);
-
-      Promise.all([windFetch, rainNowFetch, rainForecastFetch])
-        .then(([wind, rainNow, rainForecast]) => {
-          const c = wind?.current;
-          if (c) setWind({ speed: Math.round(c.wind_speed_10m), dir: c.wind_direction_10m });
-
-          // Is it raining right now? Check all precip types
+      const rainForecastFetch = fetch(`https://api.tomorrow.io/v4/weather/forecast?location=27.147,-80.179&timesteps=1h&fields=precipitationProbability,rainIntensity&units=imperial&apikey=${TOMORROW_KEY}`)
+        .then(r => r.json());
+      Promise.all([rainNowFetch, rainForecastFetch])
+        .then(([rainNow, rainForecast]) => {
           const v = rainNow?.data?.values ?? {};
           const isRainingNow = (v.rainIntensity ?? 0) > 0 || (v.snowIntensity ?? 0) > 0 || (v.sleetIntensity ?? 0) > 0;
-
           let rainMins = null;
           if (isRainingNow) {
             rainMins = 0;
@@ -770,7 +773,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             for (const slot of rainForecast.timelines.hourly) {
               const slotEnd = new Date(slot.time).getTime() + 60 * 60 * 1000;
               if (slotEnd < now) continue;
-              // Flag if probability ≥40% OR any measurable rain intensity forecast
               const prob = slot.values?.precipitationProbability ?? 0;
               const intensity = slot.values?.rainIntensity ?? 0;
               if (prob >= 40 || intensity > 0.01) {
@@ -779,14 +781,12 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               }
             }
           }
-
-          const tempF = c ? Math.round(c.temperature_2m) : null;
-          if (tempF != null) setWeather({ tempF, rainMins });
+          setWeather(prev => ({ tempF: prev?.tempF ?? null, rainMins }));
         })
         .catch(() => {});
     };
-    fetchWeatherData();
-    const id = setInterval(fetchWeatherData, 15 * 60 * 1000);
+    fetchRain();
+    const id = setInterval(fetchRain, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
 
