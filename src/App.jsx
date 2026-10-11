@@ -1557,7 +1557,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         </div>
 
         {/* Right-side column: temp → wind → rain → SC */}
-        <div style={{ position: 'absolute', top: topH + 8, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center' }}>
+        <div style={{ position: 'absolute', top: topH + 8, bottom: dockH + 140, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', overflow: 'hidden' }}>
           {/* Temperature box */}
           {weather && (
             <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
