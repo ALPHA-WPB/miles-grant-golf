@@ -365,7 +365,7 @@ function shotLineIcon(yards) {
   });
 }
 
-function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick }) {
+function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode }) {
   const mapRef       = useRef(null);
   const leafletRef   = useRef(null);
   const gpsMarkerRef = useRef(null);
@@ -446,6 +446,21 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick }) {
   // Re-fit when overlay sizes change or the recenter button is tapped
   useEffect(() => { fit(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
     [pad.top, pad.bottom, pad.left, pad.right, recenterTick]);
+
+  // Approach mode: zoom in to player→green when within 100 yards
+  useEffect(() => {
+    const map = leafletRef.current;
+    if (!map || !gps) return;
+    try {
+      if (approachMode) {
+        const pts = [[gps.lat, gps.lng], [hole.green.lat, hole.green.lng]];
+        fitRotated(map, pts, rotation, padRef.current);
+      } else {
+        fit();
+      }
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approachMode]);
 
   // GPS dot
   useEffect(() => {
@@ -1457,6 +1472,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         <div className="play-map">
           <HoleMap hole={hole} tee={playerTee} gps={gps} holeShots={holeShots} key={hole.number}
             recenterTick={recenterTick}
+            approachMode={dtg != null && dtg <= 100}
             pad={{ top: topH + 16, bottom: dockH + 20, left: 24, right: 24 }} />
         </div>
 
