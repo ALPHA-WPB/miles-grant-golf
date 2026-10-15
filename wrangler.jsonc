@@ -1,0 +1,11 @@
+{
+  // Cloudflare Workers config — serves the built Vite app as static files.
+  // Vercel ignores this file, so adding it does not affect the live site.
+  "name": "miles-grant-golf",
+  "compatibility_date": "2026-10-13",
+  "assets": {
+    "directory": "./dist",
+    // Any unknown path (e.g. a deep link) returns index.html so React handles it
+    "not_found_handling": "single-page-application"
+  }
+}
