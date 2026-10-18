@@ -15,7 +15,7 @@ const SECTIONS = [
   ["No selling or sharing",
    "We never sell, rent, or share your personal information with anyone. There are no ads."],
   ["Services that run the app",
-   "The app is hosted by Vercel and stores account data with Supabase. We use Vercel's anonymous page-view counts (no names, emails, or locations). Map images load from Esri and fonts from Google Fonts. Like any website, these services see basic technical details such as your IP address, but not your GPS location or account."],
+   "The app is hosted by Cloudflare and stores account data with Supabase. We use Cloudflare's privacy-first, cookie-free page-view counts (no names, emails, or locations). Map images load from Esri and fonts from Google Fonts. Like any website, these services see basic technical details such as your IP address, but not your GPS location or account."],
   ["Deleting your data",
    `Email ${CONTACT} and we will delete your account and scores.`],
   ["Distances are estimates",
