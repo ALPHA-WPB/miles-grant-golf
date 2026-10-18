@@ -20,7 +20,7 @@
     }
   ],
   "vars": {
-    "GOOGLE_CLIENT_ID": "583032643914-i3e3b9q5scio71h3l7d62nogff8qlf6e.apps.googleusercontent.com"
+    "GOOGLE_CLIENT_ID": "243215833408-f1hfevlpchriqp0ilgutnu82ifg26g32.apps.googleusercontent.com"
   },
   "send_email": [{ "name": "EMAIL" }]
 }
