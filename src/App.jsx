@@ -702,6 +702,9 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [holeIdx, setHoleIdx]       = useState(0);
   const [holeComplete, setHoleComplete] = useState(false);
   const [showScorecard, setShowScorecard] = useState(false);
+  const [scorecardCountdown, setScorecardCountdown] = useState(10);
+  const scorecardTimerRef = useRef(null);
+  const scorecardIntervalRef = useRef(null);
   const [scores, setScores]         = useState(() => Array(HOLES.length).fill(0));
   const [skipped, setSkipped]       = useState(() => Array(HOLES.length).fill(false));
   const [pickupConfirm, setPickupConfirm] = useState(false);
@@ -1675,54 +1678,35 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
           {/* Scorecard toggle button */}
           {scoring && (
-            <button onClick={() => setShowScorecard(v => !v)} style={{ background: showScorecard ? 'rgba(201,168,76,0.25)' : 'rgba(6,20,12,0.82)', border: `1px solid ${showScorecard ? 'rgba(201,168,76,0.7)' : 'rgba(212,175,55,0.4)'}`, borderRadius: 10, padding: '5px 10px', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer', color: '#d4af37', fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', fontFamily: "'Inter',sans-serif" }}>
-              SC
+            <button onClick={() => {
+              if (showScorecard) {
+                clearTimeout(scorecardTimerRef.current);
+                clearInterval(scorecardIntervalRef.current);
+                setShowScorecard(false);
+              } else {
+                setScorecardCountdown(10);
+                setShowScorecard(true);
+                scorecardIntervalRef.current = setInterval(() => {
+                  setScorecardCountdown(c => {
+                    if (c <= 1) {
+                      clearInterval(scorecardIntervalRef.current);
+                      return 0;
+                    }
+                    return c - 1;
+                  });
+                }, 1000);
+                scorecardTimerRef.current = setTimeout(() => {
+                  clearInterval(scorecardIntervalRef.current);
+                  setShowScorecard(false);
+                }, 10000);
+              }
+            }} className="side-box" style={{ background: 'rgba(6,20,12,0.78)', width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
+              <p className="side-box-label" style={{ fontSize: 9 }}>SC</p>
+              <p className="side-box-num mid" style={{ fontSize: 20, lineHeight: 1.1 }}>🏌️</p>
             </button>
           )}
         </div>
 
-        {/* Scorecard overlay */}
-        {scoring && showScorecard && (() => {
-          const start = roundStart, end = roundEnd;
-          const holesPlayed = HOLES.slice(start, end);
-          const totalPar = holesPlayed.reduce((s, h) => s + h.par, 0);
-          const totalStrokes = scores.slice(start, end).reduce((s, v, i) => s + (skipped[start + i] ? 0 : (v || 0)), 0);
-          const totalDiff = totalStrokes ? totalStrokes - totalPar : null;
-          return (
-            <div onClick={() => setShowScorecard(false)} style={{ position: 'absolute', inset: 0, zIndex: 600, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: dockH + 8 }}>
-              <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(6,18,11,0.97)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: 18, padding: '14px 10px 10px', width: '92%', maxHeight: '60vh', display: 'flex', flexDirection: 'column', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: '#d4af37', letterSpacing: '0.05em' }}>SCORECARD</span>
-                  {totalStrokes > 0 && (
-                    <span style={{ fontSize: 13, fontWeight: 700, color: totalDiff < 0 ? '#4ade80' : totalDiff > 0 ? '#f87171' : '#f0ead6' }}>
-                      {totalStrokes} ({totalDiff > 0 ? '+' : ''}{totalDiff ?? 'E'})
-                    </span>
-                  )}
-                  <button onClick={() => setShowScorecard(false)} style={{ background: 'none', border: 'none', color: 'rgba(200,216,204,0.5)', fontSize: 18, cursor: 'pointer', padding: '0 4px' }}>×</button>
-                </div>
-                <div style={{ overflowY: 'auto', flex: 1 }}>
-                  {holesPlayed.map((h, i) => {
-                    const hi = start + i;
-                    const s = scores[hi];
-                    const skip = skipped[hi];
-                    const diff = s && !skip ? s - h.par : null;
-                    const active = hi === holeIdx;
-                    return (
-                      <div key={h.number} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 36px 36px', alignItems: 'center', padding: '5px 4px', borderRadius: 8, background: active ? 'rgba(212,175,55,0.08)' : 'transparent', borderBottom: i < holesPlayed.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                        <span style={{ fontSize: 11, color: active ? '#d4af37' : 'rgba(200,216,204,0.4)', fontWeight: active ? 800 : 500 }}>{h.number}</span>
-                        <span style={{ fontSize: 10, color: 'rgba(200,216,204,0.35)' }}>Par {h.par}</span>
-                        <span style={{ fontSize: 15, fontWeight: 800, color: skip ? '#4a6a54' : s ? '#f0ead6' : 'rgba(200,216,204,0.2)', textAlign: 'center' }}>{skip ? '—' : s || '·'}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, textAlign: 'center', color: diff == null ? 'transparent' : diff < 0 ? '#4ade80' : diff === 0 ? 'rgba(200,216,204,0.5)' : diff === 1 ? '#fbbf24' : '#f87171' }}>
-                          {diff == null ? '' : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : diff}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
 
         {/* Right: recenter + swing button */}
         <button className="recenter-btn" style={{ bottom: dockH + 124, opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }} onClick={() => setRecenterTick(n => n + 1)} aria-label="Recenter map">⌖</button>
@@ -1879,6 +1863,57 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           </div>
           <TabBar active="hole" onSelect={setTab} onGame={() => {}} />
         </div>
+
+        {/* Full-screen scorecard overlay — top level of play stage, above everything */}
+        {scoring && showScorecard && (() => {
+          const dismissSC = () => {
+            clearTimeout(scorecardTimerRef.current);
+            clearInterval(scorecardIntervalRef.current);
+            setShowScorecard(false);
+          };
+          const start = roundStart, end = roundEnd;
+          const holesPlayed = HOLES.slice(start, end);
+          const totalPar = holesPlayed.reduce((s, h) => s + h.par, 0);
+          const totalStrokes = scores.slice(start, end).reduce((s, v, i) => s + (skipped[start + i] ? 0 : (v || 0)), 0);
+          const totalDiff = totalStrokes ? totalStrokes - totalPar : null;
+          return (
+            <div onClick={dismissSC} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10 }}>
+              <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(6,16,10,0.97)', border: '2px solid #d4af37', borderRadius: 18, padding: '16px 12px 14px', width: '100%', maxHeight: 'calc(100% - 20px)', display: 'flex', flexDirection: 'column', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', boxShadow: '0 8px 40px rgba(0,0,0,0.8)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid rgba(212,175,55,0.25)' }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#d4af37', letterSpacing: '0.07em' }}>SCORECARD</span>
+                  {totalStrokes > 0 && (
+                    <span style={{ fontSize: 15, fontWeight: 700, color: totalDiff < 0 ? '#4ade80' : totalDiff > 0 ? '#f87171' : '#f0ead6' }}>
+                      {totalStrokes} ({totalDiff > 0 ? '+' : ''}{totalDiff ?? 'E'})
+                    </span>
+                  )}
+                  <button onClick={dismissSC} style={{ background: 'none', border: 'none', color: 'rgba(200,216,204,0.5)', fontSize: 20, cursor: 'pointer', padding: '0 4px' }}>×</button>
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  {holesPlayed.map((h, i) => {
+                    const hi = start + i;
+                    const s = scores[hi];
+                    const skip = skipped[hi];
+                    const diff = s && !skip ? s - h.par : null;
+                    const active = hi === holeIdx;
+                    return (
+                      <div key={h.number} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 40px 40px', alignItems: 'center', padding: '7px 4px', borderRadius: 8, background: active ? 'rgba(212,175,55,0.1)' : 'transparent', borderBottom: i < holesPlayed.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                        <span style={{ fontSize: 13, color: active ? '#d4af37' : 'rgba(200,216,204,0.45)', fontWeight: active ? 800 : 500 }}>{h.number}</span>
+                        <span style={{ fontSize: 11, color: 'rgba(200,216,204,0.35)' }}>Par {h.par}</span>
+                        <span style={{ fontSize: 17, fontWeight: 800, color: skip ? '#4a6a54' : s ? '#f0ead6' : 'rgba(200,216,204,0.2)', textAlign: 'center' }}>{skip ? '—' : s || '·'}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, textAlign: 'center', color: diff == null ? 'transparent' : diff < 0 ? '#4ade80' : diff === 0 ? 'rgba(200,216,204,0.5)' : diff === 1 ? '#fbbf24' : '#f87171' }}>
+                          {diff == null ? '' : diff === 0 ? 'E' : diff > 0 ? `+${diff}` : diff}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ paddingTop: 10, borderTop: '1px solid rgba(212,175,55,0.2)', textAlign: 'center', fontSize: 11, color: 'rgba(200,216,204,0.4)', fontStyle: 'italic' }}>
+                  Tap anywhere to dismiss · closes in {scorecardCountdown}s
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
