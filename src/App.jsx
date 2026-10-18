@@ -2,14 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-rotate";
-import { supabase } from "./lib/supabase";
 import { authService } from "./services/authService";
 import { roundService } from "./services/roundService";
 import Auth from "./components/Auth";
 import Instructions from "./components/Instructions";
 import LocationGate from "./components/LocationGate";
 import GpsBanner from "./components/GpsBanner";
-import RoundLobby from "./components/RoundLobby";
 import Leaderboard from "./components/Leaderboard";
 import RoundHistory from "./components/RoundHistory";
 import Profile from "./components/Profile";
@@ -960,7 +958,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   if (tab === "history") return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
       <style>{css}</style>
-      {isGuest ? <GuestUpsell feature="Round history" onExitGuest={onExitGuest} /> : <RoundHistory userId={user.id} />}
+      {isGuest ? <GuestUpsell feature="Round history" onExitGuest={onExitGuest} /> : <RoundHistory />}
       <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
     </div>
   );
@@ -1004,27 +1002,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           </button>
         </div>
       ) : (
-        <Profile user={user} profile={profile} onProfileUpdate={onProfileUpdate} onSignOut={() => authService.signOut()} onAdmin={isAdmin(user) ? () => setTab("admin") : null} />
+        <Profile user={user} profile={profile} onAdmin={isAdmin(user) ? () => setTab("admin") : null} />
       )}
       <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
     </div>
   );
-
-  function onRoundStart({ round: r, roundPlayer, tee, roundType }) {
-    setRound({ round: r, roundPlayer });
-    setPlayerTee(tee);
-    const start = roundType === "back9" ? 9 : 0;
-    const end   = roundType === "front9" ? 9 : 18;
-    setRoundStart(start);
-    setRoundEnd(end);
-    setHoleIdx(start);
-    setHoleComplete(false);
-    setScores(Array(HOLES.length).fill(0));
-    setSkipped(Array(HOLES.length).fill(false));
-    setShots(Array(HOLES.length).fill(null).map(() => []));
-    setShotFlash(null);
-    setScreen("hole");
-  }
 
   // ── Start screen: which hole are you starting on? ─────────
   if (screen === "start") {
@@ -1077,12 +1059,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       </div>
     );
   }
-
-  if (screen === "lobby") return (
-    <div style={{position:"relative", height:"100dvh"}}>
-      <RoundLobby user={user} profile={profile} isGuest={isGuest} onRoundStart={onRoundStart} onShowInstructions={onShowInstructions} />
-    </div>
-  );
 
   async function syncScore(holeNumber, strokes) {
     if (!round?.roundPlayer?.id) return;
@@ -1255,7 +1231,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     setScoring(true);
     if (!isGuest && user?.id) {
       try {
-        const r = await roundService.createRound(user.id, TEE_NAMES[playerTee] || "White", "open");
+        const r = await roundService.createRound(TEE_NAMES[playerTee] || "White", "open");
         setRound(r);
       } catch { /* scoring still works on the phone */ }
     }
@@ -1928,23 +1904,12 @@ export default function App() {
   const [guest, setGuest]     = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
-  async function loadProfile(u) {
-    try {
-      await authService.upsertProfile(u);
-      setProfile(await authService.getProfile(u.id));
-    } catch { /* ignore */ }
-  }
-
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-      if (session?.user) { loadProfile(session.user); maybeShowInstructions(); }
+    authService.getCurrentUser().then(u => {
+      setUser(u);
+      setProfile(u);
+      if (u) maybeShowInstructions();
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
-      if (session?.user) { loadProfile(session.user); maybeShowInstructions(); } else setProfile(null);
-    });
-    return () => subscription.unsubscribe();
   }, []);
 
   function maybeShowInstructions() {

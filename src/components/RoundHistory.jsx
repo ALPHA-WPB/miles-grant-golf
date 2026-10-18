@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { roundService } from '../services/roundService';
 
-export default function RoundHistory({ userId }) {
+export default function RoundHistory() {
   const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    roundService.getRoundHistory(userId).then(setRounds).finally(() => setLoading(false));
-  }, [userId]);
+    roundService.getRoundHistory().then(setRounds).finally(() => setLoading(false));
+  }, []);
 
   return (
     <div style={{flex:1, overflowY:"auto", padding:"1rem 1rem 2rem", background:"#0a1c12"}}>

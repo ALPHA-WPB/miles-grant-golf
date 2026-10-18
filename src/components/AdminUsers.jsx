@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { api } from "../lib/api";
 
 // Only these sign-ins can open the admin page.
 export const ADMIN_EMAILS = ["rpdwpb@gmail.com", "richard@wpbit.com"];
@@ -16,9 +16,7 @@ export default function AdminUsers({ onClose }) {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    supabase.from("users").select("id, full_name, email, created_at, updated_at")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => { if (error) setError(error.message); else setUsers(data || []); });
+    api("/api/admin/users").then(setUsers).catch(e => setError(e.message));
   }, []);
 
   const shown = (users || []).filter(u =>

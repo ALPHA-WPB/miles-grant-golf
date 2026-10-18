@@ -1,7 +1,6 @@
 import LegalFooter from "./PrivacyTerms";
 import { useState } from 'react';
 import { authService } from '../services/authService';
-import toast from 'react-hot-toast';
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&display=swap');
@@ -24,49 +23,16 @@ const css = `
 `;
 
 export default function Auth({ onGuest, onShowInstructions }) {
-  const [mode, setMode] = useState('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  function handleGoogle() {
     setLoading(true);
-    try {
-      if (mode === 'signup') {
-        if (!fullName.trim()) throw new Error('Please enter your name');
-        await authService.signUp(email, password, fullName);
-        toast.success('Account created! Check your email.');
-        setMode('signin');
-      } else {
-        await authService.signIn(email, password);
-      }
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
+    authService.signInWithGoogle();
   }
 
-  async function handleGoogle() {
+  function handleApple() {
     setLoading(true);
-    try {
-      await authService.signInWithGoogle();
-    } catch (err) {
-      toast.error(err.message);
-      setLoading(false);
-    }
-  }
-
-  async function handleApple() {
-    setLoading(true);
-    try {
-      await authService.signInWithApple();
-    } catch (err) {
-      toast.error(err.message);
-      setLoading(false);
-    }
+    authService.signInWithApple();
   }
 
   return (
@@ -87,24 +53,9 @@ export default function Auth({ onGuest, onShowInstructions }) {
 
         <div className="auth-card" style={{padding:"1.5rem"}}>
           <p style={{fontSize:18, fontWeight:700, color:"#c9a84c", marginBottom:16, fontFamily:"'Playfair Display',serif"}}>
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            Sign in or create a free account
           </p>
-          <form onSubmit={handleSubmit} style={{display:"flex", flexDirection:"column", gap:10}}>
-            {mode === "signup" && (
-              <input className="auth-input" type="text" placeholder="Full Name" value={fullName}
-                onChange={e => setFullName(e.target.value)} required />
-            )}
-            <input className="auth-input" type="email" placeholder="Email" value={email}
-              onChange={e => setEmail(e.target.value)} required />
-            <input className="auth-input" type="password" placeholder="Password" value={password}
-              onChange={e => setPassword(e.target.value)} required minLength={6} />
-            <button type="submit" className="auth-btn auth-btn-primary" disabled={loading}>
-              {loading ? "..." : mode === "signin" ? "Sign In" : "Create Account"}
-            </button>
-          </form>
-
-          <div className="auth-divider" style={{margin:"14px 0"}}>or continue with</div>
-          <div style={{display:"flex", gap:10, marginBottom:10}}>
+          <div style={{display:"flex", gap:10, marginBottom:14}}>
             <button className="auth-btn auth-btn-social" style={{flex:1, padding:"12px 0"}} onClick={handleGoogle} disabled={loading}>
               <svg width="18" height="18" viewBox="0 0 18 18">
                 <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.84-1.6 2.41v2h2.6c1.52-1.4 2.4-3.46 2.4-5.9 0-.57-.05-1.12-.17-1.51z"/>
@@ -130,14 +81,7 @@ export default function Auth({ onGuest, onShowInstructions }) {
             <b style={{color:"#c8d8cc"}}>Free account:</b> saves your rounds and puts you on the club leaderboard.
           </p>
 
-          <p style={{textAlign:"center", marginTop:14, fontSize:13, color:"#7a9e84"}}>
-            {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
-            <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              style={{background:"none", border:"none", color:"#c9a84c", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontSize:13, fontWeight:600}}>
-              {mode === "signin" ? "Sign Up" : "Sign In"}
-            </button>
-          </p>
-          <LegalFooter style={{marginTop:10}} />
+          <LegalFooter style={{marginTop:14}} />
         </div>
       </div>
     </div>

@@ -9,7 +9,18 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "miles-grant-golf",
+      "database_id": "5479b038-20d0-4cac-a0b9-31db12479ad5",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "GOOGLE_CLIENT_ID": "583032643914-i3e3b9q5scio71h3l7d62nogff8qlf6e.apps.googleusercontent.com"
   },
   "send_email": [{ "name": "EMAIL" }]
 }
