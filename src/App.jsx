@@ -400,11 +400,12 @@ const measureDotIcon = L.divIcon({
   iconSize: [14, 14], iconAnchor: [7, 7],
 });
 
-function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, onMapTap, onMapMove, onMapMoveEnd }) {
+function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, radarOn, onMapTap, onMapMove, onMapMoveEnd }) {
   const mapRef       = useRef(null);
   const leafletRef   = useRef(null);
   const gpsMarkerRef = useRef(null);
   const shotLayersRef = useRef([]);
+  const radarLayerRef = useRef(null);
   const measureRef   = useRef([]);
   const gpsRef       = useRef(gps);
   useEffect(() => { gpsRef.current = gps; }, [gps]);
@@ -540,6 +541,33 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, o
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approachMode]);
+
+  // Live rain radar overlay (RainViewer), refreshed every 5 minutes while visible
+  useEffect(() => {
+    const map = leafletRef.current;
+    if (!map) return;
+    let interval = null, dead = false;
+    const remove = () => {
+      if (radarLayerRef.current) { try { map.removeLayer(radarLayerRef.current); } catch { /* ignore */ } radarLayerRef.current = null; }
+    };
+    const refresh = async () => {
+      try {
+        const r = await fetch('https://api.rainviewer.com/public/weather-maps.json').then(x => x.json());
+        const frames = r?.radar?.past || [];
+        const path = frames.length ? frames[frames.length - 1].path : null;
+        if (dead || !path) return;
+        remove();
+        radarLayerRef.current = L.tileLayer(
+          `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`,
+          { opacity: 0.6, maxZoom: 20, maxNativeZoom: 12 }
+        ).addTo(map);
+      } catch { /* offline or API down — leave map as is */ }
+    };
+    if (radarOn) { refresh(); interval = setInterval(refresh, 5 * 60 * 1000); }
+    else remove();
+    return () => { dead = true; if (interval) clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [radarOn, hole.number, tee]);
 
   // GPS dot
   useEffect(() => {
@@ -821,6 +849,15 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const watchRef                    = useRef(null);
   const [wind, setWind]             = useState(null);   // { speed, dir } in mph + degrees
   const [weather, setWeather]       = useState(null);   // { tempF, rainMins } rainMins=null means clear
+
+  // Rain radar overlay: manual toggle, plus one automatic switch-on when rain is close
+  const [radarOn, setRadarOn] = useState(false);
+  const radarAutoRef = useRef(false);
+  useEffect(() => {
+    const m = weather?.rainMins;
+    if (m != null && m <= 30 && !radarAutoRef.current) { radarAutoRef.current = true; setRadarOn(true); }
+    if (m == null || m > 45) radarAutoRef.current = false;
+  }, [weather]);
   const [compass, setCompass]       = useState(null);   // device heading in degrees (0=N, clockwise)
   const [compassPermission, setCompassPermission] = useState('unknown'); // unknown | granted | denied
   const onGpsScreen = screen === "hole" || screen === "start";
@@ -1628,6 +1665,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           <HoleMap hole={hole} tee={playerTee} gps={gps} holeShots={holeShots} key={hole.number}
             recenterTick={recenterTick}
             approachMode={dtg != null && dtg <= 100}
+            radarOn={radarOn}
             onMapTap={handleMapTap}
             onMapMove={handleMapMove}
             onMapMoveEnd={handleMapMoveEnd}
@@ -1757,6 +1795,14 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               )}
             </div>
           )}
+
+          {/* Rain radar toggle */}
+          <button onClick={() => setRadarOn(v => !v)} className="side-box"
+            style={{ width: 56, padding: '5px 4px 4px', textAlign: 'center', cursor: 'pointer',
+              background: radarOn ? 'rgba(201,168,76,0.3)' : 'rgba(6,20,12,0.78)' }}>
+            <p className="side-box-label" style={{ fontSize: 9 }}>Radar</p>
+            <p style={{ fontSize: 17, lineHeight: 1.2, margin: 0 }}>{radarOn ? '🌧️' : '📡'}</p>
+          </button>
 
           {/* Scorecard toggle button */}
           {scoring && (
