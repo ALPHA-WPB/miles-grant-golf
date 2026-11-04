@@ -367,6 +367,24 @@ function shotLineIcon(yards) {
   });
 }
 
+// Destination point from (lat,lng) along a bearing for a distance in yards
+function destPoint(lat, lng, bearingDegrees, yards) {
+  const R = 6371000, d = yards / 1.09361;
+  const br = bearingDegrees * Math.PI / 180;
+  const p1 = lat * Math.PI / 180, l1 = lng * Math.PI / 180;
+  const p2 = Math.asin(Math.sin(p1) * Math.cos(d / R) + Math.cos(p1) * Math.sin(d / R) * Math.cos(br));
+  const l2 = l1 + Math.atan2(Math.sin(br) * Math.sin(d / R) * Math.cos(p1), Math.cos(d / R) - Math.sin(p1) * Math.sin(p2));
+  return { lat: p2 * 180 / Math.PI, lng: l2 * 180 / Math.PI };
+}
+
+function arcLabelIcon(yds) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="color:#c9a84c;font-size:10px;font-weight:800;font-family:Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9);opacity:0.85">${yds}</div>`,
+    iconSize: null, iconAnchor: [9, 6],
+  });
+}
+
 function measureIcon(fromYds, pinYds) {
   const from = fromYds != null ? `<span style="color:#fbbf24">${fromYds}</span> here` : '';
   const sep = fromYds != null ? ' · ' : '';
@@ -447,6 +465,18 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, o
     L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#9ca3af") }).addTo(map);
     L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444") }).addTo(map);
     L.marker([hole.green.lat, hole.green.lng], { icon: flagIcon }).addTo(map);
+
+    // Faint yardage arcs from the pin, labeled along the fairway line back to the tee
+    const holeYds = haversineYards(gt.lat, gt.lng, hole.green.lat, hole.green.lng);
+    const backBearing = calcBearing(hole.green.lat, hole.green.lng, gt.lat, gt.lng);
+    [100, 150, 200].filter(y => y <= holeYds + 15).forEach(yds => {
+      L.circle([hole.green.lat, hole.green.lng], {
+        radius: yds / 1.09361, color: '#c9a84c', weight: 1, opacity: 0.35,
+        fill: false, dashArray: '2,7', interactive: false,
+      }).addTo(map);
+      const lp = destPoint(hole.green.lat, hole.green.lng, backBearing, yds);
+      L.marker([lp.lat, lp.lng], { icon: arcLabelIcon(yds), interactive: false }).addTo(map);
+    });
 
     shotLayersRef.current = [];
     gpsMarkerRef.current = null;
