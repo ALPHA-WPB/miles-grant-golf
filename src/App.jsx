@@ -752,6 +752,26 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const mapFocusedRef = useRef(false);
   const focusTimerRef = useRef(null);
   useEffect(() => { mapFocusedRef.current = mapFocused; }, [mapFocused]);
+
+  // Keep the screen awake during play; the OS overrides this in Low Power Mode
+  useEffect(() => {
+    let lock = null, cancelled = false;
+    const acquire = async () => {
+      try {
+        if (!cancelled && document.visibilityState === 'visible' && navigator.wakeLock) {
+          lock = await navigator.wakeLock.request('screen');
+        }
+      } catch { /* unsupported or power-restricted */ }
+    };
+    acquire();
+    const onVis = () => { if (document.visibilityState === 'visible') acquire(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVis);
+      try { lock?.release(); } catch { /* already released */ }
+    };
+  }, []);
   const [showMore, setShowMore]     = useState(false);
   const dockRef = useRef(null);
   const topRef  = useRef(null);
