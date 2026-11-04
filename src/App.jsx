@@ -367,11 +367,29 @@ function shotLineIcon(yards) {
   });
 }
 
+function measureIcon(fromYds, pinYds) {
+  const from = fromYds != null ? `<span style="color:#fbbf24">${fromYds}</span> here` : '';
+  const sep = fromYds != null ? ' · ' : '';
+  return L.divIcon({
+    className: "",
+    html: `<div style="background:rgba(8,26,16,0.92);border:1px solid #fbbf24;color:#f0ead6;font-size:11px;font-weight:700;padding:3px 7px;border-radius:5px;font-family:Inter,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.6)">${from}${sep}<span style="color:#4ade80">${pinYds}</span> to pin</div>`,
+    iconSize: null, iconAnchor: [-10, 28],
+  });
+}
+const measureDotIcon = L.divIcon({
+  className: "",
+  html: `<div style="width:14px;height:14px;border-radius:50%;background:#fbbf24;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.7)"></div>`,
+  iconSize: [14, 14], iconAnchor: [7, 7],
+});
+
 function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, onMapTap, onMapMove, onMapMoveEnd }) {
   const mapRef       = useRef(null);
   const leafletRef   = useRef(null);
   const gpsMarkerRef = useRef(null);
   const shotLayersRef = useRef([]);
+  const measureRef   = useRef([]);
+  const gpsRef       = useRef(gps);
+  useEffect(() => { gpsRef.current = gps; }, [gps]);
   const padRef = useRef(pad);
   useEffect(() => { padRef.current = pad; });
 
@@ -442,6 +460,29 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, o
     if (onMapMove)    map.on('movestart', onMapMove);
     if (onMapMoveEnd) map.on('moveend',   onMapMoveEnd);
     if (onMapMoveEnd) map.on('zoomend',   onMapMoveEnd);
+
+    // Press-and-hold rangefinder: drop a point, see distance to it and from it to the pin
+    const clearMeasure = () => {
+      measureRef.current.forEach(l => { try { map.removeLayer(l); } catch { /* ignore */ } });
+      measureRef.current = [];
+    };
+    map.on('contextmenu', (e) => {
+      clearMeasure();
+      const pt = e.latlng;
+      const g = gpsRef.current;
+      const pinYds = Math.round(haversineYards(pt.lat, pt.lng, hole.green.lat, hole.green.lng));
+      const fromYds = g ? Math.round(haversineYards(g.lat, g.lng, pt.lat, pt.lng)) : null;
+      const layers = [];
+      if (g) layers.push(L.polyline([[g.lat, g.lng], [pt.lat, pt.lng]], { color: '#fbbf24', weight: 2, opacity: 0.9 }));
+      layers.push(L.polyline([[pt.lat, pt.lng], [hole.green.lat, hole.green.lng]], { color: '#fbbf24', weight: 2, dashArray: '4,6', opacity: 0.8 }));
+      const dot = L.marker([pt.lat, pt.lng], { icon: measureDotIcon });
+      const label = L.marker([pt.lat, pt.lng], { icon: measureIcon(fromYds, pinYds), interactive: true });
+      dot.on('click', clearMeasure);
+      label.on('click', clearMeasure);
+      layers.push(dot, label);
+      layers.forEach(l => l.addTo(map));
+      measureRef.current = layers;
+    });
 
     return () => {
       window.removeEventListener("resize", onResize);
