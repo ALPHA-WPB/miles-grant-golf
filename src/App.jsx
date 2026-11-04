@@ -1268,6 +1268,16 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const dtg = distToGreen();
   const dtf = distToFront();
   const dtb = distToBack();
+  // Wind-adjusted "plays like": headwind ≈ +1%/mph, tailwind ≈ -0.5%/mph of the shot
+  const playsLike = (() => {
+    if (dtg == null || dtg <= 30 || !gps || !wind?.speed) return null;
+    const shotBearing = calcBearing(gps.lat, gps.lng, hole.green.lat, hole.green.lng);
+    const rel = ((wind.dir - shotBearing) + 540) % 360 - 180; // 0 = dead into the wind
+    const headMph = Math.cos(rel * Math.PI / 180) * wind.speed;
+    const adj = dtg * (headMph >= 0 ? 0.010 : 0.005) * headMph;
+    const v = Math.round(dtg + adj);
+    return Math.abs(v - Math.round(dtg)) >= 2 ? v : null;
+  })();
   const displayScore = scores[holeIdx] || (inProgress || completedShots > 0 ? shotBasedScore : 0);
   const scoreForDisplay = skipped[holeIdx] ? null : displayScore;
   const diff = scoreForDisplay ? scoreForDisplay - hole.par : null;
@@ -1571,6 +1581,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                 <span style={{ fontSize: 11, color: 'rgba(200,216,204,0.5)' }}>·</span>
                 <span style={{ fontSize: 11, color: '#c8d8cc', fontWeight: 700 }}>B {dtb ?? '—'}</span>
               </div>
+            )}
+            {playsLike != null && (
+              <p style={{ marginTop: 3, fontSize: 11, fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>
+                ≈ plays {playsLike}
+              </p>
             )}
           </div>
           <div className="side-box" style={{borderColor:"rgba(212,175,55,0.6)", padding: '6px 4px 6px'}}>
