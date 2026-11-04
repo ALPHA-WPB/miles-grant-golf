@@ -3,6 +3,12 @@ import { createRoot } from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import App from './App.jsx'
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* offline support is best-effort */ });
+  });
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Toaster position="top-center" toastOptions={{

@@ -781,6 +781,42 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const focusTimerRef = useRef(null);
   useEffect(() => { mapFocusedRef.current = mapFocused; }, [mapFocused]);
 
+  // Once per visit, quietly pre-download the course's satellite tiles so the
+  // map keeps working in dead zones. The service worker stores them; repeat
+  // visits are instant cache hits with no network use.
+  useEffect(() => {
+    if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+    const timer = setTimeout(async () => {
+      try {
+        await navigator.serviceWorker.ready;
+        if (!navigator.onLine) return;
+        const pts = HOLES.flatMap(h => [h.green, h.tees.champ, h.tees.mens, h.tees.womens]);
+        const pad = 0.0012;
+        const minLat = Math.min(...pts.map(p => p.lat)) - pad, maxLat = Math.max(...pts.map(p => p.lat)) + pad;
+        const minLng = Math.min(...pts.map(p => p.lng)) - pad, maxLng = Math.max(...pts.map(p => p.lng)) + pad;
+        const tileAt = (lat, lng, z) => {
+          const n = 2 ** z;
+          return {
+            x: Math.floor((lng + 180) / 360 * n),
+            y: Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n),
+          };
+        };
+        const urls = [];
+        for (const z of [15, 16, 17, 18, 19]) {
+          const a = tileAt(maxLat, minLng, z), b = tileAt(minLat, maxLng, z);
+          for (let x = a.x; x <= b.x; x++) for (let y = a.y; y <= b.y; y++) {
+            urls.push(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`);
+          }
+        }
+        for (const u of urls.slice(0, 450)) {
+          if (!navigator.onLine) return;
+          await fetch(u, { mode: 'no-cors' }).catch(() => {});
+        }
+      } catch { /* best effort */ }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Keep the screen awake during play; the OS overrides this in Low Power Mode
   useEffect(() => {
     let lock = null, cancelled = false;
