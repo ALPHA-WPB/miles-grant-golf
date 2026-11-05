@@ -385,8 +385,8 @@ function arcLabelIcon(yds) {
   });
 }
 
-function measureIcon(fromYds, pinYds) {
-  const from = fromYds != null ? `<span style="color:#fbbf24">${fromYds}</span> here` : '';
+function measureIcon(fromYds, pinYds, fromTee) {
+  const from = fromYds != null ? `<span style="color:#fbbf24">${fromYds}</span> ${fromTee ? 'from tee' : 'here'}` : '';
   const sep = fromYds != null ? ' · ' : '';
   return L.divIcon({
     className: "",
@@ -500,14 +500,19 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, r
     map.on('contextmenu', (e) => {
       clearMeasure();
       const pt = e.latlng;
+      // Measure from the player when they're on this hole; otherwise (off the course or no GPS) from the tee
       const g = gpsRef.current;
+      const t = hole.tees[tee] || hole.tees.mens;
+      const holeLen = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
+      const onHole = g && haversineYards(g.lat, g.lng, hole.green.lat, hole.green.lng) <= holeLen + 150;
+      const origin = onHole ? g : t;
       const pinYds = Math.round(haversineYards(pt.lat, pt.lng, hole.green.lat, hole.green.lng));
-      const fromYds = g ? Math.round(haversineYards(g.lat, g.lng, pt.lat, pt.lng)) : null;
+      const fromYds = Math.round(haversineYards(origin.lat, origin.lng, pt.lat, pt.lng));
       const layers = [];
-      if (g) layers.push(L.polyline([[g.lat, g.lng], [pt.lat, pt.lng]], { color: '#fbbf24', weight: 2, opacity: 0.9 }));
+      layers.push(L.polyline([[origin.lat, origin.lng], [pt.lat, pt.lng]], { color: '#fbbf24', weight: 2, opacity: 0.9 }));
       layers.push(L.polyline([[pt.lat, pt.lng], [hole.green.lat, hole.green.lng]], { color: '#fbbf24', weight: 2, dashArray: '4,6', opacity: 0.8 }));
       const dot = L.marker([pt.lat, pt.lng], { icon: measureDotIcon });
-      const label = L.marker([pt.lat, pt.lng], { icon: measureIcon(fromYds, pinYds), interactive: true });
+      const label = L.marker([pt.lat, pt.lng], { icon: measureIcon(fromYds, pinYds, !onHole), interactive: true });
       dot.on('click', clearMeasure);
       label.on('click', clearMeasure);
       layers.push(dot, label);
@@ -610,6 +615,8 @@ const css = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body, #root { height: 100%; overflow: hidden; }
+  .app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  .app input, .app textarea, .app select { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
   .gps-banner { flex-shrink: 0; width: 100%; z-index: 4000; border: 0; cursor: pointer; padding: calc(env(safe-area-inset-top) + 5px) 12px 5px; min-height: 30px; background: #d4af37; color: #0b1a10; font: 700 15px/1.25 'Inter', sans-serif; text-align: center; animation: gps-pulse 1.6s ease-in-out infinite; }
   @keyframes gps-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
   @media (prefers-reduced-motion: reduce) { .gps-banner { animation: none; } }
