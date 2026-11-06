@@ -3,7 +3,7 @@ import { api } from '../lib/api';
 export const authService = {
   async getCurrentUser() {
     try {
-      return (await api('/api/me')).user;
+      return (await api('/api/me')).user ?? null;   // no JSON (e.g. Vite dev with no worker) = signed out
     } catch {
       return null;
     }
