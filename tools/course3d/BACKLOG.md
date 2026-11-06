@@ -58,7 +58,7 @@ broken.
 - [x] 13. (4fdd990) Trace hole 15.
 - [x] 14. (b9c4d64) Trace hole 16.
 - [x] 15. (6b715c8) Trace hole 17.
-- [ ] 16. Trace hole 18.
+- [x] 16. (be3fbe8) Trace hole 18.
 - [ ] 17. Tree audit, holes 1–18 (hole 1 done 2026-11-06): numbered `check` images; remove false trees (shadows, shrubs on
   tees/greens, 'palms' sitting inside the dark shadow masses that oaks cast north onto the grass, duplicates midway
   along a palm's trunk shadow) with `treeEdits.remove` [lng, lat, radius_m]; ADD missing palms — thin palms in and
@@ -75,6 +75,7 @@ broken.
 - [ ] 22. WATER: the lakes along hole 17 (and the one between holes 17/18 and the clubhouse ponds) are not in the OSM water data build.py uses (only one lake, lng −80.1725…−80.1709, is), so in 3D they render as grass. Trace the lake outlines from the photo (add a `water` list to traced.json + build.py support) and check every hole for missing water.
 
 ## Log
+- 2026-11-06: item 16 (be3fbe8): hole 18 traced (par 5) — elongated green (~17×9 m, NW–SE) between its left and back-right bunkers, back tee strip (~24×6 m) by the bridge, round forward tee on the peninsula tip, fairway (~15–24 m) down the land strip between the lakes and then SW to the green, routed on the open side of the two palm rows (a first try dropped 13 real palms; final version drops only a small shrub beside a kept palm at ~(944,817)). All 18 holes are now traced. Same caveat as hole 17: the lakes render as grass until item 22. Note for the owner: phones that already have the app may keep showing '3D soon' on new holes until the service worker refreshes its cached course.json (seen in the local preview).
 - 2026-11-06: item 15 (6b715c8): hole 17 traced (par 4) — big round green (~20×22 m) right of its front-left bunker, tee strip (~20×6 m) south of the road, fairway (~19–27 m) from the cart-path crossing NE between the wavy road-side bunkers and the lake, ending short of the green-side bunker (nudged south at x≈934 to keep a real palm; one false 'palm' on the tee edge dropped). Two problems found, NOT fixed: (1) the lake right of this fairway is missing from the water data (new item 22); (2) the long wavy fairway-bunker chain along the road (~560–845, 665–790 hole17 px) is not detected as sand at all — item 18 must add it. Local preview tip: the PWA service worker serves a stale course.json; unregister it / clear caches before checking a new hole.
 - 2026-11-06: item 14 (b9c4d64): hole 16 traced (par 3, no fairway) — green oval (~15×18 m) between the left, right and front bunkers, two tee boxes (west ~21×7 m with the two back markers, east ~12×6 m with the forward marker) following the mowed strip between the tree clumps. No paved cart path on the line of play (the paved lane north of the tee is a road). Previewed in 3D, no errors.
 - 2026-11-06: item 13 (4fdd990): hole 15 traced (par 3, no fairway) — green oval (~19×13 m, tilted down to the east) just below its back-right bunker, one long tee strip (~24×7 m) between the tree line and the paved cart path (path added). Previewed in 3D, no errors.
