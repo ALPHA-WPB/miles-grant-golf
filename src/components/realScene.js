@@ -1,6 +1,8 @@
 import * as THREE from "three";
-import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import maplibregl from "maplibre-gl";
+import { Tree } from "../vendor/ez-tree/tree";
+import { getLeafTexture } from "../vendor/ez-tree/textures";
 
 // Realistic 3D layer for the illustrated course: leafy oaks, palms with fronds and houses
 // with hip roofs, lit by a sun to the south (as in the imagery) with soft ground shadows.
@@ -27,40 +29,34 @@ function noise3(x, y, z) {
 }
 const color = hex => new THREE.Color(hex);
 
-// ── Broadleaf crown: lumpy cluster of smooth, noise-displaced puffs, unit size ─────────────
-function oakCrown(seed, tint) {
-  const r = rng(seed), parts = [];
-  for (let i = 0; i < 5; i++) {
-    const a = r() * Math.PI * 2, d = i === 0 ? 0 : 0.32 + r() * 0.28;
-    const py = i === 0 ? 0.58 : 0.4 + r() * 0.32, pr = i === 0 ? 0.62 : 0.42 + r() * 0.16;
-    let g = new THREE.IcosahedronGeometry(pr, 2);
-    g.deleteAttribute("normal"); g.deleteAttribute("uv");
-    g = mergeVertices(g);
-    const p = g.attributes.position;
-    for (let k = 0; k < p.count; k++) {
-      const x = p.getX(k), y = p.getY(k), z = p.getZ(k);
-      const n = noise3(x * 3.2 + seed, y * 3.2, z * 3.2) * 0.22 - 0.11 + noise3(x * 8, y * 8 + seed, z * 8) * 0.06;
-      const f = 1 + n / pr;
-      p.setXYZ(k, x * f + Math.cos(a) * d, y * f + py, z * f + Math.sin(a) * d);
-    }
-    parts.push(g);
-  }
-  const geo = mergeGeometries(parts);
-  geo.computeBoundingBox();
-  const bb = geo.boundingBox, sx = 2 / (bb.max.x - bb.min.x), sz = 2 / (bb.max.z - bb.min.z), sy = 1 / (bb.max.y - bb.min.y);
-  geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
-  geo.scale(sx, sy, sz);
-  geo.computeVertexNormals();
-  // Leaf color: darker underneath and inside, sunlit top, speckled like foliage clumps
-  const p = geo.attributes.position, cols = new Float32Array(p.count * 3), base = color(tint), c = new THREE.Color();
-  for (let k = 0; k < p.count; k++) {
-    const x = p.getX(k), y = p.getY(k), z = p.getZ(k);
-    const shade = 0.6 + 0.55 * y + (noise3(x * 11 + seed, y * 11, z * 11) - 0.5) * 0.4;
-    c.copy(base).multiplyScalar(Math.max(0.35, shade));
-    cols.set([c.r, c.g, c.b], k * 3);
-  }
-  geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
-  return geo;
+// ── Broadleaf trees: real branching trunks with bark textures and photographic leaf cards ──
+// (ez-tree). A few shapes are generated once and reused for every oak, each scaled to its
+// measured canopy. Leaf and branch counts are trimmed so hundreds of trees run on a phone.
+function oakVariants() {
+  return ["Oak Medium", "Oak Medium", "Oak Small", "Oak Medium"].map((name, i) => {
+    const tree = new Tree();
+    tree.loadPreset(name);
+    const o = tree.options;
+    o.seed = 4211 + i * 7919;
+    // Florida live oaks: short trunk, wide spreading limbs, dense foliage
+    o.branch.length[0] *= 0.6;
+    o.branch.angle[1] = Math.min(80, (o.branch.angle[1] || 50) + 14);
+    o.branch.angle[2] = Math.min(75, (o.branch.angle[2] || 50) + 8);
+    o.branch.length[1] *= 1.15;
+    o.leaves.count = Math.max(7, Math.round(o.leaves.count * 0.7));
+    o.leaves.size *= 2.3;
+    o.leaves.billboard = "single";
+    o.branch.children[2] = Math.max(2, (o.branch.children[2] || 3) - 1);
+    for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.6));
+    for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(1, Math.round(o.branch.sections[k] * 0.6));
+    tree.generate();
+    const bGeo = tree.branchesMesh.geometry, lGeo = tree.leavesMesh.geometry;
+    lGeo.computeBoundingBox(); bGeo.computeBoundingBox();
+    const bb = lGeo.boundingBox.clone().union(bGeo.boundingBox);
+    return { bGeo, lGeo, barkMat: tree.branchesMesh.material, alphaTest: o.leaves.alphaTest,
+      radius: Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2, height: bb.max.y,
+      tris: (bGeo.index?.count || 0) / 3 + (lGeo.index?.count || 0) / 3 };
+  });
 }
 
 function trunkGeo(top, bottom, segs, hSegs, bend, barkHex) {
@@ -234,39 +230,31 @@ export function createRealisticLayer(course, exaggeration = 1, id = "real3d") {
       const dummy = new THREE.Object3D(), tmpColor = new THREE.Color();
       const oaks = trees.filter(f => f.properties.type !== "palm"), palms = trees.filter(f => f.properties.type === "palm");
 
-      // Oaks: 4 crown variants × instanced, plus trunks
-      const tints = ["#4c8c34", "#58983f", "#427e2f", "#64a04a"];
+      // Oaks: ez-tree shapes, instanced; each scaled to the tree's measured canopy
       const barkMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-      const leafMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
-      const trunkG = trunkGeo(0.55, 1, 8, 2, 0, "#5b4630");
-      const trunks = new THREE.InstancedMesh(trunkG, barkMat, oaks.length);
-      for (let v = 0; v < 4; v++) {
-        const mine = oaks.filter((_, i) => i % 4 === v);
-        const crown = new THREE.InstancedMesh(oakCrown(17 + v * 31, tints[v]), leafMat, mine.length);
+      const variants = oakVariants();
+      const leafMat = new THREE.MeshStandardMaterial({ map: getLeafTexture("oak"), color: 0xc4d4a8, alphaTest: 0.5,
+        side: THREE.DoubleSide, roughness: 0.92 });
+      variants.forEach((V, v) => {
+        const mine = oaks.filter((_, i) => i % variants.length === v);
+        if (!mine.length) return;
+        const branches = new THREE.InstancedMesh(V.bGeo, V.barkMat, mine.length);
+        const leaves = new THREE.InstancedMesh(V.lGeo, leafMat, mine.length);
         mine.forEach((f, i) => {
           const [x, z] = toLocal(...f.geometry.coordinates), { r, h } = f.properties, y0 = (f.properties.z || 0) * exaggeration;
-          dummy.position.set(x, y0 + h * 0.34, z);
+          const s = (r * 1.1) / V.radius, sy = Math.min(s, Math.max(h * 1.35, 7) / V.height);
+          dummy.position.set(x, y0 - 0.2, z);
           dummy.rotation.set(0, hash3(x, z, v) * Math.PI * 2, 0);
-          dummy.scale.set(r * 1.08, h * 0.74, r * 1.08);
+          dummy.scale.set(s, sy, s);
           dummy.updateMatrix();
-          crown.setMatrixAt(i, dummy.matrix);
-          tmpColor.setHSL(0, 0, 0.88 + hash3(z, x, 1) * 0.24);
-          crown.setColorAt(i, tmpColor);
+          branches.setMatrixAt(i, dummy.matrix);
+          leaves.setMatrixAt(i, dummy.matrix);
+          const k = 0.86 + hash3(z, x, 1) * 0.26;
+          tmpColor.setRGB(k * (0.92 + hash3(x, 3, z) * 0.1), k, k * (0.85 + hash3(5, z, x) * 0.1));
+          leaves.setColorAt(i, tmpColor);
         });
-        crown.castShadow = crown.receiveShadow = true;
-        crown.frustumCulled = false;
-        scene.add(crown);
-      }
-      oaks.forEach((f, i) => {
-        const [x, z] = toLocal(...f.geometry.coordinates), { r, h } = f.properties, y0 = (f.properties.z || 0) * exaggeration;
-        dummy.position.set(x, y0 - 0.5, z); dummy.rotation.set(0, 0, 0);
-        const tw = 0.22 + r * 0.035;
-        dummy.scale.set(tw, h * 0.55, tw);
-        dummy.updateMatrix();
-        trunks.setMatrixAt(i, dummy.matrix);
+        for (const m of [branches, leaves]) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
       });
-      trunks.castShadow = true; trunks.frustumCulled = false;
-      scene.add(trunks);
 
       // Palms: curved banded trunk + crown of textured fronds (uniform scale by height)
       const bend = 0.05;
@@ -316,6 +304,7 @@ export function createRealisticLayer(course, exaggeration = 1, id = "real3d") {
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.shadowMap.autoUpdate = false;   // the scene and sun never move: draw shadows once
       renderer.shadowMap.needsUpdate = true;
+      THREE.DefaultLoadingManager.onLoad = () => { renderer.shadowMap.needsUpdate = true; map.triggerRepaint(); };
     },
     render(gl, args) {
       camera.projectionMatrix = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix).multiply(model);

@@ -173,6 +173,26 @@ def detect(region):
                 continue
             acc.append((x, y, rr))
         found += [(x0 + x, y0 + y, rr, 'oak') for x, y, rr in acc]
+    # Drop "trees" that are really another tree's shadow: darker than a canopy and lying just
+    # north of a tree (the sun is to the south in this imagery, so shadows fall north)
+    def mean_v(x, y, rr):
+        rp = max(2, int(rr / mpp * 0.7)); x, y = int(x), int(y)
+        patch = v[max(0, y - rp):y + rp + 1, max(0, x - rp):x + rp + 1]
+        return float(patch.mean()) if patch.size else 0.0
+    vals = [mean_v(x, y, rr) for x, y, rr, _ in found]
+    keep = []
+    for i, (x, y, rr, kind) in enumerate(found):
+        shadow = False
+        for j, (sx, sy, sr, _) in enumerate(found):
+            if j == i or sr < rr * 0.8:
+                continue
+            north = (sy - y) * mpp                      # meters this candidate sits north of tree j
+            if 0.3 * sr < north < sr + rr + 2.4 * sr and abs(x - sx) * mpp < max(sr, 3) and vals[i] < vals[j] - 4:
+                shadow = True
+                break
+        if not shadow:
+            keep.append((x, y, rr, kind))
+    found = keep
     out = []
     for x, y, rr, kind in found:
         lng, lat = region.ll(float(x), float(y))
@@ -259,6 +279,7 @@ detected = [([b for b in bs if not any(z.intersects(b) for z in not_sand)], ts) 
 all_bunkers = [b for bs, _ in detected for b in bs]
 traced_holes = sorted(int(k) for k in traced['holes'])
 playing = []   # fairways, greens and tees: kept clear of trees
+tees_greens = []
 for num, t in traced['holes'].items():
     for g in t.get('greens', []):
         gp = Polygon(g)
@@ -268,6 +289,7 @@ for num, t in traced['holes'].items():
         gp = gp.difference(sand)
         add(gp, kind='green', hole=int(num))
         playing.append(gp.buffer(1.6 / M_PER_DEG / k))
+        tees_greens.append(gp)
     h = HOLES[int(num)]
     glat, glng = h['green']
     fws = [Polygon(f) for f in t.get('fairways', [])] + [spine_poly(s) for s in t.get('fairwaySpines', [])]
@@ -289,19 +311,24 @@ for num, t in traced['holes'].items():
     for b in getattr(unary_union(boxes), 'geoms', [unary_union(boxes)]):
         add(b, kind='tee', hole=int(num))
         playing.append(b)
+        tees_greens.append(b)
+    for cp in t.get('cartPaths', []):
+        add(LineString(cp), kind='cartpath', hole=int(num))
 
 for bunkers, trees in detected:
     for b in bunkers:
         add(b, kind='bunker')
     near = course.buffer(80 / M_PER_DEG)
     clear = unary_union(playing).buffer(-1.0 / M_PER_DEG)
+    tg = unary_union(tees_greens)
     edits = traced.get('treeEdits', {})
     gone = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in edits.get('remove', [])]
     trees += [{'lng': lng, 'lat': lat, 'r': rr, 'type': kind, 'h': 7.5 if kind == 'palm' else min(3.5 + rr * 0.9, 12.0)}
               for lng, lat, rr, kind in edits.get('add', [])]
     for tr in trees:
         pt = Point(tr['lng'], tr['lat'])
-        if not near.contains(pt) or clear.contains(pt) or any(z.contains(pt) for z in gone):
+        overhangs = tg.distance(pt) < 0.6 * tr['r'] / M_PER_DEG    # canopy would hang over a tee or green
+        if not near.contains(pt) or clear.contains(pt) or overhangs or any(z.contains(pt) for z in gone):
             continue
         feats.append({'type': 'Feature', 'properties': {'kind': 'tree', 'r': tr['r'], 'h': tr['h'], 'type': tr['type']},
                       'geometry': {'type': 'Point', 'coordinates': [tr['lng'], tr['lat']]}})

@@ -218,6 +218,10 @@ function buildStyle(course) {
       fill("green", "green", "#a3e672"),
       { id: "green-edge", type: "line", source: "ground", filter: kind("green"), paint: { "line-color": "#6cba4d", "line-width": 3, "line-blur": 3, "line-opacity": 0.8 } },
       fill("tee", "tee", "#8bd862"),
+      { id: "cartpath-edge", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#a49d8c", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.5, 22, 190] } },
+      { id: "cartpath", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#dcd6c8", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.2, 22, 155] } },
       { id: "house-shadow", type: "fill", source: "houseShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.22 } },
       { id: "tree-shadow", type: "fill", source: "treeShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.24 } },
       fill("bunker", "bunker", "#f3e4b6"),
@@ -303,7 +307,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   });
   const pitchRef = useRef(ANGLES[angleIdx].pitch);
   const [looking, setLooking] = useState(false);   // camera is at a "look from here" spot
-  const moveRef = useRef({ f: 0, t: 0 });          // arrows held: forward/back and turn directions
+  const moveRef = useRef({ f: 0, t: 0, h: 0, p: 0 });   // held controls: forward/back, turn, height, tilt
   // Controls render into the play screen's overlay layer so the app's own overlays can't cover them
   const [overlayHost, setOverlayHost] = useState(null);
   const rootRef = useCallback(node => setOverlayHost(node?.closest(".play-stage") ?? null), []);
@@ -322,7 +326,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     if (teeCam) { map.jumpTo(teeCam); return teeCam; }
     return fitTilted(map, holePts, bearing, Math.min(pitch, 75), padRef.current);
   };
-  const fit = () => whenReady(map => { setLooking(false); frameHole(map); });
+  const fit = () => whenReady(map => { setLooking(false); ctlRef.current.forgetWalk?.(); frameHole(map); });
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -401,6 +405,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       if (toOverview) frameHole(map);
     };
     const runFly = () => {
+      walk = null;
       clearTimeout(flyTimer); cancelAnimationFrame(raf); map.stop();
       setLooking(false);
       flying = true;
@@ -427,6 +432,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     // Look from a spot: standing at that spot at eye level, looking at the green
     const lookFrom = pt => {
       stopFly(false);
+      walk = null;
       const cam = map.calculateCameraOptionsFromTo(new maplibregl.LngLat(pt.lng, pt.lat), ground(pt.lng, pt.lat) + STAND_EYE,
         new maplibregl.LngLat(hole.green.lng, hole.green.lat), pinAlt);
       map.easeTo({ ...cam, duration: 1800 });
@@ -434,30 +440,49 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     };
     const reset = () => {
       stopFly(false);
+      walk = null;
       setLooking(false);
       const cam = overviewCam();
       if (cam) map.easeTo({ ...cam, duration: 700 });
     };
-    // Arrow controls. In low views the camera itself walks (keeping its height above the
-    // ground) and turns in place; in higher views the map slides and rotates instead.
-    let moveRaf = 0, moving = false;
-    const stepView = (dt, f, turn) => {
-      const brg = map.getBearing() + turn * 50 * dt;
-      if (map.getPitch() >= 60) {
-        const tr = map.transform, C = tr.getCameraLngLat?.(), A = tr.getCameraAltitude?.();
-        if (!C || A == null) return;
-        const ctr = map.getCenter();
-        const ahead = Math.max(25, haversineYards(C.lat, C.lng, ctr.lat, ctr.lng) / 1.09361);
-        const above = Math.max(1.5, A - ground(C.lng, C.lat));
-        const C2 = f ? destPoint(C.lat, C.lng, brg, f * 16 * dt * 1.09361) : C;
-        const T = destPoint(C2.lat, C2.lng, brg, ahead * 1.09361);
-        map.jumpTo(map.calculateCameraOptionsFromTo(new maplibregl.LngLat(C2.lng, C2.lat), ground(C2.lng, C2.lat) + above,
-          new maplibregl.LngLat(T.lng, T.lat), ground(T.lng, T.lat)));
+    // Arrow controls. In low views the camera walks: it keeps its own position, height above
+    // the ground, heading and tilt (never re-read from the map, so steps can't run away).
+    // In higher views the map slides, rotates, zooms and tilts instead.
+    let moveRaf = 0, moving = false, walk = null;
+    const [bw, bs, be, bn] = course.terrain?.bounds || [-180, -85, 180, 85];
+    const walkFromMap = () => {
+      const tr = map.transform, C = tr.getCameraLngLat?.(), A = tr.getCameraAltitude?.();
+      if (!C || A == null) return null;
+      return { lng: C.lng, lat: C.lat, above: Math.max(1.5, Math.min(80, A - ground(C.lng, C.lat))),
+        brg: map.getBearing(), pitch: Math.max(40, Math.min(86, map.getPitch())) };
+    };
+    const walkCam = w => {
+      const d = Math.max(4, w.above * Math.tan(w.pitch * Math.PI / 180));
+      const T = destPoint(w.lat, w.lng, w.brg, d * 1.09361);
+      return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(w.lng, w.lat), ground(w.lng, w.lat) + w.above,
+        new maplibregl.LngLat(T.lng, T.lat), ground(T.lng, T.lat));
+    };
+    map.on("movestart", e => { if (e.originalEvent) walk = null; });   // a finger moved the map: start fresh
+    const stepView = (dt, { f, t: turn, h, p }) => {
+      if (map.getPitch() >= 55 || walk) {
+        if (!walk) walk = walkFromMap();
+        if (!walk) return;
+        walk.brg += turn * 45 * dt;
+        walk.above = Math.max(1.5, Math.min(80, walk.above * Math.exp(h * 0.9 * dt)));
+        walk.pitch = Math.max(40, Math.min(86, walk.pitch + p * 22 * dt));
+        if (f) {
+          const speed = Math.min(30, 5 + walk.above * 0.7);          // ~6 m/s standing, faster when higher
+          const q = destPoint(walk.lat, walk.lng, walk.brg, f * speed * dt * 1.09361);
+          walk.lng = Math.max(bw, Math.min(be, q.lng));
+          walk.lat = Math.max(bs, Math.min(bn, q.lat));
+        }
+        map.jumpTo(walkCam(walk));
       } else {
-        const ctr = map.getCenter();
+        const ctr = map.getCenter(), brg = map.getBearing() + turn * 45 * dt;
         const mpp = 40075016.7 * Math.cos(ctr.lat * Math.PI / 180) / (512 * 2 ** map.getZoom());
         const c2 = f ? destPoint(ctr.lat, ctr.lng, brg, f * 320 * mpp * dt * 1.09361) : ctr;
-        map.jumpTo({ center: [c2.lng, c2.lat], bearing: brg });
+        map.jumpTo({ center: [c2.lng, c2.lat], bearing: brg, zoom: map.getZoom() - h * 0.9 * dt,
+          pitch: Math.max(0, Math.min(85, map.getPitch() + p * 22 * dt)) });
       }
     };
     const startMove = () => {
@@ -466,20 +491,22 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       stopFly(false);
       let last = performance.now();
       const tick = now => {
-        const { f, t: turn } = moveRef.current;
-        if (!f && !turn) { moving = false; return; }
+        const m = moveRef.current;
+        if (!m.f && !m.t && !m.h && !m.p) { moving = false; return; }
         const dt = Math.min(0.05, (now - last) / 1000);
         last = now;
-        stepView(dt, f, turn);
+        stepView(dt, m);
         moveRaf = requestAnimationFrame(tick);
       };
       moveRaf = requestAnimationFrame(tick);
     };
+    const forgetWalk = () => { walk = null; };
 
     ctlRef.current = {
       move: startMove,
+      forgetWalk,
       replay: () => { if (readyRef.current) runFly(); },
-      slide: u => { if (!readyRef.current) return; stopFly(false); setLooking(false); map.jumpTo(flyCam(u)); setThumb(u); },
+      slide: u => { if (!readyRef.current) return; stopFly(false); walk = null; setLooking(false); map.jumpTo(flyCam(u)); setThumb(u); },
       reset,
       stopFly,
       teeCam: () => flyCam(0),
@@ -724,17 +751,19 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       ctlRef.current.move?.();
     };
     const up = e => { const k = keys[e.key]; if (k) moveRef.current = { ...moveRef.current, [k[0]]: 0 }; };
+    keys.PageUp = ["h", 1]; keys.PageDown = ["h", -1];
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
   }, []);
   const padDown = e => {
     e.preventDefault();
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    moveRef.current = { f: Number(e.currentTarget.dataset.f), t: Number(e.currentTarget.dataset.t) };
+    try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* keep going without capture */ }
+    const d = e.currentTarget.dataset;
+    moveRef.current = { f: Number(d.f || 0), t: Number(d.t || 0), h: Number(d.h || 0), p: Number(d.p || 0) };
     ctlRef.current.move?.();
   };
-  const padUp = () => { moveRef.current = { f: 0, t: 0 }; };
+  const padUp = () => { moveRef.current = { f: 0, t: 0, h: 0, p: 0 }; };
   const padEvents = { onPointerDown: padDown, onPointerUp: padUp, onPointerCancel: padUp, onLostPointerCapture: padUp, onContextMenu: e => e.preventDefault() };
   const padBtn = { position: "absolute", width: 40, height: 40, borderRadius: "50%", border: "2px solid #d4af37",
     background: "rgba(6,20,12,0.82)", color: "#f0ead6", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center",
@@ -769,6 +798,20 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         <button aria-label="Move back" data-f="-1" data-t="0" style={{ ...padBtn, left: 42, top: 84 }} {...padEvents}>▼</button>
         <button aria-label="Turn left" data-f="0" data-t="-1" style={{ ...padBtn, left: 0, top: 42 }} {...padEvents}>◀</button>
         <button aria-label="Turn right" data-f="0" data-t="1" style={{ ...padBtn, left: 84, top: 42 }} {...padEvents}>▶</button>
+      </div>
+
+      {/* Camera height and tilt (hold to keep going) */}
+      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 194, bottom: pad.bottom + 12, width: 48, zIndex: 1001, display: "flex", flexDirection: "column", gap: 4 }}>
+        {[["h", 1, "▲", "HIGHER", "Raise the camera"], ["h", -1, "▼", "LOWER", "Lower the camera"],
+          ["p", 1, "◠", "LOOK UP", "Tilt the view up"], ["p", -1, "◡", "LOOK DN", "Tilt the view down"]].map(([axis, v, sym, label, aria]) => (
+          <button key={label} aria-label={aria} data-h={axis === "h" ? v : 0} data-p={axis === "p" ? v : 0} {...padEvents}
+            style={{ height: 28, borderRadius: 8, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 3, padding: 0, cursor: "pointer", touchAction: "none",
+              userSelect: "none", WebkitUserSelect: "none", boxShadow: "0 3px 10px rgba(0,0,0,0.5)" }}>
+            <span style={{ fontSize: 10, lineHeight: 1 }}>{sym}</span>
+            <span style={{ font: "800 7.5px Inter, sans-serif", letterSpacing: 0.2 }}>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Camera rail: fly-through slider, replay, angle presets, reset */}
