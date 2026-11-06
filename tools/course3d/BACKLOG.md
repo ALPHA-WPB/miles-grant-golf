@@ -44,7 +44,7 @@ broken.
   course.json size reasonable (<1.5 MB; raise terrain grid spacing to 4 m if needed).
 - [x] 2. (89e28e6) Trace hole 4 (green, tees, fairway spine, cart paths visible on the photo).
 - [x] 3. (31e9bf0) Trace hole 5.
-- [ ] 4. Trace hole 6.
+- [x] 4. (5cdba10) Trace hole 6.
 - [ ] 5. Trace hole 7.
 - [ ] 6. Trace hole 8.
 - [ ] 7. Trace hole 9.
@@ -72,6 +72,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 4 (5cdba10): hole 6 traced — green oval (~18×20 m) between the left and front bunkers, long back-tee strip (~26×8 m) and forward tee oval, fairway (~26 m wide) along the mowed band from past the forward tee to the green's front-left. No paved cart path (only worn dirt tracks), so none added. Not previewed in the browser this run (preview server permission declined in the background session); data-only change, build OK, live course.json confirmed. For item 17: tree #2423 at ~(500,812) hole6 px sits on a dark wet patch in the rough — likely not a tree. Note: deploy check for data-only changes must compare course.json (the index-*.js name doesn't change).
 - 2026-11-06: hedges (a031889): new `hedges` list in traced.json ({tag, h, w, line}) → `hedge` features → rounded shrub wall in realScene. Hole 5: behind the tee along the back yards (3.8 m) and behind the green outside the road (4.2 m), so the houses show roofs only. Add hedges on other holes the same way where the photo shows thick shrub lines in front of houses.
 - 2026-11-06: owner feedback on hole 5 (61c0d9b): palms re-placed by hand at trunk bases (9, tag h5-palms; heights from shadow length — the two tall ones 15–16.5 m); removed the mid-fairway "palm" (tall palm's shadow) and duplicate palms along trunk shadows (one palm by the bunker, not two). Hole 5 got a fairway (tee → green, north of the bunker). All greens now have a ~4.5 m first-cut collar ring outside the fringe (`collar` kind, build.py + HoleMap3D). Point label / View button, yardage arcs, tee dots, GPS and shot tags no longer fade when terrain "covers" them. Item 17 (tree audit) for hole 5 is effectively done.
 - 2026-11-06: item 3 (31e9bf0): hole 5 traced — green oval (~20×24 m, clear of the right bunker), 2 tee ovals (west one partly under a tree canopy, edges estimated). Par 3, no fairway (like holes 2–3). The paved loop is an OSM road, so no cart path added. For item 18: small sand ring around a shrub just south of the back tee (~937,440 in hole5 px) is not a bunker in the data — may be a planter. Untracked MilesGrantGolf-Architecture.pdf (Oct 18) in the repo root left alone.
