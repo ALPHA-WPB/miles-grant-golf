@@ -827,6 +827,53 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     canvasBox.addEventListener("pointerdown", skip, { passive: true });
     canvasBox.addEventListener("wheel", skip, { passive: true });
 
+    // Ground-level look-around (like Google Maps / Street View): in low views a one-finger or mouse
+    // drag turns the camera where it stands (sideways = turn, up/down = tilt) instead of sliding the
+    // whole view. High overhead views keep the normal drag-to-pan. Two fingers still pinch-zoom.
+    let look = null, lookedAt = 0;
+    const lookMove = e => {
+      if (!look || e.pointerId !== look.id) return;
+      const dx = e.clientX - look.x0, dy = e.clientY - look.y0;
+      if (!look.turning) {
+        if (Math.hypot(dx, dy) < 5) return;
+        look.turning = true;
+        lpCancel();
+        onMapMove?.();
+      }
+      const w = look.w;
+      w.brg = look.brg0 - dx * look.kx;                                   // the scene follows the finger
+      w.pitch = Math.max(40, Math.min(86, look.pitch0 + dy * look.ky));
+      walk = w;
+      map.setCenterClampedToGround?.(false);
+      map.jumpTo(walkCam(w));
+    };
+    const lookEnd = () => {
+      if (!look) return;
+      window.removeEventListener("pointermove", lookMove);
+      window.removeEventListener("pointerup", lookEnd);
+      window.removeEventListener("pointercancel", lookEnd);
+      if (look.panWas) map.dragPan.enable();
+      const turned = look.turning;
+      look = null;
+      if (turned) { lookedAt = Date.now(); onMapMoveEnd?.(); }
+    };
+    const lookStart = e => {
+      if (!e.isPrimary) { lookEnd(); return; }                  // a second finger: let the map pinch
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (!readyRef.current || flying || Date.now() - skippedAt < 400) return;
+      if (!(walk || (map.getPitch() >= 55 && camHeight() <= 80))) return;
+      const w = walk ? { ...walk } : walkFromMap();
+      if (!w) return;
+      const box = canvasBox.getBoundingClientRect();
+      look = { id: e.pointerId, x0: e.clientX, y0: e.clientY, brg0: w.brg, pitch0: w.pitch, w, turning: false,
+        kx: 100 / Math.max(300, box.width), ky: 60 / Math.max(300, box.height), panWas: map.dragPan.isEnabled() };
+      map.dragPan.disable();
+      window.addEventListener("pointermove", lookMove);
+      window.addEventListener("pointerup", lookEnd);
+      window.addEventListener("pointercancel", lookEnd);
+    };
+    canvasBox.addEventListener("pointerdown", lookStart);
+
     // Press-and-hold rangefinder (custom timer: iOS Safari never fires contextmenu)
     let lpTimer = null, lpStart = null, lastMeasure = 0;
     const clearMeasure = () => {
@@ -881,7 +928,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     canvasBox.addEventListener("touchcancel", lpCancel, { passive: true });
     map.on("contextmenu", e => { if (Date.now() - lastMeasure > 900) measureAt(e.lngLat); });
 
-    if (onMapTap) map.on("click", () => { if (Date.now() - lastMeasure > 700 && Date.now() - skippedAt > 700) onMapTap(); });
+    if (onMapTap) map.on("click", () => { if (Date.now() - lastMeasure > 700 && Date.now() - skippedAt > 700 && Date.now() - lookedAt > 400) onMapTap(); });
     if (onMapMove) map.on("movestart", e => { if (e.originalEvent) onMapMove(); });
     if (onMapMoveEnd) map.on("moveend", e => { if (e.originalEvent) onMapMoveEnd(); });
 
@@ -896,6 +943,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       cancelAnimationFrame(moveRaf);
       cancelAnimationFrame(waveRaf);
       lpCancel();
+      lookEnd();
       window.removeEventListener("resize", onResize);
       readyRef.current = false;
       queueRef.current = [];
