@@ -322,6 +322,43 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       palmTrunks.castShadow = true; palmTrunks.frustumCulled = false;
       scene.add(palmTrunks);
 
+      // Hedges: thick shrub rows traced by hand (e.g. behind back yards), a solid leafy wall from
+      // the ground up, so only the roofs of the houses behind them show
+      const hedges = course.features.filter(f => f.properties.kind === "hedge");
+      if (hedges.length) {
+        const geo = new THREE.IcosahedronGeometry(1, 3), p = geo.attributes.position, nrm = geo.attributes.normal, col = [];
+        for (let i = 0; i < p.count; i++) {
+          const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 0.88 + hash3(x * 4.3, y * 4.3, z * 4.3) * 0.24;
+          p.setXYZ(i, x * n, y * n, z * n);
+          nrm.setXYZ(i, x, y, z);   // smooth, rounded shading (the lumps stay in the outline)
+          const c = (0.62 + 0.38 * (y + 1) / 2) * (0.85 + hash3(z * 5, x * 5, y * 5) * 0.3);
+          col.push(0.36 * c, 0.55 * c, 0.24 * c);
+        }
+        geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+        const pts = [];
+        hedges.forEach(f => {
+          const cs = f.geometry.coordinates.map(c => toLocal(...c)), zs = f.properties.zs || [], { h, w } = f.properties;
+          for (let j = 0; j < cs.length - 1; j++) {
+            const [ax, az] = cs[j], [bx, bz] = cs[j + 1], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 1.3));
+            for (let s = 0; s < n; s++) {
+              const t = s / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
+              pts.push({ x, z, y0: ((zs[j] || 0) * (1 - t) + (zs[j + 1] || 0) * t) * exaggeration, h, w });
+            }
+          }
+        });
+        const hedgeMesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), pts.length);
+        pts.forEach(({ x, z, y0, h, w }, i) => {
+          const jx = (hash3(x, z, 3) - 0.5) * 0.8, jz = (hash3(z, x, 4) - 0.5) * 0.8, hh = h * (0.9 + hash3(x, 9, z) * 0.2);
+          dummy.position.set(x + jx, y0 + hh / 2 - 0.15, z + jz);
+          dummy.rotation.set(0, hash3(x, z, 5) * Math.PI * 2, 0);
+          dummy.scale.set(w / 2 * (0.9 + hash3(z, 2, x) * 0.25), hh / 2, w / 2 * (0.9 + hash3(2, x, z) * 0.25));
+          dummy.updateMatrix();
+          hedgeMesh.setMatrixAt(i, dummy.matrix);
+        });
+        hedgeMesh.castShadow = hedgeMesh.receiveShadow = true; hedgeMesh.frustumCulled = false;
+        scene.add(hedgeMesh);
+      }
+
       // Flagstick on the green, at the green's measured height (2.1 m white pole, red flag,
       // white cup liner), so it stands on the surface in every view
       if (pin) {

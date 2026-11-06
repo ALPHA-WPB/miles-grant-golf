@@ -353,6 +353,10 @@ for num, t in traced['holes'].items():
     for cp in t.get('cartPaths', []):
         add(LineString(cp), kind='cartpath', hole=int(num))
 
+# hand-traced hedge lines (thick shrub rows, e.g. along back yards): drawn as a solid leafy wall
+for hg in traced.get('hedges', []):
+    add(LineString(hg['line']), kind='hedge', h=hg.get('h', 3.8), w=hg.get('w', 3.0))
+
 for bunkers, trees in detected:
     for b in bunkers:
         add(b, kind='bunker')
@@ -476,6 +480,8 @@ for f in feats:
         pr['z'] = round(elev(*f['geometry']['coordinates']), 2)
     elif pr['kind'] == 'building':
         pr['z'] = round(min(elev(lng, lat) for lng, lat in f['geometry']['coordinates'][0]), 2)
+    elif pr['kind'] == 'hedge':
+        pr['zs'] = [round(elev(lng, lat), 2) for lng, lat in f['geometry']['coordinates']]
 terrain_meta = {'tiles': '/course3d/dem/{z}/{x}/{y}.png', 'minzoom': 13, 'maxzoom': 17,
                 'bounds': [TW, TS, TE, TN], 'exaggeration': EXAGGERATION}
 # compact 3 m height grid over the traced holes, so the app knows the ground height anywhere
