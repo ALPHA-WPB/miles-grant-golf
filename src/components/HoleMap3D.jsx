@@ -386,28 +386,68 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     // Start well behind the back tee at a low "ground angle" height, end just short of the green
     const s0 = -130, s1 = Math.max(path.total - 14, path.total * 0.6);
     const eyeAt = s => 15 - 5 * smoothstep(s0, 0, s) - 7 * smoothstep(s1 - 120, s1, s);
-    // Where does the flag come into clear view? Check the sight line past every broadleaf tree.
     const kx = Math.cos(t.lat * Math.PI / 180);
     const xy = (lng, lat) => [(lng - t.lng) * M * kx, (lat - t.lat) * M];
-    const blockers = course.features.filter(f => f.properties.kind === "tree" && f.properties.type !== "palm")
-      .map(f => { const [lng, lat] = f.geometry.coordinates; return { p: xy(lng, lat), r: f.properties.r * 0.85, top: ground(lng, lat) + f.properties.h }; });
+    const toLL = ([x, y]) => ({ lng: t.lng + x / (M * kx), lat: t.lat + y / M });
+    const allTrees = course.features.filter(f => f.properties.kind === "tree").map(f => {
+      const [lng, lat] = f.geometry.coordinates, q = f.properties;
+      return { p: xy(lng, lat), palm: q.type === "palm", r: q.r, h: q.h, g: ground(lng, lat) };
+    });
+
+    // Steer around trees standing on the line (e.g. hole 1's palms in the fairway): pass each on the
+    // side away from it with ~9 m clearance from the trunk, easing out before it and back after.
+    const frameAt = s => {
+      const A = path.at(s - 3), B = path.at(s + 3), a = xy(A.lng, A.lat), b = xy(B.lng, B.lat);
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, dir = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      const C = path.at(s);
+      return { P: xy(C.lng, C.lat), dir, right: [dir[1], -dir[0]] };
+    };
+    const DS = 2, NO = Math.ceil((s1 - s0) / DS) + 1, offRaw = new Float32Array(NO), off = new Float32Array(NO);
+    for (let i = 0; i < NO; i++) {
+      const s = s0 + i * DS, { P, dir, right } = frameAt(s), eye = eyeAt(s);
+      let lo = 0, hi = 0;                    // the offset must be >= lo (trees on the left), <= hi (on the right)
+      for (const tr of allTrees) {
+        if (tr.h < eye - 1.5) continue;      // low enough to fly over
+        const rx = tr.p[0] - P[0], ry = tr.p[1] - P[1], along = rx * dir[0] + ry * dir[1];
+        if (Math.abs(along) > 40) continue;
+        const side = rx * right[0] + ry * right[1], need = (tr.palm ? 4 : tr.r * 1.1) + 7;
+        if (Math.abs(side) >= need) continue;
+        const w = 1 - smoothstep(10, 40, Math.abs(along));
+        if (side < 0) lo = Math.max(lo, (side + need) * w); else hi = Math.min(hi, (side - need) * w);
+      }
+      offRaw[i] = lo > 0 && hi < 0 ? (lo + hi) / 2 : lo > 0 ? lo : hi;
+    }
+    for (let i = 0; i < NO; i++) {           // smooth the swerve so it reads as a gentle drift
+      let acc = 0, ws = 0;
+      for (let j = -12; j <= 12; j++) { const k = Math.exp(-(j * j) / 32); acc += offRaw[Math.max(0, Math.min(NO - 1, i + j))] * k; ws += k; }
+      off[i] = Math.max(-14, Math.min(14, acc / ws));
+    }
+    const offAt = s => { const f = Math.max(0, Math.min(NO - 1, (s - s0) / DS)), i = Math.min(NO - 2, Math.floor(f)); return off[i] + (off[i + 1] - off[i]) * (f - i); };
+    // The camera's route: the fairway line, shifted sideways around trees
+    const route = s => { const { P, right } = frameAt(s), o = offAt(s); return toLL([P[0] + right[0] * o, P[1] + right[1] * o]); };
+
+    // Where does the flag come into clear view? Check the sight line past broadleaf trees and palm crowns.
+    const blockers = allTrees.map(tr => tr.palm
+      ? { p: tr.p, r: 3.2, top: tr.g + tr.h, bottom: tr.g + tr.h - 4.5 }
+      : { p: tr.p, r: tr.r * 0.85, top: tr.g + tr.h, bottom: -1e9 });
     const pinXY = xy(pin.lng, pin.lat);
     let lastBlocked = -Infinity;
     for (let s = 0; s <= s1; s += 4) {
-      const P = path.at(s), a = xy(P.lng, P.lat), camAlt = ground(P.lng, P.lat) + eyeAt(s);
+      const P = route(s), a = xy(P.lng, P.lat), camAlt = ground(P.lng, P.lat) + eyeAt(s);
       const dx = pinXY[0] - a[0], dy = pinXY[1] - a[1], L2 = dx * dx + dy * dy || 1;
       const hit = blockers.some(b => {
         const tt = ((b.p[0] - a[0]) * dx + (b.p[1] - a[1]) * dy) / L2;
         if (tt < 0.04 || tt > 0.96) return false;
         const d = Math.hypot(a[0] + dx * tt - b.p[0], a[1] + dy * tt - b.p[1]);
-        return d < b.r && b.top > camAlt + (pinAlt - camAlt) * tt;
+        const lineAlt = camAlt + (pinAlt - camAlt) * tt;
+        return d < b.r && b.top > lineAlt && b.bottom < lineAlt;
       });
       if (hit) lastBlocked = s;
     }
     const sClear = lastBlocked === -Infinity ? -1e9 : lastBlocked + 6;
-    // look at the flag at the start (whole-hole view) and again once nothing blocks it
     // Dogleg: where the fairway bends farthest from the straight tee-to-pin line. Until the camera nears
-    // the bend it looks up the fairway to it (so the whole fairway is in view), then pans slowly to the pin.
+    // the bend it looks up the fairway to it (so the whole fairway is in view), then follows the fairway
+    // round, and turns to the flag once nothing blocks it.
     let sCorner = null, maxDev = 0;
     {
       const G = xy(pin.lng, pin.lat), B = xy(backTee.lng, backTee.lat), L = Math.hypot(G[0] - B[0], G[1] - B[1]) || 1;
@@ -418,15 +458,16 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       }
       if (maxDev < 12) sCorner = null;           // effectively straight
     }
-    const panStart = sCorner == null ? sClear - 40 : Math.max(sCorner - 80, sClear - 40);
-    const panEnd = panStart + (sCorner == null ? 110 : 150);
+    let panStart = sCorner == null ? sClear - 40 : Math.max(sCorner - 80, sClear - 40);
+    const panEnd = Math.min(panStart + (sCorner == null ? 110 : 150), s1 - 10);
+    if (panEnd - panStart < 45) panStart = panEnd - 45;
     const pinWeight = s => Math.max(1 - smoothstep(s0 + 30, s0 + 160, s), smoothstep(panStart, panEnd, s));
     const lookAhead = s => {
-      if (sCorner != null && s < sCorner - 100) return path.at(sCorner);     // up the fairway to the bend
+      if (sCorner != null && s < sCorner - 100) return route(sCorner);       // up the fairway to the bend
       let ax = 0, ay = 0;
-      for (const d of [50, 75, 100, 125]) { const q = path.at(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
+      for (const d of [50, 75, 100, 125]) { const q = route(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
       if (sCorner != null && s < sCorner) {                                  // ease from the bend to the look-ahead
-        const c = path.at(sCorner), f = smoothstep(sCorner - 100, sCorner, s);
+        const c = route(sCorner), f = smoothstep(sCorner - 100, sCorner, s);
         return { lng: c.lng + (ax - c.lng) * f, lat: c.lat + (ay - c.lat) * f };
       }
       return { lng: ax, lat: ay };
@@ -436,13 +477,13 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     // pans slowly and never jerks or bobs; flyCam(u) just interpolates this smoothed track.
     const NS = 480, flight = [];
     for (let i = 0; i < NS; i++) {
-      const s = s0 + (s1 - s0) * i / (NS - 1), P = path.at(s), w = pinWeight(s);
+      const s = s0 + (s1 - s0) * i / (NS - 1), P = route(s), w = pinWeight(s);
       const A = lookAhead(s), ax = A.lng, ay = A.lat;
       const T = { lng: ax + (pin.lng - ax) * w, lat: ay + (pin.lat - ay) * w };
       const tAlt = ground(ax, ay) + (pinAlt - ground(ax, ay)) * w;
       const g = ground(P.lng, P.lat), alt = g + eyeAt(s);
       const dH = Math.max(5, haversineYards(P.lat, P.lng, T.lat, T.lng) / 1.09361);
-      flight.push({ lng: P.lng, lat: P.lat, g, eye: eyeAt(s), yaw: bearingOf(P, T), dip: Math.atan2(alt - tAlt, dH) });
+      flight.push({ s, lng: P.lng, lat: P.lat, g, eye: eyeAt(s), yaw: bearingOf(P, T), dip: Math.atan2(alt - tAlt, dH) });
     }
     for (let i = 1; i < NS; i++) {                    // unwrap heading so smoothing never spins the long way
       let d = flight[i].yaw - flight[i - 1].yaw;
@@ -450,6 +491,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       while (d < -180) d += 360;
       flight[i].yaw = flight[i - 1].yaw + d;
     }
+    flight.forEach(p => { p.yaw0 = p.yaw; p.dip0 = p.dip; });
     const smooth = (key, sigma) => {
       const k = [], r = Math.ceil(sigma * 3);
       for (let j = -r; j <= r; j++) k.push(Math.exp(-(j * j) / (2 * sigma * sigma)));
@@ -461,6 +503,11 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       });
     };
     smooth("lng", 10); smooth("lat", 10); smooth("g", 34); smooth("yaw", 42); smooth("dip", 34);
+    // Over the last stretch, settle onto the exact aim so the flag ends centered
+    flight.forEach(p => {
+      const e = smoothstep(s1 - 50, s1 - 5, p.s);
+      p.yaw += (p.yaw0 - p.yaw) * e; p.dip += (p.dip0 - p.dip) * e;
+    });
     const flyCam = u => {
       const f = Math.max(0, Math.min(1, u)) * (NS - 1), i = Math.min(NS - 2, Math.floor(f)), k = f - i;
       const L = (key) => flight[i][key] + (flight[i + 1][key] - flight[i][key]) * k;
