@@ -253,7 +253,7 @@ function el(html, cls = "") {
   d.innerHTML = html;
   return d;
 }
-const dotHtml = c => `<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>`;
+const dotHtml = (c, ring = "#fff") => `<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid ${ring};box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>`;
 const flagHtml = (n) => `<div style="position:relative;width:30px;height:44px"><div style="position:absolute;left:0;bottom:0;width:3px;height:42px;background:#fff;border-radius:2px;box-shadow:0 0 3px rgba(0,0,0,0.6)"></div><div class="mgg-flag" style="position:absolute;left:3px;top:0;width:24px;height:16px;background:#fff;border:1px solid rgba(0,0,0,0.35);border-left:0;display:flex;align-items:center;justify-content:center;font:900 11px Inter,sans-serif;color:#0b1a10;transform-origin:left center;box-shadow:0 1px 3px rgba(0,0,0,0.5)">${n}</div></div>`;
 const tagHtml = (txt, border, color) => `<div style="background:rgba(8,26,16,0.9);border:1px solid ${border};color:${color};font:700 11px Inter,sans-serif;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.5)">${txt}</div>`;
 
@@ -705,8 +705,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`) }).setLngLat([p.lng, p.lat]).addTo(map));
       });
       COURSE_PLACES.forEach(p => placeMarkers.add(track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map))));
-      [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
-        track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
+      [["champ", "#3b82f6"], ["mens", "#f8f8f6", "#334155"], ["womens", "#ef4444"]].forEach(([k, c, ring]) =>
+        track(new maplibregl.Marker({ element: el(dotHtml(c, ring)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
       flagMarker = track(new maplibregl.Marker({ element: el(flagHtml(hole.number)), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
 
       // Realistic look: textured turf and sand, and the three.js trees and houses in place of

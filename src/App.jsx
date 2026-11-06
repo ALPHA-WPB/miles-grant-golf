@@ -344,10 +344,10 @@ function fitRotated(map, latlngs, bearingDeg, pad) {
   map.setView(center, zoom, { animate: false });
 }
 
-function makeIcon(color) {
+function makeIcon(color, ring = "#fff") {
   return L.divIcon({
     className: "",
-    html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.7)"></div>`,
+    html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2px solid ${ring};box-shadow:0 1px 4px rgba(0,0,0,0.7)"></div>`,
     iconSize: [16, 16], iconAnchor: [8, 8],
   });
 }
@@ -470,7 +470,7 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, r
 
     // Tee markers
     L.marker([hole.tees.champ.lat,  hole.tees.champ.lng],  { icon: makeIcon("#3b82f6") }).addTo(map);
-    L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#9ca3af") }).addTo(map);
+    L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#f8f8f6", "#334155") }).addTo(map);
     L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444") }).addTo(map);
     L.marker([hole.green.lat, hole.green.lng], { icon: flagIconFor(hole.number) }).addTo(map);
     COURSE_PLACES.forEach(p => L.marker([p.lat, p.lng], { interactive: false,
@@ -802,7 +802,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [tab, setTab]               = useState(null); // null | history | leaderboard | friends | profile
   const [round, setRound]           = useState(null); // { round, roundPlayer } from Supabase, or null for guests
   const [screen, setScreen]         = useState("start");
-  const [playerTee, setPlayerTee]   = useState(() => { try { return localStorage.getItem("mg_tee") || "mens"; } catch { return "mens"; } });
+  // White is the default tee; a different choice is remembered (new key so every phone starts on White once)
+  const [playerTee, setPlayerTee]   = useState(() => { try { return localStorage.getItem("mg_tee2") || "mens"; } catch { return "mens"; } });
   const [scoring, setScoring]       = useState(false);   // "Keep score" mode
   const [offCourse, setOffCourse]   = useState(false);
   // Full-screen play layout: measured overlay sizes so the map fits around them
@@ -1463,7 +1464,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   function setTee(t) {
     setPlayerTee(t);
-    try { localStorage.setItem("mg_tee", t); } catch { /* ignore */ }
+    try { localStorage.setItem("mg_tee2", t); } catch { /* ignore */ }
   }
 
   function toggleScorecard() {
