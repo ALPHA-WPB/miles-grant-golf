@@ -311,7 +311,7 @@ for bunkers, trees in detected:
 # as real hollows. The result becomes terrarium-encoded elevation tiles the map drapes over.
 import tifffile, shutil
 TS, TW, TN, TE = 27.1395, -80.1915, 27.1560, -80.1650
-EXAGGERATION = 3
+EXAGGERATION = 1   # true scale: the course is nearly flat, and that is how it should look
 dw = int((TE - TW) * M_PER_DEG * math.cos(math.radians((TS + TN) / 2)))
 dh = int((TN - TS) * M_PER_DEG)
 dem_path = get('https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?'
@@ -325,6 +325,7 @@ cmask = np.zeros((dh, dw), np.uint8)
 cv2.fillPoly(cmask, [np.array([dpx(*c) for c in course.exterior.coords], np.int32)], 1)
 base = float(np.nanmedian(dem[cmask > 0]))
 rel = np.clip(np.nan_to_num(dem - base, nan=0.0), -2.5, 6.0)   # cap ponds/canals so they don't become pits
+rel = cv2.GaussianBlur(rel, (0, 0), 2.0)   # smooth out LiDAR speckle so fairways read flat
 for b in all_bunkers:
     for poly in getattr(b, 'geoms', [b]):
         m = np.zeros((dh, dw), np.uint8)
@@ -334,7 +335,7 @@ for b in all_bunkers:
         ring = (cv2.dilate(m, np.ones((3, 3), np.uint8)) > 0) & (m == 0)
         rim = float(np.median(rel[ring]))
         inside = cv2.distanceTransform(m, cv2.DIST_L2, 3)
-        floor = rim - np.minimum(0.5, 0.15 + 0.12 * inside)
+        floor = rim - np.minimum(0.75, 0.2 + 0.15 * inside)
         rel = np.where(m > 0, np.minimum(rel, floor), rel)
         outside = cv2.distanceTransform(1 - m, cv2.DIST_L2, 3)
         lip = (outside > 0) & (outside <= 2.2)

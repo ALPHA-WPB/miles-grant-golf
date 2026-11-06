@@ -223,7 +223,7 @@ function buildStyle(course) {
       fill("bunker", "bunker", "#f3e4b6"),
       { id: "bunker-shade", type: "line", source: "ground", filter: kind("bunker"), paint: { "line-color": "#b39a62", "line-width": 6, "line-blur": 5, "line-opacity": 0.55 } },
       { id: "bunker-edge", type: "line", source: "ground", filter: kind("bunker"), paint: { "line-color": "#3e7d36", "line-width": 1.6, "line-opacity": 0.85 } },
-      ...(terr ? [{ id: "hillshade", type: "hillshade", source: "demShade", paint: { "hillshade-exaggeration": 0.5,
+      ...(terr ? [{ id: "hillshade", type: "hillshade", source: "demShade", paint: { "hillshade-exaggeration": 0.3,
         "hillshade-shadow-color": "rgba(16,38,16,0.6)", "hillshade-highlight-color": "rgba(255,255,236,0.35)",
         "hillshade-accent-color": "rgba(24,48,24,0.3)", "hillshade-illumination-direction": 160, "hillshade-illumination-anchor": "map" } }] : []),
       { id: "arcs", type: "line", source: "arcs", paint: { "line-color": "#fff6d8", "line-width": 1.2, "line-opacity": 0.55, "line-dasharray": [1, 4] } },
@@ -303,6 +303,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   });
   const pitchRef = useRef(ANGLES[angleIdx].pitch);
   const [looking, setLooking] = useState(false);   // camera is at a "look from here" spot
+  const moveRef = useRef({ f: 0, t: 0 });          // arrows held: forward/back and turn directions
   // Controls render into the play screen's overlay layer so the app's own overlays can't cover them
   const [overlayHost, setOverlayHost] = useState(null);
   const rootRef = useCallback(node => setOverlayHost(node?.closest(".play-stage") ?? null), []);
@@ -437,7 +438,46 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       const cam = overviewCam();
       if (cam) map.easeTo({ ...cam, duration: 700 });
     };
+    // Arrow controls. In low views the camera itself walks (keeping its height above the
+    // ground) and turns in place; in higher views the map slides and rotates instead.
+    let moveRaf = 0, moving = false;
+    const stepView = (dt, f, turn) => {
+      const brg = map.getBearing() + turn * 50 * dt;
+      if (map.getPitch() >= 60) {
+        const tr = map.transform, C = tr.getCameraLngLat?.(), A = tr.getCameraAltitude?.();
+        if (!C || A == null) return;
+        const ctr = map.getCenter();
+        const ahead = Math.max(25, haversineYards(C.lat, C.lng, ctr.lat, ctr.lng) / 1.09361);
+        const above = Math.max(1.5, A - ground(C.lng, C.lat));
+        const C2 = f ? destPoint(C.lat, C.lng, brg, f * 16 * dt * 1.09361) : C;
+        const T = destPoint(C2.lat, C2.lng, brg, ahead * 1.09361);
+        map.jumpTo(map.calculateCameraOptionsFromTo(new maplibregl.LngLat(C2.lng, C2.lat), ground(C2.lng, C2.lat) + above,
+          new maplibregl.LngLat(T.lng, T.lat), ground(T.lng, T.lat)));
+      } else {
+        const ctr = map.getCenter();
+        const mpp = 40075016.7 * Math.cos(ctr.lat * Math.PI / 180) / (512 * 2 ** map.getZoom());
+        const c2 = f ? destPoint(ctr.lat, ctr.lng, brg, f * 320 * mpp * dt * 1.09361) : ctr;
+        map.jumpTo({ center: [c2.lng, c2.lat], bearing: brg });
+      }
+    };
+    const startMove = () => {
+      if (moving || !readyRef.current) return;
+      moving = true;
+      stopFly(false);
+      let last = performance.now();
+      const tick = now => {
+        const { f, t: turn } = moveRef.current;
+        if (!f && !turn) { moving = false; return; }
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now;
+        stepView(dt, f, turn);
+        moveRaf = requestAnimationFrame(tick);
+      };
+      moveRaf = requestAnimationFrame(tick);
+    };
+
     ctlRef.current = {
+      move: startMove,
       replay: () => { if (readyRef.current) runFly(); },
       slide: u => { if (!readyRef.current) return; stopFly(false); setLooking(false); map.jumpTo(flyCam(u)); setThumb(u); },
       reset,
@@ -582,6 +622,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       flying = false;
       clearTimeout(flyTimer);
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(moveRaf);
       lpCancel();
       window.removeEventListener("resize", onResize);
       readyRef.current = false;
@@ -672,6 +713,34 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
    
   }, [radarOn, hole.number, tee]);
 
+  // Arrow keys on a computer do the same as the on-screen arrows
+  useEffect(() => {
+    const keys = { ArrowUp: ["f", 1], ArrowDown: ["f", -1], ArrowLeft: ["t", -1], ArrowRight: ["t", 1] };
+    const down = e => {
+      const k = keys[e.key];
+      if (!k || /input|textarea|select/i.test(e.target.tagName)) return;
+      e.preventDefault();
+      moveRef.current = { ...moveRef.current, [k[0]]: k[1] };
+      ctlRef.current.move?.();
+    };
+    const up = e => { const k = keys[e.key]; if (k) moveRef.current = { ...moveRef.current, [k[0]]: 0 }; };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+  }, []);
+  const padDown = e => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    moveRef.current = { f: Number(e.currentTarget.dataset.f), t: Number(e.currentTarget.dataset.t) };
+    ctlRef.current.move?.();
+  };
+  const padUp = () => { moveRef.current = { f: 0, t: 0 }; };
+  const padEvents = { onPointerDown: padDown, onPointerUp: padUp, onPointerCancel: padUp, onLostPointerCapture: padUp, onContextMenu: e => e.preventDefault() };
+  const padBtn = { position: "absolute", width: 40, height: 40, borderRadius: "50%", border: "2px solid #d4af37",
+    background: "rgba(6,20,12,0.82)", color: "#f0ead6", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center",
+    justifyContent: "center", cursor: "pointer", touchAction: "none", userSelect: "none", WebkitUserSelect: "none",
+    boxShadow: "0 3px 10px rgba(0,0,0,0.5)", padding: 0 };
+
   // Fly-through slider: drag from TEE (bottom) to the flag (top)
   const dragging = useRef(false);
   const slideTo = e => {
@@ -693,6 +762,14 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
           ↩ Back to hole view
         </button>
       )}
+
+      {/* Arrows: walk forward/back, turn left/right (hold to keep going) */}
+      <div role="group" aria-label="Move the view" style={{ position: "absolute", left: 64, bottom: pad.bottom + 12, width: 124, height: 124, zIndex: 1001 }}>
+        <button aria-label="Move forward" data-f="1" data-t="0" style={{ ...padBtn, left: 42, top: 0 }} {...padEvents}>▲</button>
+        <button aria-label="Move back" data-f="-1" data-t="0" style={{ ...padBtn, left: 42, top: 84 }} {...padEvents}>▼</button>
+        <button aria-label="Turn left" data-f="0" data-t="-1" style={{ ...padBtn, left: 0, top: 42 }} {...padEvents}>◀</button>
+        <button aria-label="Turn right" data-f="0" data-t="1" style={{ ...padBtn, left: 84, top: 42 }} {...padEvents}>▶</button>
+      </div>
 
       {/* Camera rail: fly-through slider, replay, angle presets, reset */}
       <div style={{ position: "absolute", left: 10, bottom: pad.bottom + 34, zIndex: 1001, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
