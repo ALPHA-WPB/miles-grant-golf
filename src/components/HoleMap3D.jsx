@@ -354,6 +354,19 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     mapRef.current = map;
     const markerSet = markersRef.current;
     let flyTimer = null, raf = 0, flying = false, skippedAt = 0, flagMarker = null;
+    // Keep the map hidden while it loads, so a new hole never flashes an in-between overhead view: it
+    // appears already at the fly-through's first frame (or at the hole view when there's no fly-through)
+    const shown = map.getCanvasContainer();
+    shown.style.opacity = "0";
+    let revealed = false;
+    const reveal = () => {
+      if (revealed) return;
+      revealed = true;
+      clearTimeout(revealTimer);
+      shown.style.transition = "opacity 0.35s ease-out";
+      shown.style.opacity = "1";
+    };
+    const revealTimer = setTimeout(reveal, 6000);    // never leave it hidden
     const placeMarkers = new Set();   // facility icons: only shown nearby in low views
     // Keep the map redrawing while the 3D flag is close enough to see it wave
     let waveRaf = 0;
@@ -532,6 +545,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       cancelAnimationFrame(raf);
       map.stop();
       if (toOverview) frameHole(map);
+      reveal();
     };
     const runFly = () => {
       walk = null;
@@ -542,7 +556,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       map.jumpTo(flyCam(0)); setThumb(0);
       // start once the opening view has loaded (or after 1.5 s), so tile loading doesn't stutter the flight
       let begun = false;
-      const begin = () => { if (begun) return; begun = true; clearTimeout(flyTimer); go(); };
+      const begin = () => { if (begun) return; begun = true; clearTimeout(flyTimer); reveal(); go(); };
       map.once("idle", () => { flyTimer = setTimeout(begin, 250); });
       flyTimer = setTimeout(begin, 1500);
       const go = () => {
@@ -748,7 +762,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       if (final && !still && !flown.has(hole.number)) {
         flown.add(hole.number);
         runFly();
-      }
+      } else reveal();
     });
 
     // A touch during the fly-over skips straight to the whole-hole view
@@ -820,6 +834,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     return () => {
       flying = false;
       clearTimeout(flyTimer);
+      clearTimeout(revealTimer);
       cancelAnimationFrame(raf);
       cancelAnimationFrame(moveRaf);
       cancelAnimationFrame(waveRaf);
