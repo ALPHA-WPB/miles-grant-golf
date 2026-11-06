@@ -647,13 +647,17 @@ const css = `
   .side-box-unit { font-size: 11px; color: #f0ead6; font-weight: 700; }
   .recenter-btn { position: absolute; right: 10px; z-index: 1000; width: 48px; height: 48px; border-radius: 50%; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); color: #d4af37; font-size: 22px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
   .play-dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; display: flex; flex-direction: column; }
-  .dock-panel { background: rgba(6,16,10,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(212,175,55,0.35); padding: 8px 10px; max-height: 45dvh; overflow-y: auto; }
+  .dock-panel { background: rgba(6,16,10,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(212,175,55,0.35); padding: 6px 8px; max-height: 45dvh; overflow-y: auto; }
+  .seg-tabs { display: flex; gap: 6px; padding: calc(env(safe-area-inset-top) + 10px) 12px 6px; flex-shrink: 0; }
+  .seg-tabs button { flex: 1; padding: 9px 0; border-radius: 10px; border: 1px solid rgba(212,175,55,0.45); background: transparent; color: #c8d8cc; font: 700 14px 'Inter',sans-serif; cursor: pointer; }
+  .seg-tabs button.on { background: #c9a84c; color: #0b1a10; }
   .play-dock .tab-bar { background: rgba(6,14,9,0.94); }
   .more-toggle { width: 100%; background: transparent; border: none; color: #c8d8cc; font: 700 15px 'Inter',sans-serif; padding: 6px 0 2px; cursor: pointer; }
   .bottom-panel { flex: 1; min-height: 0; background: #0a1c12; border-top: 1px solid rgba(45,90,61,0.5); overflow-y: auto; }
   .label { font-size: 10px; color: #7a9e84; text-transform: uppercase; letter-spacing: 0.08em; }
   .tab-bar { display: flex; background: rgba(6,14,9,0.95); border-top: 0.5px solid rgba(45,90,61,0.5); flex-shrink: 0; backdrop-filter: blur(12px); }
-  .tab { flex: 1; padding: 9px 0 max(10px, env(safe-area-inset-bottom)); background: transparent; border: none; color: #c8d8cc; font-size: 15px; font-weight: 600; cursor: pointer; font-family: 'Inter',sans-serif; border-top: 2px solid transparent; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0 max(4px, calc(env(safe-area-inset-bottom) - 10px)); background: transparent; border: none; color: #c8d8cc; font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Inter',sans-serif; border-top: 2px solid transparent; }
+  .tab-icon { font-size: 17px; line-height: 1.1; }
   .tab.active { color: #c9a84c; font-weight: 700; border-top: 2px solid #c9a84c; }
   .glass-card { background: rgba(255,255,255,0.04); border: 0.5px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
   .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
@@ -757,18 +761,20 @@ function GuestUpsell({ feature, onExitGuest }) {
   );
 }
 
-function TabBar({ active, onSelect, onGame }) {
+// Bottom bar: Play, Score (on the hole screen), More (this round, history, leaders), Me
+function TabBar({ active, onSelect, onGame, onScore, scoring }) {
   const tabs = [
-    { key: "hole", label: "⛳ Play", action: onGame },
-    { key: "history", label: "📋 History", action: () => onSelect("history") },
-    { key: "leaderboard", label: "🏆 Leaders", action: () => onSelect("leaderboard") },
-    { key: "profile", label: "👤 Me", action: () => onSelect("profile") },
+    { key: "hole", icon: "⛳", label: "Play", action: onGame },
+    ...(onScore ? [{ key: "score", icon: "📋", label: scoring ? "Scorecard" : "Keep score", action: onScore }] : []),
+    { key: "more", icon: "☰", label: "More", action: () => onSelect("more") },
+    { key: "profile", icon: "👤", label: "Me", action: () => onSelect("profile") },
   ];
   return (
     <div className="tab-bar">
       {tabs.map(t => (
         <button key={t.key} className={`tab ${active === t.key ? "active" : ""}`} onClick={t.action}>
-          {t.label}
+          <span className="tab-icon" aria-hidden="true">{t.icon}</span>
+          <span>{t.label}</span>
         </button>
       ))}
     </div>
@@ -846,7 +852,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       try { lock?.release(); } catch { /* already released */ }
     };
   }, []);
-  const [showMore, setShowMore]     = useState(false);
+  const [moreSection, setMoreSection] = useState(null);   // More page: round | history | leaders
   const dockRef = useRef(null);
   const topRef  = useRef(null);
   useEffect(() => {
@@ -1129,20 +1135,60 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     }
   }, [gps, screen, holeIdx, holeComplete, holePrompt, roundStart, roundEnd, scoring]);
 
-  if (tab === "leaderboard") return (
-    <div className="app" style={{display:"flex", flexDirection:"column"}}>
-      <style>{css}</style>
-      <Leaderboard onClose={() => setTab(null)} />
-      <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
-    </div>
-  );
-  if (tab === "history") return (
-    <div className="app" style={{display:"flex", flexDirection:"column"}}>
-      <style>{css}</style>
-      {isGuest ? <GuestUpsell feature="Round history" onExitGuest={onExitGuest} /> : <RoundHistory />}
-      <TabBar active={tab} onSelect={setTab} onGame={() => setTab(null)} />
-    </div>
-  );
+  if (tab === "more" || tab === "history" || tab === "leaderboard") {
+    // This round (shot log, finish), round history and leaderboard together
+    const inRound = screen === "hole";
+    const thisHoleShots = shots[holeIdx] || [];
+    const section = tab === "history" ? "history" : tab === "leaderboard" ? "leaders" : (moreSection || (inRound ? "round" : "history"));
+    const pick = (k) => { setMoreSection(k); setTab("more"); };
+    const holeNow = HOLES[holeIdx];
+    return (
+      <div className="app" style={{display:"flex", flexDirection:"column"}}>
+        <style>{css}</style>
+        <div className="seg-tabs" role="tablist">
+          {inRound && <button className={section === "round" ? "on" : ""} onClick={() => pick("round")}>This round</button>}
+          <button className={section === "history" ? "on" : ""} onClick={() => pick("history")}>History</button>
+          <button className={section === "leaders" ? "on" : ""} onClick={() => pick("leaders")}>Leaders</button>
+        </div>
+        <div style={{flex:1, minHeight:0, overflowY:"auto", display:"flex", flexDirection:"column"}}>
+          {section === "round" && (
+            <div style={{padding:"6px 12px 16px", display:"flex", flexDirection:"column", gap:10}}>
+              <div className="glass-card" style={{padding:"10px 12px"}}>
+                <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
+                  <p style={{fontSize:15, fontWeight:700, color:"#c8d8cc", textTransform:"uppercase", letterSpacing:"0.08em"}}>Shots · Hole {holeNow.number}</p>
+                  {thisHoleShots.length > 0 && <button onClick={clearShots} style={{fontSize:15, color:"#c8d8cc", background:"transparent", border:"none", padding:"6px 4px", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>Clear</button>}
+                </div>
+                {thisHoleShots.length === 0 ? (
+                  <p style={{fontSize:15, color:"#7a9e84"}}>No shots marked on this hole yet.</p>
+                ) : (
+                  <div style={{display:"flex", flexDirection:"column", gap:6}}>
+                    {thisHoleShots.map((s, i) => {
+                      const toPin = Math.round(haversineYards(s.to.lat, s.to.lng, holeNow.green.lat, holeNow.green.lng));
+                      return (
+                        <div key={i} style={{background:"#0f2818", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"10px 12px", fontSize:18}}>
+                          <span style={{color:"#c8d8cc"}}>Shot {i+1}: </span>
+                          <span style={{fontWeight:800, color:PLAYER_COLOR}}>{fmtShort(s.yards)}</span>
+                          <span style={{color:"#c8d8cc"}}> · {fmtShort(toPin)} to pin</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => { setTab(null); setScreen("complete"); }}
+                style={{width:"100%", padding:"13px", borderRadius:12, border:"1px solid #2d5a3d", background:"transparent",
+                  color:"#c8d8cc", fontSize:17, fontWeight:700, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+                🏁 Finish round
+              </button>
+            </div>
+          )}
+          {section === "history" && (isGuest ? <GuestUpsell feature="Round history" onExitGuest={onExitGuest} /> : <RoundHistory />)}
+          {section === "leaders" && <Leaderboard />}
+        </div>
+        <TabBar active="more" onSelect={setTab} onGame={() => setTab(null)} />
+      </div>
+    );
+  }
   if (tab === "admin" && isAdmin(user)) return (
     <div className="app" style={{display:"flex", flexDirection:"column"}}>
       <style>{css}</style>
@@ -1401,6 +1447,27 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   function setTee(t) {
     setPlayerTee(t);
     try { localStorage.setItem("mg_tee", t); } catch { /* ignore */ }
+  }
+
+  function toggleScorecard() {
+    if (showScorecard) {
+      clearTimeout(scorecardTimerRef.current);
+      clearInterval(scorecardIntervalRef.current);
+      setShowScorecard(false);
+      return;
+    }
+    setScorecardCountdown(10);
+    setShowScorecard(true);
+    scorecardIntervalRef.current = setInterval(() => {
+      setScorecardCountdown(c => {
+        if (c <= 1) { clearInterval(scorecardIntervalRef.current); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+    scorecardTimerRef.current = setTimeout(() => {
+      clearInterval(scorecardIntervalRef.current);
+      setShowScorecard(false);
+    }, 10000);
   }
 
   async function startScoring() {
@@ -1894,29 +1961,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
           {/* Scorecard toggle button */}
           {scoring && (
-            <button onClick={() => {
-              if (showScorecard) {
-                clearTimeout(scorecardTimerRef.current);
-                clearInterval(scorecardIntervalRef.current);
-                setShowScorecard(false);
-              } else {
-                setScorecardCountdown(10);
-                setShowScorecard(true);
-                scorecardIntervalRef.current = setInterval(() => {
-                  setScorecardCountdown(c => {
-                    if (c <= 1) {
-                      clearInterval(scorecardIntervalRef.current);
-                      return 0;
-                    }
-                    return c - 1;
-                  });
-                }, 1000);
-                scorecardTimerRef.current = setTimeout(() => {
-                  clearInterval(scorecardIntervalRef.current);
-                  setShowScorecard(false);
-                }, 10000);
-              }
-            }} className="side-box" style={{ background: 'rgba(6,20,12,0.78)', width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
+            <button onClick={toggleScorecard} className="side-box" style={{ background: 'rgba(6,20,12,0.78)', width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
               <p className="side-box-label" style={{ fontSize: 9 }}>SC</p>
               <p className="side-box-num mid" style={{ fontSize: 20, lineHeight: 1.1 }}>🏌️</p>
             </button>
@@ -1939,6 +1984,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
         {/* Bottom: slim score bar + tabs */}
         <div className="play-dock" ref={dockRef} style={{ opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
+          {(scoring || holeComplete) && (
           <div className="dock-panel">
           {/* Next Hole / Round Complete button (after hole completion) */}
           {scoring && holeComplete && (
@@ -1967,117 +2013,76 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             )
           )}
 
-          {scoring ? (<>
-          <div className="glass-card" style={{padding:"8px 10px", marginBottom:4}}>
-            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:6}}>
-              <div style={{display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
-                <div style={{width:9, height:9, borderRadius:"50%", background:PLAYER_COLOR}} />
-                <span style={{fontSize:18, fontWeight:700}}>Score</span>
+          {scoring && (
+          <div className="glass-card" style={{padding:"6px 8px"}}>
+            <div style={{display:"flex", alignItems:"center", gap:8}}>
+              <div style={{display:"flex", alignItems:"center", gap:6, flex:1, minWidth:0, flexWrap:"wrap"}}>
+                <div style={{width:8, height:8, borderRadius:"50%", background:PLAYER_COLOR}} />
+                <span style={{fontSize:15, fontWeight:700}}>Score</span>
                 {!skipped[holeIdx] && scoreForDisplay > 0 && diff !== null && (
-                  <span style={{fontSize:16, padding:"2px 9px", borderRadius:6, fontWeight:600,
+                  <span style={{fontSize:14, padding:"1px 7px", borderRadius:6, fontWeight:600,
                     background:diff<=-2?"#1d4ed8":diff===-1?"#14532d":diff===0?"#3a3a2a":diff===1?"#7c2d12":"#450a0a",
                     color:diff<=-2?"#93c5fd":diff===-1?"#4ade80":diff===0?"#c9a84c":diff===1?"#fb923c":"#fca5a5"}}>
                     {diff===0?"E":diff>0?`+${diff}`:diff}
                   </span>
                 )}
-                {skipped[holeIdx] && <span style={{fontSize:16, color:"#7a9e84", fontStyle:"italic"}}>skipped</span>}
-                {!pickupConfirm && (
-                  <button className="pickup-link" style={{fontSize:16}} onClick={() => setPickupConfirm(true)}>pick up</button>
+                {skipped[holeIdx] && <span style={{fontSize:14, color:"#7a9e84", fontStyle:"italic"}}>skipped</span>}
+                {!pickupConfirm && !skipped[holeIdx] && (
+                  <button className="pickup-link" style={{fontSize:13}} onClick={() => setPickupConfirm(true)}>pick up</button>
                 )}
               </div>
               {!skipped[holeIdx] ? (
                 <div style={{display:"flex", alignItems:"center"}}>
                   <button onClick={() => adjustScore(-1)}
-                    style={{width:44, height:44, borderRadius:"8px 0 0 8px", border:"0.5px solid #2d5a3d",
-                      background:"#122018", color:"#f0ead6", fontSize:24, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>−</button>
-                  <div style={{width:44, height:44, background:"#0f2818", border:"0.5px solid #2d5a3d",
+                    style={{width:38, height:38, borderRadius:"8px 0 0 8px", border:"0.5px solid #2d5a3d",
+                      background:"#122018", color:"#f0ead6", fontSize:22, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>−</button>
+                  <div style={{width:38, height:38, background:"#0f2818", border:"0.5px solid #2d5a3d",
                     borderLeft:"none", borderRight:"none", display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:21, fontWeight:800, color:scoreForDisplay?"#f0ead6":"#7a9e84"}}>
+                    fontSize:19, fontWeight:800, color:scoreForDisplay?"#f0ead6":"#7a9e84"}}>
                     {scoreForDisplay || "·"}
                   </div>
                   <button onClick={() => adjustScore(1)}
-                    style={{width:44, height:44, borderRadius:"0 8px 8px 0", border:"0.5px solid #2d5a3d",
-                      background:"#122018", color:"#f0ead6", fontSize:24, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>+</button>
+                    style={{width:38, height:38, borderRadius:"0 8px 8px 0", border:"0.5px solid #2d5a3d",
+                      background:"#122018", color:"#f0ead6", fontSize:22, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>+</button>
                 </div>
               ) : (
                 <button onClick={() => setSkipped(prev=>{const n=[...prev];n[holeIdx]=false;return n;})}
-                  style={{fontSize:16, color:"#c8d8cc", background:"transparent", border:"0.5px solid #2d5a3d",
-                    borderRadius:8, padding:"8px 14px", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+                  style={{fontSize:15, color:"#c8d8cc", background:"transparent", border:"0.5px solid #2d5a3d",
+                    borderRadius:8, padding:"7px 12px", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
                   undo
+                </button>
+              )}
+              {!skipped[holeIdx] && (
+                <button onClick={cupIn} aria-label={`In the cup, score ${shotBasedScore || scores[holeIdx] || 1}`}
+                  style={{height:38, padding:"0 10px", borderRadius:10, border:"0.5px solid rgba(201,168,76,0.45)",
+                    background:"rgba(201,168,76,0.14)", color:"#c9a84c", fontFamily:"'Inter',sans-serif",
+                    fontSize:15, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap"}}>
+                  🏆 In {shotBasedScore || scores[holeIdx] || 1}
                 </button>
               )}
             </div>
 
             {pickupConfirm && (
-              <div style={{display:"flex", alignItems:"center", gap:8, paddingLeft:17, marginBottom:8}}>
-                <span style={{fontSize:17, color:"#a3b89a"}}>Skip this hole?</span>
+              <div style={{display:"flex", alignItems:"center", gap:8, paddingTop:6}}>
+                <span style={{fontSize:15, color:"#a3b89a"}}>Skip this hole?</span>
                 <button onClick={skipHole}
-                  style={{fontSize:17, padding:"8px 14px", borderRadius:7, border:"none",
+                  style={{fontSize:15, padding:"7px 12px", borderRadius:7, border:"none",
                     background:"#5a2d2d", color:"#f87171", cursor:"pointer", fontFamily:"'Inter',sans-serif", fontWeight:600}}>
                   Skip hole
                 </button>
                 <button onClick={() => setPickupConfirm(false)}
-                  style={{fontSize:17, padding:"8px 12px", borderRadius:7, border:"0.5px solid #2d5a3d",
+                  style={{fontSize:15, padding:"7px 10px", borderRadius:7, border:"0.5px solid #2d5a3d",
                     background:"transparent", color:"#7a9e84", cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
                   Cancel
                 </button>
               </div>
             )}
-
-            <button onClick={cupIn}
-              style={{width:"100%", padding:"11px", borderRadius:12, border:"0.5px solid rgba(201,168,76,0.35)",
-                background:"rgba(201,168,76,0.12)", color:"#c9a84c", fontFamily:"'Inter',sans-serif",
-                fontSize:18, fontWeight:700, cursor:"pointer", letterSpacing:"0.02em",
-                backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)",
-                boxShadow:"inset 0 1px 0 rgba(201,168,76,0.1)"}}>
-              🏆 In the cup — score {shotBasedScore || scores[holeIdx] || 1}
-            </button>
           </div>
-
-          </>) : (
-
-            <button onClick={startScoring}
-              style={{width:"100%", padding:"14px", borderRadius:14, marginBottom:2, border:"2px solid rgba(212,175,55,0.6)", background:"transparent",
-                color:"#d4af37", fontSize:19, fontWeight:800, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
-              📋 Keep score for a round
-            </button>
           )}
-
-            <button className="more-toggle" onClick={() => setShowMore(v => !v)}>
-              {showMore ? "▾ Less" : `▴ More${holeShots.length ? ` · ${holeShots.length} shot${holeShots.length > 1 ? "s" : ""}` : ""}`}
-            </button>
-            {showMore && (<div style={{paddingTop:6}}>
-          {/* Shot log */}
-          {holeShots.length > 0 && (
-            <div className="glass-card" style={{padding:"8px 12px"}}>
-              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
-                <p style={{fontSize:16, fontWeight:700, color:"#c8d8cc", textTransform:"uppercase", letterSpacing:"0.08em"}}>Shot log</p>
-                <button onClick={clearShots}
-                  style={{fontSize:16, color:"#c8d8cc", background:"transparent", border:"none", padding:"6px 4px",
-                    cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>Clear</button>
-              </div>
-              <div style={{display:"flex", flexDirection:"column", gap:6}}>
-                {holeShots.map((s, i) => {
-                  const toPin = Math.round(haversineYards(s.to.lat, s.to.lng, hole.green.lat, hole.green.lng));
-                  return (
-                    <div key={i} style={{background:"#0f2818", border:"0.5px solid #2d5a3d", borderRadius:10, padding:"10px 12px", fontSize:20}}>
-                      <span style={{color:"#c8d8cc"}}>Shot {i+1}: </span>
-                      <span style={{fontWeight:800, color:PLAYER_COLOR}}>{fmtShort(s.yards)}</span>
-                      <span style={{color:"#c8d8cc"}}> · {fmtShort(toPin)} to pin</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          <button onClick={() => setScreen("complete")}
-            style={{width:"100%", padding:"12px", borderRadius:12, marginTop:8, border:"1px solid #2d5a3d", background:"transparent",
-              color:"#c8d8cc", fontSize:17, fontWeight:700, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
-            🏁 Finish round
-          </button>
-            </div>)}
           </div>
-          <TabBar active="hole" onSelect={setTab} onGame={() => {}} />
+          )}
+          <TabBar active="hole" onSelect={setTab} onGame={() => {}} scoring={scoring}
+            onScore={() => { if (scoring) toggleScorecard(); else startScoring(); }} />
         </div>
 
         {/* Full-screen scorecard overlay — top level of play stage, above everything */}

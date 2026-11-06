@@ -801,11 +801,11 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       </div>
 
       {/* Camera height and tilt (hold to keep going) */}
-      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 194, bottom: pad.bottom + 12, width: 48, zIndex: 1001, display: "flex", flexDirection: "column", gap: 4 }}>
+      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 64, bottom: pad.bottom + 12 + 124 + 6, width: 124, zIndex: 1001, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
         {[["h", 1, "▲", "HIGHER", "Raise the camera"], ["h", -1, "▼", "LOWER", "Lower the camera"],
           ["p", 1, "◠", "LOOK UP", "Tilt the view up"], ["p", -1, "◡", "LOOK DN", "Tilt the view down"]].map(([axis, v, sym, label, aria]) => (
           <button key={label} aria-label={aria} data-h={axis === "h" ? v : 0} data-p={axis === "p" ? v : 0} {...padEvents}
-            style={{ height: 28, borderRadius: 8, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
+            style={{ height: 26, borderRadius: 8, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 3, padding: 0, cursor: "pointer", touchAction: "none",
               userSelect: "none", WebkitUserSelect: "none", boxShadow: "0 3px 10px rgba(0,0,0,0.5)" }}>
             <span style={{ fontSize: 10, lineHeight: 1 }}>{sym}</span>
