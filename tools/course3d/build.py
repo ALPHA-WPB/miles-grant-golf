@@ -321,6 +321,8 @@ for num, t in traced['holes'].items():
         gp = Polygon(g)
         k = math.cos(math.radians(gp.centroid.y))
         sand = unary_union([b.buffer(0.8 / M_PER_DEG) for b in all_bunkers if b.distance(gp) < 10 / M_PER_DEG] or [Polygon()])
+        # cut tiers around the green: a ~4.5 m first-cut collar, then the 1.2 m fringe, then the green
+        add(gp.buffer(4.5 / M_PER_DEG / k, 32).difference(sand), kind='collar', hole=int(num))
         add(gp.buffer(1.2 / M_PER_DEG / k, 24).difference(sand), kind='fringe', hole=int(num))
         gp = gp.difference(sand)
         add(gp, kind='green', hole=int(num))

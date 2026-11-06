@@ -216,6 +216,8 @@ function buildStyle(course) {
       fill("fairway", "fairway", "#79c552"),
       fill("stripe", "stripe", "#86d05e"),
       { id: "fairway-edge", type: "line", source: "ground", filter: kind("fairway"), paint: { "line-color": "#4f9a45", "line-width": 6, "line-blur": 5, "line-opacity": 0.75 } },
+      fill("collar", "collar", "#6fbd4f"),
+      { id: "collar-edge", type: "line", source: "ground", filter: kind("collar"), paint: { "line-color": "#4f9a45", "line-width": 4, "line-blur": 4, "line-opacity": 0.6 } },
       fill("fringe", "fringe", "#62b348"),
       fill("green", "green", "#a3e672"),
       { id: "green-edge", type: "line", source: "ground", filter: kind("green"), paint: { "line-color": "#6cba4d", "line-width": 3, "line-blur": 3, "line-opacity": 0.8 } },
@@ -736,18 +738,18 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         geometry: { type: "LineString", coordinates: Array.from({ length: 73 }, (_, i) => { const p = destPoint(hole.green.lat, hole.green.lng, i * 5, y); return [p.lng, p.lat]; }) } })) });
       arcs.forEach(y => {
         const p = destPoint(hole.green.lat, hole.green.lng, back, y);
-        track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`) }).setLngLat([p.lng, p.lat]).addTo(map));
+        track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`), opacityWhenCovered: "1" }).setLngLat([p.lng, p.lat]).addTo(map));
       });
       COURSE_PLACES.forEach(p => placeMarkers.add(track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map))));
       [["champ", "#3b82f6"], ["mens", "#f8f8f6", "#334155"], ["womens", "#ef4444"]].forEach(([k, c, ring]) =>
-        track(new maplibregl.Marker({ element: el(dotHtml(c, ring)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
+        track(new maplibregl.Marker({ element: el(dotHtml(c, ring)), opacityWhenCovered: "1" }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
       flagMarker = track(new maplibregl.Marker({ element: el(flagHtml(hole.number)), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
 
       // Realistic look: textured turf and sand, and the three.js trees and houses in place of
       // the simple block ones (which stay as a fallback if the 3D layer can't start)
       try {
         Object.entries(GROUND_TEXTURES).forEach(([id, make]) => { if (!map.hasImage(id)) map.addImage(id, make(), { pixelRatio: 2 }); });
-        [["course", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["fringe", "tex-fringe"],
+        [["course", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
         map.setPaintProperty("bg", "background-pattern", "tex-ground");
       } catch { /* plain colors remain */ }
@@ -821,8 +823,9 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         if (e.target.closest("[data-view]")) lookFrom(pt); else clearMeasure();
       });
       measureMarkersRef.current = [
-        track(new maplibregl.Marker({ element: dot }).setLngLat([pt.lng, pt.lat]).addTo(map)),
-        track(new maplibregl.Marker({ element: label, ...labelPlacement(map.project([pt.lng, pt.lat]).x, map.getContainer().clientWidth) })
+        // solid even when the terrain "covers" the point (MapLibre dims covered markers to 0.2)
+        track(new maplibregl.Marker({ element: dot, opacityWhenCovered: "1" }).setLngLat([pt.lng, pt.lat]).addTo(map)),
+        track(new maplibregl.Marker({ element: label, opacityWhenCovered: "1", ...labelPlacement(map.project([pt.lng, pt.lat]).x, map.getContainer().clientWidth) })
           .setLngLat([pt.lng, pt.lat]).addTo(map)),
       ];
       try { navigator.vibrate?.(12); } catch { /* ignore */ }
@@ -904,7 +907,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       if (gpsMarkerRef.current) { gpsMarkerRef.current.remove(); gpsMarkerRef.current = null; }
       if (!gps) return;
       const node = el(`<div style="display:flex;align-items:center;gap:6px"><div style="width:16px;height:16px;border-radius:50%;background:#4ade80;border:2px solid #fff;box-shadow:0 0 0 4px rgba(74,222,128,0.3)"></div>${tagHtml("You", "#4ade80", "#4ade80")}</div>`);
-      gpsMarkerRef.current = track(new maplibregl.Marker({ element: node, anchor: "left", offset: [-8, 0] }).setLngLat([gps.lng, gps.lat]).addTo(map));
+      gpsMarkerRef.current = track(new maplibregl.Marker({ element: node, anchor: "left", offset: [-8, 0], opacityWhenCovered: "1" }).setLngLat([gps.lng, gps.lat]).addTo(map));
     });
    
   }, [gps, tee]);
@@ -920,7 +923,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       holeShots.forEach(s => {
         const mid = [(s.from.lng + s.to.lng) / 2, (s.from.lat + s.to.lat) / 2];
         const label = formatShort ? formatShort(s.yards) : `${s.yards} yds`;
-        shotMarkersRef.current.push(track(new maplibregl.Marker({ element: el(tagHtml(label, playerColor || "#4ade80", playerColor || "#4ade80")) }).setLngLat(mid).addTo(map)));
+        shotMarkersRef.current.push(track(new maplibregl.Marker({ element: el(tagHtml(label, playerColor || "#4ade80", playerColor || "#4ade80")), opacityWhenCovered: "1" }).setLngLat(mid).addTo(map)));
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
