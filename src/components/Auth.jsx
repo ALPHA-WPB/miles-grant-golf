@@ -19,7 +19,8 @@ const css = `
   .auth-btn-social { background: rgba(255,255,255,0.08); border: 0.5px solid rgba(255,255,255,0.2) !important; color: #f0ead6; display: flex; align-items: center; justify-content: center; gap: 10px; }
   .auth-divider { display: flex; align-items: center; gap: 12px; color: #4a6a54; font-size: 11px; }
   .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 0.5px; background: rgba(255,255,255,0.12); }
-  .auth-help-btn { position: fixed; top: max(env(safe-area-inset-top),14px); right: 16px; z-index: 10; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 0.5px solid rgba(255,255,255,0.2); color: #f0ead6; font-family: 'Playfair Display',serif; font-weight: 700; font-size: 16px; cursor: pointer; }
+  .auth-help-btn { position: fixed; top: max(env(safe-area-inset-top),14px); right: 16px; z-index: 10; height: 36px; padding: 0 13px 0 11px; border-radius: 18px; display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.1); border: 0.5px solid rgba(255,255,255,0.25); color: #f0ead6; font: 700 14px Inter,sans-serif; cursor: pointer; }
+  .auth-help-btn .q { font: 700 18px 'Playfair Display',serif; line-height: 1; }
 `;
 
 export default function Auth({ onGuest, onShowInstructions }) {
@@ -41,7 +42,7 @@ export default function Auth({ onGuest, onShowInstructions }) {
       <div className="auth-bg" />
       <div className="auth-overlay" />
       {onShowInstructions && (
-        <button className="auth-help-btn" onClick={onShowInstructions} aria-label="How this app works">?</button>
+        <button className="auth-help-btn" onClick={onShowInstructions} aria-label="How this app works"><span className="q">?</span>Help</button>
       )}
       <div style={{position:"relative", zIndex:2, height:"100dvh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"max(env(safe-area-inset-bottom),28px)"}}>
         <div style={{textAlign:"center", marginBottom:"1rem"}}>

@@ -677,7 +677,8 @@ const css = `
   .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
   .hole-pill { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); border-radius: 50px; padding: 6px 16px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none; }
   .longest-pill { position: absolute; top: 52px; left: 12px; z-index: 1000; display: flex; flex-direction: column; gap: 2px; background: rgba(0,0,0,0.78); border: 2px solid #d4af37; border-radius: 12px; padding: 5px 10px; pointer-events: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 44px; height: 44px; border-radius: 50%; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); color: #c9a84c; font-family: 'Playfair Display',serif; font-weight: 700; font-size: 24px; cursor: pointer; }
+  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 50px; height: 56px; padding: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: rgba(6,20,12,0.82); border: 2px solid #d4af37; box-shadow: 0 3px 14px rgba(0,0,0,0.55); color: #f0ead6; font: 800 11px Inter,sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+  .help-pill .q { font: 700 25px 'Playfair Display',serif; line-height: 1; color: #d4af37; }
   .shot-pill { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; border: none; border-radius: 50px; cursor: pointer; font-family: 'Inter',sans-serif; font-size: 16px; font-weight: 700; padding: 14px 32px; white-space: nowrap; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: all 0.2s; }
   .shot-pill-idle { background: rgba(255,255,255,0.15); color: #4ade80; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
   .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
@@ -762,12 +763,6 @@ const css = `
   .shot-flash-label { font-size: 18px; color: #f0ead6; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; }
   @keyframes shot-flash-bg { 0% { opacity: 0; } 6% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
   @keyframes shot-flash-pop { 0% { opacity: 0; transform: scale(0.75); } 8% { opacity: 1; transform: scale(1); } 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.92); } }
-  .tap-hint-overlay { position: fixed; inset: 0; z-index: 2900; display: flex; align-items: center; justify-content: center; pointer-events: none; background: rgba(5,16,10,0.6); animation: tap-hint-bg 4s ease forwards; }
-  .tap-hint-inner { text-align: center; padding: 0 2rem; animation: tap-hint-pop 4s cubic-bezier(.2,.9,.3,1) forwards; }
-  .tap-hint-title { font-family: 'Playfair Display',serif; font-size: 34px; font-weight: 700; color: #fbbf24; line-height: 1.2; text-shadow: 0 4px 24px rgba(251,191,36,0.4); }
-  .tap-hint-sub { font-size: 14px; color: #f0ead6; margin-top: 10px; letter-spacing: 0.02em; }
-  @keyframes tap-hint-bg { 0% { opacity: 0; } 10% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
-  @keyframes tap-hint-pop { 0% { opacity: 0; transform: scale(0.85); } 12% { opacity: 1; transform: scale(1); } 75% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.95); } }
 `;
 
 function GuestUpsell({ feature, onExitGuest }) {
@@ -913,7 +908,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const candidateRef                = useRef({ idx: null, count: 0 });
   const promptAtTeeRef              = useRef(false);  // prompt came from standing at a tee
   const [shotFlash, setShotFlash]   = useState(null);
-  const [tapHint, setTapHint]       = useState(null);
   const [locationReady, setLocationReady] = useState(false);
   const [longestToday, setLongestToday] = useState(() => {
     try { return Number(localStorage.getItem(longestKey())) || 0; } catch { return 0; }
@@ -1126,25 +1120,10 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   );
 
   useEffect(() => {
-    if (screen !== "hole") return;
-    try {
-      if (localStorage.getItem("mg_seen_tap_hint")) return;
-      localStorage.setItem("mg_seen_tap_hint", "1");
-      setTapHint({ id: Date.now() });
-    } catch { /* ignore */ }
-  }, [screen]);
-
-  useEffect(() => {
     if (!shotFlash) return;
     const t = setTimeout(() => setShotFlash(null), 7000);
     return () => clearTimeout(t);
   }, [shotFlash]);
-
-  useEffect(() => {
-    if (!tapHint) return;
-    const t = setTimeout(() => setTapHint(null), 4000);
-    return () => clearTimeout(t);
-  }, [tapHint]);
 
   // ── Automatic hole detection ─────────────────────────────
   // When you walk up to a different hole's tee box, ask "On Hole X?"
@@ -1388,7 +1367,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   function markShot() {
     if (!gps) return;
-    setTapHint(null);
     if (shotFrom) {
       const yards = Math.round(haversineYards(shotFrom.lat, shotFrom.lng, gps.lat, gps.lng));
       const toPin = Math.round(haversineYards(gps.lat, gps.lng, hole.green.lat, hole.green.lng));
@@ -1609,16 +1587,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     </div>
   );
 
-  const tapHintOverlay = tapHint && (
-    <div key={tapHint.id} className="tap-hint-overlay">
-      <div className="tap-hint-inner">
-        <p className="tap-hint-title">🏌️ Tap the big gold button</p>
-        <p className="tap-hint-title">before every swing</p>
-        <p className="tap-hint-sub" style={{fontSize:20}}>Then tap it again when you reach your ball</p>
-      </div>
-    </div>
-  );
-
   // ── Round Complete screen ─────────────────────────────────────
   if (screen === "complete") {
     const ts = totalScore(), tp = totalPar(), diff2 = ts - tp;
@@ -1816,7 +1784,6 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     <div className="app">
       <style>{css}</style>
       {shotFlashOverlay}
-      {tapHintOverlay}
       {holePromptSheet}
       {holePicker}
       {gpsUi}
@@ -1863,7 +1830,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           )}
         </div>
         {onShowInstructions && (
-          <button className="help-pill play-help" onClick={onShowInstructions} aria-label="How this app works" style={{ opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>?</button>
+          <button className="help-pill play-help" onClick={onShowInstructions} aria-label="How this app works" style={{ opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}><span className="q">?</span>Help</button>
         )}
 
         {/* Left: the two most important numbers */}

@@ -1,62 +1,55 @@
 const SECTIONS = [
   {
-    title: "⛳ Distance to the pin",
-    body: "The big gold number is how far you are from the center of the green. It updates as you walk.",
+    title: "⛳ Yards to the pin",
+    body: "The To pin box shows how far you are from today's pin. It updates as you walk.",
   },
   {
-    title: "🧭 Changing holes",
-    body: "When you open the app, it shows the hole you're closest to — tap Start. When you walk onto the next tee, a big message asks \"Moving to Hole 6?\" — tap Yes. You can also tap \"Change hole\" under the hole number any time.",
+    title: "🎬 3D fly-over",
+    body: "Each hole opens with a fly-over. Slide the bar to fly along the hole, use the arrows to look around, and tap FLY to replay. SAT shows the satellite photo.",
   },
   {
-    title: "🏌️ Measuring your shot",
-    body: "1. Before you swing, tap the big flashing button.\n2. Hit your shot.\n3. Walk to your ball and tap the button again.\n\nThe screen shows your shot number, how far you hit it, and how far you have left to the pin.",
+    title: "🏌️ Measure a shot",
+    body: "Tap the ball button (bottom right) before you swing, then again at your ball. You'll see how far it went and what's left.",
   },
   {
-    title: "🏆 Keeping score (optional)",
-    body: "Want to play a full round? Tap \"Keep score for a round\". Tap \"In the cup\" when you finish each hole, and \"Finish round\" when you're done. Play 9, 18, or just a few holes.",
+    title: "🧭 Next hole",
+    body: "Walk onto the next tee and the app asks \"Moving to Hole 6?\" Tap Yes. Or tap Change under the hole number.",
   },
   {
-    title: "🎯 Your tee",
-    body: "Set Blue, White, or Red once on the Me tab. The app remembers it.",
+    title: "⚡ Weather & lightning",
+    body: "Tap the weather boxes for the forecast and radar. If lightning strikes within 20 miles, a yellow banner warns you and shows when it's all clear.",
   },
   {
-    title: "👤 Guest or account",
-    body: "Guest: play free — nothing is saved. Your round is erased when you close the app, and guests don't appear on the leaderboard.\n\nFree account: saves your rounds and puts you on the club leaderboard.",
-  },
-  {
-    title: "❓ Need this again?",
-    body: "Tap the round ? button in the top-right corner of the map any time.",
+    title: "📋 Score & your tee",
+    body: "Tap Keep score to track a round. Pick Blue, White or Red tees on the Me tab. A free account saves your rounds and puts you on the leaderboard; guests' rounds aren't saved.",
   },
 ];
 
 export default function Instructions({ onClose }) {
   return (
-    <div role="dialog" aria-modal="true" className="instr-root"
+    <div role="dialog" aria-modal="true" aria-label="How it works"
       style={{position:"fixed", inset:0, zIndex:4000, background:"#06140c", overflowY:"auto", fontFamily:"'Inter',sans-serif", color:"#f0ead6"}}>
-      <style>{`
-        .instr-root .skip-bar { display: block; width: 100%; margin-top: 12px; padding: 7px 10px; border-radius: 10px; border: 1px solid #d4af37;
-          font-size: 15px; font-weight: 800; letter-spacing: 0.03em; cursor: pointer; font-family: 'Inter',sans-serif;
-          animation: skip-flash 1.4s ease-in-out infinite; }
-        @keyframes skip-flash { 0%,100% { background: rgba(212,175,55,0.12); color: #d4af37; } 50% { background: #d4af37; color: #000; } }
-      `}</style>
-      <div style={{maxWidth:520, margin:"0 auto", padding:"max(env(safe-area-inset-top),24px) 1.25rem 3rem"}}>
-        <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:34, color:"#d4af37", textAlign:"center", marginBottom:"1.25rem"}}>
-          How it works
-        </h2>
-        <div style={{display:"flex", flexDirection:"column", gap:14}}>
+      <div style={{maxWidth:520, margin:"0 auto", padding:"max(env(safe-area-inset-top),20px) 1.1rem 2.5rem"}}>
+        <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"1rem"}}>
+          <h2 style={{fontFamily:"'Playfair Display',serif", fontSize:30, color:"#d4af37"}}>How it works</h2>
+          <button onClick={onClose}
+            style={{padding:"9px 16px", borderRadius:999, border:"1px solid #d4af37", background:"rgba(212,175,55,0.12)", color:"#d4af37", fontWeight:800, fontSize:15, cursor:"pointer", fontFamily:"'Inter',sans-serif"}}>
+            Skip ›
+          </button>
+        </div>
+        <div style={{display:"flex", flexDirection:"column", gap:10}}>
           {SECTIONS.map(s => (
-            <div key={s.title} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(212,175,55,0.35)", borderRadius:16, padding:"16px 18px"}}>
-              <p style={{fontWeight:800, fontSize:23, color:"#d4af37", marginBottom:8}}>{s.title}</p>
-              <p style={{fontSize:20, color:"#f0ead6", lineHeight:1.5, whiteSpace:"pre-line"}}>{s.body}</p>
-              <button onClick={onClose} className="skip-bar">Got it — skip to the app ›</button>
+            <div key={s.title} style={{background:"rgba(255,255,255,0.05)", border:"1px solid rgba(212,175,55,0.3)", borderRadius:14, padding:"12px 15px"}}>
+              <p style={{fontWeight:800, fontSize:19, color:"#d4af37", marginBottom:4}}>{s.title}</p>
+              <p style={{fontSize:17, color:"#f0ead6", lineHeight:1.45}}>{s.body}</p>
             </div>
           ))}
         </div>
-        <p style={{textAlign:"center", fontSize:14, color:"#c8d8cc", marginTop:18, lineHeight:1.5}}>
-          The Unofficial Miles Grant Golf Companion App. Not affiliated with or endorsed by Miles Grant Country Club. Made free by a member, for members.
+        <p style={{textAlign:"center", fontSize:13, color:"#c8d8cc", marginTop:14, lineHeight:1.5}}>
+          Tap <b>? Help</b> at the top right to see this again. Unofficial app, not affiliated with Miles Grant Country Club. Made free by a member, for members.
         </p>
         <button onClick={onClose}
-          style={{width:"100%", marginTop:22, padding:"22px", borderRadius:16, border:"none", background:"#d4af37", color:"#000", fontWeight:900, fontSize:26, cursor:"pointer", fontFamily:"'Inter',sans-serif", letterSpacing:"0.03em"}}>
+          style={{width:"100%", marginTop:16, padding:"18px", borderRadius:16, border:"none", background:"#d4af37", color:"#000", fontWeight:900, fontSize:24, cursor:"pointer", fontFamily:"'Inter',sans-serif", letterSpacing:"0.03em"}}>
           Got it
         </button>
       </div>
