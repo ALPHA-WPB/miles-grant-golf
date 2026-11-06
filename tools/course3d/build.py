@@ -261,6 +261,10 @@ for e in osm:
         add(Polygon(ring(e)), kind='water')
     elif t.get('highway') in ('residential', 'tertiary', 'service', 'unclassified', 'primary', 'secondary'):
         add(LineString(ring(e)), kind='road', cls=t['highway'])
+# Club housing OpenStreetMap lacks (condos etc.), found in the imagery by houses_kit.py; only inside
+# the club perimeter (the area enclosed by Miles Grant Road and Cove Road)
+for i, hs in enumerate(traced.get('houses', [])):
+    add(Polygon(hs['ring']), kind='building', h=hs.get('h', 5.5), c=i % 4)
 
 M_PER_DEG = 111320
 def meters_poly(lng, lat, coords_m):
