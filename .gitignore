@@ -26,3 +26,4 @@ dist-ssr
 .wrangler
 .dev.vars
 node-v*.tar.gz
+tools/course3d/.cache/

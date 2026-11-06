@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import toast from "react-hot-toast";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-rotate";
@@ -12,6 +13,8 @@ import Leaderboard from "./components/Leaderboard";
 import RoundHistory from "./components/RoundHistory";
 import Profile from "./components/Profile";
 import AdminUsers, { isAdmin } from "./components/AdminUsers";
+import { loadCourse3d } from "./lib/course3d";
+const HoleMap3D = lazy(() => import("./components/HoleMap3D"));
 
 const HOLES = [
   // ── Front Nine ──────────────────────────────────────────────
@@ -895,6 +898,13 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   // Rain radar overlay: manual toggle, plus one automatic switch-on when rain is close
   const [radarOn, setRadarOn] = useState(false);
+  // Illustrated 3D map: remembered per device; loads its data only once switched on
+  const [mapMode, setMapMode] = useState(() => { try { return localStorage.getItem('mgg_map_mode') === '3d' ? '3d' : '2d'; } catch { return '2d'; } });
+  const [course3d, setCourse3d] = useState(null);
+  useEffect(() => {
+    try { localStorage.setItem('mgg_map_mode', mapMode); } catch { /* private mode */ }
+    if (mapMode === '3d' && !course3d) loadCourse3d().then(setCourse3d).catch(() => { setMapMode('2d'); toast.error('3D view needs a connection the first time'); });
+  }, [mapMode, course3d]);
   const radarAutoRef = useRef(false);
   useEffect(() => {
     const m = weather?.rainMins;
@@ -1705,14 +1715,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       {/* Full-screen map with overlays */}
       <div className="play-stage">
         <div className="play-map">
-          <HoleMap hole={hole} tee={playerTee} gps={gps} holeShots={holeShots} key={hole.number}
-            recenterTick={recenterTick}
-            approachMode={dtg != null && dtg <= 100}
-            radarOn={radarOn}
-            onMapTap={handleMapTap}
-            onMapMove={handleMapMove}
-            onMapMoveEnd={handleMapMoveEnd}
-            pad={{ top: topH + 16, bottom: dockH + 20, left: 24, right: 24 }} />
+          {(() => {
+            const mapProps = {
+              hole, tee: playerTee, gps, holeShots, recenterTick, radarOn,
+              approachMode: dtg != null && dtg <= 100,
+              onMapTap: handleMapTap, onMapMove: handleMapMove, onMapMoveEnd: handleMapMoveEnd,
+              pad: { top: topH + 16, bottom: dockH + 20, left: 24, right: 24 },
+            };
+            return mapMode === '3d' && course3d?.holes?.includes(hole.number)
+              ? <Suspense key={'3d' + hole.number} fallback={<div style={{ position: 'absolute', inset: 0, background: '#cdd6c1' }} />}>
+                  <HoleMap3D {...mapProps} course={course3d} formatShort={fmtShort} playerColor={PLAYER_COLOR} />
+                </Suspense>
+              : <HoleMap {...mapProps} key={hole.number} />;
+          })()}
         </div>
 
         {/* Top: hole bar with prev / next arrows */}
@@ -1846,6 +1861,27 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             <p className="side-box-label" style={{ fontSize: 9 }}>Radar</p>
             <p style={{ fontSize: 17, lineHeight: 1.2, margin: 0 }}>{radarOn ? '🌧️' : '📡'}</p>
           </button>
+
+          {/* 2D satellite / 3D illustrated map toggle */}
+          {(() => {
+            const has3d = !course3d || course3d.holes?.includes(hole.number);
+            const showing3d = mapMode === '3d' && has3d;
+            return (
+              <button onClick={() => {
+                  const next = mapMode === '3d' ? '2d' : '3d';
+                  setMapMode(next);
+                  if (next === '3d' && course3d && !course3d.holes?.includes(hole.number))
+                    toast(`3D graphics are ready for holes ${course3d.holes.join(', ')} so far`);
+                }}
+                className="side-box" aria-label={showing3d ? 'Switch to satellite map' : 'Switch to 3D course map'}
+                style={{ width: 56, padding: '5px 4px 4px', textAlign: 'center', cursor: 'pointer',
+                  background: showing3d ? 'rgba(201,168,76,0.3)' : 'rgba(6,20,12,0.78)' }}>
+                <p className="side-box-label" style={{ fontSize: 9 }}>View</p>
+                <p style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.25, margin: 0, color: '#f0ead6' }}>{showing3d ? '3D' : '2D'}</p>
+                {mapMode === '3d' && !has3d && <p style={{ fontSize: 8, margin: 0, color: '#c9a84c' }}>3D soon</p>}
+              </button>
+            );
+          })()}
 
           {/* Scorecard toggle button */}
           {scoring && (
