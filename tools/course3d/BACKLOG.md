@@ -54,7 +54,7 @@ broken.
 - [x] 9. (620baf5) Trace hole 11.
 - [x] 10. (db859a5) Trace hole 12.
 - [x] 11. (f2fb319) Trace hole 13.
-- [ ] 12. Trace hole 14.
+- [x] 12. (e4e0a1f) Trace hole 14.
 - [ ] 13. Trace hole 15.
 - [ ] 14. Trace hole 16.
 - [ ] 15. Trace hole 17.
@@ -74,6 +74,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 12 (e4e0a1f): hole 14 traced (par 4) — green oval (~16×19 m) inside its ring of four bunkers, back tee strip (~24×7 m, two markers) beside the hedge, forward tee oval, paved cart path behind the back tee. Fairway (~13–21 m wide) follows the mowed band NORTH of the palm row (the straight tee→green line runs through the palms), ending short of the green's front-left bunker. Fairway width/position is the least certain part — owner please compare. course.json is now 1.52 MB raw (over the old 1.5 MB guide; gzip ~0.3 MB) — 4 holes left.
 - 2026-11-06: item 11 (f2fb319): hole 13 traced (par 3, no fairway) — round green (~16×17 m) just south of the left and back bunkers (the green's edge is faint on the photo; owner may want to check its position against Google 3D), one tee strip (~25×6 m) along the road holding all three markers. No paved cart path on this hole. course.json is now 1.49 MB (guide was <1.5 MB) — 5 more holes will push it to ~1.55 MB; a later run should raise the terrain grid spacing or trim precision if the size matters.
 - 2026-11-06: item 10 (db859a5): hole 12 traced (par 3, no fairway) — green oval (~13×19 m, leaning NE) between its two right-side bunkers, one tee strip (~26×6 m) with all three markers, cart path from the tee toward the condos. The tee dropped a false tree on the shadow of the real tree south of the tee (that tree stays). For item 18: the 'bunker' at ~(670,570) hole12 px west of the tee is bare dirt, not sand. Previewed in 3D, no errors.
 - 2026-11-06: item 9 (620baf5): hole 11 traced (par 3, no fairway) — tall green oval (~16×22 m) between the left and right bunkers, one diagonal tee strip (~20×6 m) holding all three markers, paved cart paths behind the tee and short of the green. For item 18: small sand patch at ~(575,516) hole11 px by the tee-side planter is probably a planter bed, not a bunker. Previewed in 3D, no errors.
