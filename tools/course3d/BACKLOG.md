@@ -43,7 +43,7 @@ broken.
   without duplicates. Verify holes 1–3 still look the same (`check 1..3`), tree/bunker counts sane,
   course.json size reasonable (<1.5 MB; raise terrain grid spacing to 4 m if needed).
 - [x] 2. (89e28e6) Trace hole 4 (green, tees, fairway spine, cart paths visible on the photo).
-- [ ] 3. Trace hole 5.
+- [x] 3. (31e9bf0) Trace hole 5.
 - [ ] 4. Trace hole 6.
 - [ ] 5. Trace hole 7.
 - [ ] 6. Trace hole 8.
@@ -72,6 +72,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 3 (31e9bf0): hole 5 traced — green oval (~20×24 m, clear of the right bunker), 2 tee ovals (west one partly under a tree canopy, edges estimated). Par 3, no fairway (like holes 2–3). The paved loop is an OSM road, so no cart path added. For item 18: small sand ring around a shrub just south of the back tee (~937,440 in hole5 px) is not a bunker in the data — may be a planter. Untracked MilesGrantGolf-Architecture.pdf (Oct 18) in the repo root left alone.
 - 2026-11-06: item 2 (89e28e6): hole 4 traced — green oval, 3 tee ovals, fairway along the mowed corridor (no paved cart path visible on this hole). Owner may want to eyeball the fairway width (~26 m) in 3D.
 - 2026-11-06: item 1 (467afbb): one whole-course detection region; holes 1–3 unchanged (29 bunkers, 311 palms, +1 real oak at the old edge); 1,912 trees / 67 bunkers course-wide (bunker count looks low for 18 holes — item 18 audit should check for missed bunkers); course.json 1.2 MB.
 - 2026-11-06: hole 1 palms: owner flagged missing palms (group of 3 short of the green, others along the south side) — 10 added by hand at trunk bases; build.py now follows each palm's trunk shadow south to its base (381 of 618 palms course-wide were sitting on their crown shadows, ~4–12 m too far north) and turns small 'oaks' with a trunk shadow into palms; 4 false shadow-trees removed on hole 1.
