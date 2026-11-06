@@ -52,7 +52,7 @@ broken.
 - [x] 7. (68a3092) Trace hole 9.
 - [x] 8. (f927a05) Trace hole 10.
 - [x] 9. (620baf5) Trace hole 11.
-- [ ] 10. Trace hole 12.
+- [x] 10. (db859a5) Trace hole 12.
 - [ ] 11. Trace hole 13.
 - [ ] 12. Trace hole 14.
 - [ ] 13. Trace hole 15.
@@ -74,6 +74,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 10 (db859a5): hole 12 traced (par 3, no fairway) — green oval (~13×19 m, leaning NE) between its two right-side bunkers, one tee strip (~26×6 m) with all three markers, cart path from the tee toward the condos. The tee dropped a false tree on the shadow of the real tree south of the tee (that tree stays). For item 18: the 'bunker' at ~(670,570) hole12 px west of the tee is bare dirt, not sand. Previewed in 3D, no errors.
 - 2026-11-06: item 9 (620baf5): hole 11 traced (par 3, no fairway) — tall green oval (~16×22 m) between the left and right bunkers, one diagonal tee strip (~20×6 m) holding all three markers, paved cart paths behind the tee and short of the green. For item 18: small sand patch at ~(575,516) hole11 px by the tee-side planter is probably a planter bed, not a bunker. Previewed in 3D, no errors.
 - 2026-11-06: item 8 (f927a05): hole 10 traced (par 4) — green oval (~14×19 m) between the back-right and front-right bunkers, forward tee oval, back tee strip (~27×8 m, both back markers) along the paved cart path (path added from the forward tee past the back tee toward the clubhouse). Fairway winds between the tree groups (narrow, ~13 m, at x≈740 hole10 px where trees close in on both sides; nudged north at x≈1415 to keep a real tree). The north cart path near (1600–1720, 180–320) was not added (off this hole's line). Previewed in 3D, no errors.
 - 2026-11-06: item 7 (68a3092): hole 9 traced (par 4) — green oval (~23×15 m) between the front-left and right bunkers, 3 separate tee ovals, fairway (~20–28 m wide) from just past the tee-side trees (x≈900 hole9 px) to the green front, kept clear of the real oak at ~(932,506) and of the palms along the south edge. Fairway edges are faint on the photo between x 1300–1500 (narrow gap between trees) — owner may want to eyeball its width there. Previewed in 3D, no errors.
