@@ -8,6 +8,7 @@ import { roundService } from "./services/roundService";
 import Auth from "./components/Auth";
 import Instructions from "./components/Instructions";
 import GolfBall from "./components/GolfBall";
+import WeatherPanel from "./components/WeatherPanel";
 import LocationGate from "./components/LocationGate";
 import GpsBanner from "./components/GpsBanner";
 import Leaderboard from "./components/Leaderboard";
@@ -919,6 +920,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const watchRef                    = useRef(null);
   const [wind, setWind]             = useState(null);   // { speed, dir } in mph + degrees
   const [weather, setWeather]       = useState(null);   // { tempF, rainMins } rainMins=null means clear
+  const [showWeather, setShowWeather] = useState(false); // hourly weather overlay
 
   // Rain radar overlay: manual toggle, plus one automatic switch-on when rain is close
   const [radarOn, setRadarOn] = useState(false);
@@ -1797,6 +1799,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
       {holePicker}
       {gpsUi}
 
+      {showWeather && <WeatherPanel onClose={() => setShowWeather(false)} />}
       {/* Full-screen map with overlays */}
       <div className="play-stage">
         <div className="play-map">
@@ -1882,7 +1885,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         <div style={{ position: 'absolute', top: topH + 8, bottom: dockH + 140, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', overflow: 'hidden', opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
           {/* Temperature box */}
           {weather && (
-            <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
+            <div className="side-box" role="button" aria-label="Show the hourly forecast" onClick={() => setShowWeather(true)}
+              style={{ width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
               <p className="side-box-label" style={{ fontSize: 9 }}>Temp</p>
               <p className="side-box-num mid" style={{ fontSize: 22, lineHeight: 1.1 }}>{weather.tempF}</p>
               <p className="side-box-unit" style={{ fontSize: 9 }}>°F</p>
@@ -1913,7 +1917,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
           {/* Rain box */}
           {weather && (
-            <div className="side-box" style={{ width: 56, padding: '6px 4px', textAlign: 'center' }}>
+            <div className="side-box" role="button" aria-label="Show the hourly forecast" onClick={() => setShowWeather(true)}
+              style={{ width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
               <p className="side-box-label" style={{ fontSize: 9 }}>Rain</p>
               {weather.rainMins === null ? (
                 <>
