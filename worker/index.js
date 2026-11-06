@@ -2,6 +2,7 @@ import { CANONICAL_HOST, json, error, escapeHtml } from './util.js';
 import { getSessionUser, signOut, googleStart, googleCallback, appleStart, appleCallback, unauthorized } from './auth.js';
 import { createRound, upsertScore, finalizeRound, roundHistory, leaderboard, adminUsers } from './api.js';
 import { lightning } from './lightning.js';
+import { getPins, setPin, resetPin } from './pins.js';
 
 const ALERT_FROM = 'Miles Grant Golf <alerts@milesgrant.golf>';
 
@@ -35,6 +36,7 @@ async function handleApi(request, env, ctx, url) {
   if (p === '/api/auth/signout' && m === 'POST') return signOut(request, env);
   if (p === '/api/leaderboard' && m === 'GET') return leaderboard(env);
   if (p === '/api/lightning' && m === 'GET') return lightning(ctx);
+  if (p === '/api/pins' && m === 'GET') return getPins(env);
 
   const user = await getSessionUser(request, env);
   if (p === '/api/me' && m === 'GET') return json({ user });
@@ -46,6 +48,9 @@ async function handleApi(request, env, ctx, url) {
   const fin = p.match(/^\/api\/rounds\/([0-9a-f-]{36})\/finalize$/);
   if (fin && m === 'POST') return finalizeRound(request, env, user, fin[1]);
   if (p === '/api/admin/users' && m === 'GET') return adminUsers(env, user);
+  const pin = p.match(/^\/api\/pins\/(\d{1,2})$/);
+  if (pin && m === 'PUT') return setPin(request, env, user, Number(pin[1]));
+  if (pin && m === 'DELETE') return resetPin(env, user, Number(pin[1]));
 
   return error(404, 'Not found');
 }

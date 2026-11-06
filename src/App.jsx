@@ -10,6 +10,8 @@ import Instructions from "./components/Instructions";
 import GolfBall from "./components/GolfBall";
 import WeatherPanel from "./components/WeatherPanel";
 import LightningBanner from "./components/LightningBanner";
+import PinSetter from "./components/PinSetter";
+import { readCachedPins, applyPins, fetchPins, flushPending, pinAge } from "./lib/pins";
 import LocationGate from "./components/LocationGate";
 import GpsBanner from "./components/GpsBanner";
 import Leaderboard from "./components/Leaderboard";
@@ -222,6 +224,9 @@ const HOLES = [
     greenBack:  { lat: 27.14863359, lng: -80.17491051 },
   },
 ];
+
+// Today's pins (set by an admin at the cup) replace the middle of the green for yardages and the flag
+applyPins(HOLES, readCachedPins());
 
 const PLAYER_COLOR = "#4ade80";
 
@@ -922,6 +927,21 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const [wind, setWind]             = useState(null);   // { speed, dir } in mph + degrees
   const [weather, setWeather]       = useState(null);   // { tempF, rainMins } rainMins=null means clear
   const [showWeather, setShowWeather] = useState(false); // hourly weather overlay
+  const [showPinSetter, setShowPinSetter] = useState(false);   // admin: record today's pin
+  const [pinsV, setPinsV] = useState(0);                       // bumps when a pin moves (rebuilds the map)
+  useEffect(() => {
+    let dead = false;
+    const sync = async () => {
+      if (document.hidden) return;
+      try { await flushPending(); } catch { /* still offline: try again later */ }
+      try { const p = await fetchPins(); if (!dead && applyPins(HOLES, p)) setPinsV(v => v + 1); } catch { /* offline */ }
+    };
+    sync();
+    const t = setInterval(sync, 5 * 60 * 1000);
+    window.addEventListener("online", sync);
+    document.addEventListener("visibilitychange", sync);
+    return () => { dead = true; clearInterval(t); window.removeEventListener("online", sync); document.removeEventListener("visibilitychange", sync); };
+  }, []);
 
   // Rain radar overlay: manual toggle, plus one automatic switch-on when rain is close
   const [radarOn, setRadarOn] = useState(false);
@@ -1812,10 +1832,10 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               pad: { top: topH + 16, bottom: dockH + 20, left: 24, right: 24 },
             };
             return mapMode === '3d' && course3d?.holes?.includes(hole.number)
-              ? <Suspense key={'3d' + hole.number} fallback={<div style={{ position: 'absolute', inset: 0, background: '#cdd6c1' }} />}>
+              ? <Suspense key={'3d' + hole.number + '-' + pinsV} fallback={<div style={{ position: 'absolute', inset: 0, background: '#cdd6c1' }} />}>
                   <HoleMap3D {...mapProps} course={course3d} formatShort={fmtShort} playerColor={PLAYER_COLOR} />
                 </Suspense>
-              : <HoleMap {...mapProps} key={hole.number} />;
+              : <HoleMap {...mapProps} key={hole.number + '-' + pinsV} />;
           })()}
         </div>
 
@@ -1863,6 +1883,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                 ≈ plays {playsLike}
               </p>
             )}
+            {hole.pinSetAt && (
+              <p style={{ marginTop: 3, fontSize: 9, fontWeight: 700, color: 'rgba(200,216,204,0.65)', whiteSpace: 'nowrap' }}>
+                Pin {pinAge(hole.pinSetAt)}
+              </p>
+            )}
           </div>
           <div className="side-box" style={{borderColor:"rgba(212,175,55,0.6)", padding: '6px 4px 6px'}}>
             <p className="side-box-label">Shots{holeShots.length ? ` · ${holeShots.length}` : ""}</p>
@@ -1880,7 +1905,21 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               </div>
             )}
           </div>
+          {isAdmin(user) && (
+            <button className="side-box" onClick={() => setShowPinSetter(true)} aria-label={`Set today's pin on hole ${hole.number}`}
+              style={{ cursor: 'pointer', padding: '7px 4px', font: "800 12px Inter,sans-serif", color: '#d4af37', letterSpacing: '0.02em' }}>
+              📍 Set pin
+            </button>
+          )}
         </div>
+        {showPinSetter && (
+          <PinSetter hole={hole} onClose={() => setShowPinSetter(false)}
+            onSaved={({ uploaded }) => {
+              setShowPinSetter(false);
+              if (applyPins(HOLES, readCachedPins())) setPinsV(v => v + 1);
+              toast(uploaded ? `Hole ${hole.number} pin saved for everyone` : `Pin saved on your phone. It uploads when you have signal.`);
+            }} />
+        )}
 
         {/* Right-side column: temp → wind → rain → SC */}
         <div style={{ position: 'absolute', top: topH + 8, bottom: dockH + 140, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', overflow: 'hidden', opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
