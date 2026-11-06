@@ -232,6 +232,24 @@ def mow_stripes(fw, tee, green, width=7.0):
 
 regions = [Region(*reg['bbox']) for reg in traced['regions']]
 detected = [detect(rg) for rg in regions]
+
+# Roof colors: the median color of each house's footprint in the imagery (edges trimmed)
+for f in feats:
+    if f['properties']['kind'] != 'building':
+        continue
+    ring_ll = f['geometry']['coordinates'][0]
+    for rg in regions:
+        pts = np.array([rg.px(lng, lat) for lng, lat in ring_ll], np.int32)
+        H, W = rg.img.shape[:2]
+        if pts[:, 0].min() < 0 or pts[:, 1].min() < 0 or pts[:, 0].max() >= W or pts[:, 1].max() >= H:
+            continue
+        m = np.zeros((H, W), np.uint8); cv2.fillPoly(m, [pts], 1)
+        m = cv2.erode(m, np.ones((5, 5), np.uint8))
+        if m.sum() < 30:
+            continue
+        b, g, r = [int(np.median(rg.img[..., i][m > 0])) for i in range(3)]
+        f['properties']['roof'] = '#%02x%02x%02x' % (r, g, b)
+        break
 not_sand = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in traced.get('bunkerEdits', {}).get('remove', [])]
 detected = [([b for b in bs if not any(z.intersects(b) for z in not_sand)], ts) for bs, ts in detected]
 all_bunkers = [b for bs, _ in detected for b in bs]

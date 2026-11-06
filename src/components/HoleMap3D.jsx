@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { createRealisticLayer, GROUND_TEXTURES } from "./realScene";
 
 // Illustrated, tilted 3D view of a hole: drawn fairways, greens, bunkers and water
 // (public/course3d/course.json), low-poly trees and houses, plus the same overlays as
@@ -166,12 +167,15 @@ function buildStyle(course) {
         paint: { "line-color": "#f3efe4", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["*", roadW, 0.24], 20, ["*", roadW, 8]] } },
       fill("fairway", "fairway", "#79c552"),
       fill("stripe", "stripe", "#86d05e"),
+      { id: "fairway-edge", type: "line", source: "ground", filter: kind("fairway"), paint: { "line-color": "#4f9a45", "line-width": 6, "line-blur": 5, "line-opacity": 0.75 } },
       fill("fringe", "fringe", "#62b348"),
       fill("green", "green", "#a3e672"),
+      { id: "green-edge", type: "line", source: "ground", filter: kind("green"), paint: { "line-color": "#6cba4d", "line-width": 3, "line-blur": 3, "line-opacity": 0.8 } },
       fill("tee", "tee", "#8bd862"),
       { id: "tree-shadow", type: "fill", source: "treeShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.2 } },
       fill("bunker", "bunker", "#f3e4b6"),
-      { id: "bunker-edge", type: "line", source: "ground", filter: kind("bunker"), paint: { "line-color": "#d3bb80", "line-width": 1.2 } },
+      { id: "bunker-shade", type: "line", source: "ground", filter: kind("bunker"), paint: { "line-color": "#b39a62", "line-width": 6, "line-blur": 5, "line-opacity": 0.55 } },
+      { id: "bunker-edge", type: "line", source: "ground", filter: kind("bunker"), paint: { "line-color": "#3e7d36", "line-width": 1.6, "line-opacity": 0.85 } },
       { id: "arcs", type: "line", source: "arcs", paint: { "line-color": "#fff6d8", "line-width": 1.2, "line-opacity": 0.55, "line-dasharray": [1, 4] } },
       { id: "guide", type: "line", source: "guide", paint: { "line-color": "#fff3c4", "line-width": 2, "line-opacity": 0.8, "line-dasharray": [3, 3] } },
       { id: "shots", type: "line", source: "shots", layout: { "line-cap": "round" }, paint: { "line-color": "#16a34a", "line-width": 3.5, "line-opacity": 0.95 } },
@@ -398,6 +402,22 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
         track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
       track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0] }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
+
+      // Realistic look: textured turf and sand, and the three.js trees and houses in place of
+      // the simple block ones (which stay as a fallback if the 3D layer can't start)
+      try {
+        Object.entries(GROUND_TEXTURES).forEach(([id, make]) => { if (!map.hasImage(id)) map.addImage(id, make(), { pixelRatio: 2 }); });
+        [["course", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["fringe", "tex-fringe"],
+         ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
+        map.setPaintProperty("bg", "background-pattern", "tex-ground");
+      } catch { /* plain colors remain */ }
+      try {
+        map.addLayer(createRealisticLayer(course));
+        ["trees", "tree-shadow", "buildings"].forEach(id => map.setLayoutProperty(id, "visibility", "none"));
+      } catch (err) {
+        console.warn("3D trees unavailable, using simple shapes", err);
+        if (map.getLayer("real3d")) map.removeLayer("real3d");
+      }
 
       readyRef.current = true;
       const final = frameHole(map);
