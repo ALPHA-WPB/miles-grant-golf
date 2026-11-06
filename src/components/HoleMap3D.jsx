@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -7,7 +8,13 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // the satellite map (yardage arcs, press-and-hold rangefinder, shots, GPS, radar).
 
 const M = 111320;            // meters per degree of latitude
-const PITCH = 48;            // overview camera tilt
+const PITCH = 48;            // standard overview tilt
+// Camera angle presets, cycled by the Angle button
+const ANGLES = [
+  { key: "std", label: "STD", pitch: PITCH },
+  { key: "low", label: "LOW", pitch: 72 },
+  { key: "top", label: "TOP", pitch: 0 },
+];
 const FLAG_ROOM = 56;        // the flag stands above the green, so leave space at the top
 const EMPTY = { type: "FeatureCollection", features: [] };
 const flown = new Set();     // holes whose tee-to-green fly-over already played this session
@@ -151,6 +158,13 @@ const dotHtml = c => `<div style="width:14px;height:14px;border-radius:50%;backg
 const flagHtml = `<div style="position:relative;width:24px;height:44px"><div style="position:absolute;left:0;bottom:0;width:3px;height:42px;background:#fff;border-radius:2px;box-shadow:0 0 3px rgba(0,0,0,0.5)"></div><div style="position:absolute;left:3px;top:0;width:16px;height:11px;background:#ef4444;clip-path:polygon(0 0,100% 50%,0 100%)"></div></div>`;
 const tagHtml = (txt, border, color) => `<div style="background:rgba(8,26,16,0.9);border:1px solid ${border};color:${color};font:700 11px Inter,sans-serif;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.5)">${txt}</div>`;
 
+// Yardage label: centered above the dot, or to one side when the dot is near a screen edge
+function labelPlacement(x, width) {
+  if (x < 120) return { anchor: "left", offset: [12, -16] };
+  if (x > width - 120) return { anchor: "right", offset: [-12, -16] };
+  return { anchor: "bottom", offset: [0, -12] };
+}
+
 // Fit points into the padded viewport of a tilted map. Perspective makes the near end
 // bigger than the far end, so measure on screen and correct a few times.
 function fitTilted(map, pts, bearing, pitch, padIn, maxZoom = 19.6) {
@@ -184,6 +198,18 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   const gpsMarkerRef = useRef(null);
   const shotMarkersRef = useRef([]);
   const measureMarkersRef = useRef([]);
+  const ctlRef = useRef({});            // camera actions created along with the map
+  const trackRef = useRef(null);
+  const thumbRef = useRef(null);
+  const needleRef = useRef(null);
+  const [angleIdx, setAngleIdx] = useState(() => {
+    try { return Math.max(0, ANGLES.findIndex(a => a.key === localStorage.getItem("mgg_3d_angle"))); } catch { return 0; }
+  });
+  const pitchRef = useRef(ANGLES[angleIdx].pitch);
+  const [looking, setLooking] = useState(false);   // camera is at a "look from here" spot
+  // Controls render into the play screen's overlay layer so the app's own overlays can't cover them
+  const [overlayHost, setOverlayHost] = useState(null);
+  const rootRef = useCallback(node => setOverlayHost(node?.closest(".play-stage") ?? null), []);
   useEffect(() => { gpsRef.current = gps; }, [gps]);
   useEffect(() => { padRef.current = pad; });
 
@@ -191,37 +217,103 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   const bearing = bearingOf(t, hole.green);
   const holePts = [hole.tees.champ, hole.tees.mens, hole.tees.womens, hole.green].map(p => [p.lng, p.lat]);
   const whenReady = fn => { if (readyRef.current && mapRef.current) fn(mapRef.current); else queueRef.current.push(fn); };
-  const fit = () => whenReady(map => fitTilted(map, holePts, bearing, PITCH, padRef.current));
+  const fit = () => whenReady(map => { setLooking(false); fitTilted(map, holePts, bearing, pitchRef.current, padRef.current); });
 
   useEffect(() => {
     const map = new maplibregl.Map({
       container: boxRef.current,
       style: buildStyle(course),
-      center: [hole.green.lng, hole.green.lat], zoom: 17, bearing, pitch: PITCH, maxPitch: 75,
+      center: [hole.green.lng, hole.green.lat], zoom: 17, bearing, pitch: pitchRef.current, maxPitch: 80,
       attributionControl: false,
-      dragRotate: false, pitchWithRotate: false, touchPitch: false, keyboard: false,
+      dragRotate: false, pitchWithRotate: false, touchPitch: true, keyboard: false,
       canvasContextAttributes: { antialias: true },
       fadeDuration: 0,
     });
-    map.touchZoomRotate.disableRotation();
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "© OpenStreetMap contributors · traced from Esri imagery" }), "bottom-left");
     map.once("idle", () => map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
     mapRef.current = map;
-    let flyTimer = null, flying = false, skippedAt = 0;
-    // Whole-hole camera for the current layout, worked out without visibly moving the map
-    const overviewCam = () => {
+    let flyTimer = null, raf = 0, flying = false, skippedAt = 0;
+
+    // Whole-hole camera for the current layout and angle, worked out without visibly moving the map
+    const camFor = (pts, brg, pitch, maxZoom, extraTop = 0) => {
       const cur = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
-      const cam = fitTilted(map, holePts, bearing, PITCH, padRef.current);
+      const cam = fitTilted(map, pts, brg, pitch, { ...padRef.current, top: padRef.current.top + extraTop }, maxZoom);
       map.jumpTo(cur);
       return cam;
     };
+    const overviewCam = () => camFor(holePts, bearing, pitchRef.current);
+
+    // The fly-through path: low behind the tee to over the green. u runs 0 (tee) → 1 (green).
+    const len = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
+    const z0 = Math.max(17.6, Math.min(19.3, 19.9 - Math.log2(Math.max(len, 80) / 90)));
+    const start = [t.lng + (hole.green.lng - t.lng) * 0.18, t.lat + (hole.green.lat - t.lat) * 0.18];
+    const flyCam = u => ({ center: [start[0] + (hole.green.lng - start[0]) * u, start[1] + (hole.green.lat - start[1]) * u],
+      zoom: z0 + 0.35 * u, pitch: 68 - 6 * u, bearing });
+    const setThumb = u => { if (thumbRef.current) thumbRef.current.style.bottom = `calc(${(u * 100).toFixed(1)}% - 11px)`; };
+
+    const stopFly = (toOverview) => {
+      if (!flying) return;
+      flying = false;
+      skippedAt = Date.now();
+      clearTimeout(flyTimer);
+      cancelAnimationFrame(raf);
+      map.stop();
+      if (toOverview) fitTilted(map, holePts, bearing, pitchRef.current, padRef.current);
+    };
+    const runFly = () => {
+      clearTimeout(flyTimer); cancelAnimationFrame(raf); map.stop();
+      setLooking(false);
+      flying = true;
+      map.jumpTo(flyCam(0)); setThumb(0);
+      flyTimer = setTimeout(() => {
+        if (!flying) return;
+        const dur = Math.max(1800, Math.min(3800, len * 7)), t0 = performance.now();
+        const step = now => {
+          if (!flying) return;
+          const x = Math.min(1, (now - t0) / dur), u = x * (2 - x);
+          map.jumpTo(flyCam(u)); setThumb(u);
+          if (x < 1) { raf = requestAnimationFrame(step); return; }
+          const cam = overviewCam();
+          if (cam) map.easeTo({ ...cam, duration: 1200 });
+          map.once("moveend", () => { flying = false; });
+        };
+        raf = requestAnimationFrame(step);
+      }, 500);
+    };
+
+    // Look from a spot: a low view from that spot toward the green, the spot at the bottom
+    const lookFrom = pt => {
+      stopFly(false);
+      const brg = bearingOf(pt, hole.green);
+      const cam = camFor([[pt.lng, pt.lat], [hole.green.lng, hole.green.lat]], brg, 70, 20.5, 46);   // room for the Back button
+      if (cam) map.easeTo({ ...cam, duration: 1600 });
+      setLooking(true);
+    };
+    const reset = () => {
+      stopFly(false);
+      setLooking(false);
+      const cam = overviewCam();
+      if (cam) map.easeTo({ ...cam, duration: 700 });
+    };
+    ctlRef.current = {
+      replay: () => { if (readyRef.current) runFly(); },
+      slide: u => { if (!readyRef.current) return; stopFly(false); setLooking(false); map.jumpTo(flyCam(u)); setThumb(u); },
+      reset,
+      stopFly,
+    };
+
+    // Compass needle shows how far the view is turned from tee-to-green
+    const onTurn = () => {
+      const off = ((bearing - map.getBearing() + 540) % 360) - 180;
+      if (needleRef.current) needleRef.current.style.transform = `rotate(${off.toFixed(1)}deg)`;
+    };
+    map.on("rotate", onTurn);
 
     map.on("load", () => {
       // Static hole furniture
       map.getSource("guide").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [[t.lng, t.lat], [hole.green.lng, hole.green.lat]] } });
-      const holeYds = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
       const back = bearingOf(hole.green, t);
-      const arcs = [100, 150, 200].filter(y => y <= holeYds + 15);
+      const arcs = [100, 150, 200].filter(y => y <= len + 15);
       map.getSource("arcs").setData({ type: "FeatureCollection", features: arcs.map(y => ({ type: "Feature", properties: {},
         geometry: { type: "LineString", coordinates: Array.from({ length: 73 }, (_, i) => { const p = destPoint(hole.green.lat, hole.green.lng, i * 5, y); return [p.lng, p.lat]; }) } })) });
       arcs.forEach(y => {
@@ -233,44 +325,22 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0] }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map);
 
       readyRef.current = true;
-      const final = fitTilted(map, holePts, bearing, PITCH, padRef.current);
+      const final = fitTilted(map, holePts, bearing, pitchRef.current, padRef.current);
       queueRef.current.splice(0).forEach(fn => fn(map));
 
       // One tee-to-green fly-over the first time each hole opens
       const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       if (final && !still && !flown.has(hole.number)) {
         flown.add(hole.number);
-        const len = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
-        const z0 = Math.max(17.6, Math.min(19.3, 19.9 - Math.log2(Math.max(len, 80) / 90)));
-        const start = [t.lng + (hole.green.lng - t.lng) * 0.18, t.lat + (hole.green.lat - t.lat) * 0.18];
-        flying = true;
-        map.jumpTo({ center: start, zoom: z0, pitch: 68, bearing });
-        flyTimer = setTimeout(() => {
-          if (!flying) return;
-          map.easeTo({ center: [hole.green.lng, hole.green.lat], zoom: z0 + 0.35, pitch: 62, duration: Math.max(1800, Math.min(3800, len * 7)), easing: x => x * (2 - x) });
-          map.once("moveend", () => {
-            if (!flying) return;
-            const cam = overviewCam();
-            if (cam) map.easeTo({ ...cam, duration: 1200 });
-            map.once("moveend", () => { flying = false; });
-          });
-        }, 500);
+        runFly();
       }
     });
 
-    // Any touch or click stops the fly-over and hands the camera to the player
     // A touch during the fly-over skips straight to the whole-hole view
-    const stopFly = () => {
-      if (!flying) return;
-      flying = false;
-      skippedAt = Date.now();
-      clearTimeout(flyTimer);
-      map.stop();
-      fitTilted(map, holePts, bearing, PITCH, padRef.current);
-    };
     const canvasBox = map.getCanvasContainer();
-    canvasBox.addEventListener("pointerdown", stopFly, { passive: true });
-    canvasBox.addEventListener("wheel", stopFly, { passive: true });
+    const skip = () => stopFly(true);
+    canvasBox.addEventListener("pointerdown", skip, { passive: true });
+    canvasBox.addEventListener("wheel", skip, { passive: true });
 
     // Press-and-hold rangefinder (custom timer: iOS Safari never fires contextmenu)
     let lpTimer = null, lpStart = null, lastMeasure = 0;
@@ -283,8 +353,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       lastMeasure = Date.now();
       clearMeasure();
       const pt = { lat: ll.lat, lng: ll.lng }, g = gpsRef.current;
-      const holeLen = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
-      const onHole = g && haversineYards(g.lat, g.lng, hole.green.lat, hole.green.lng) <= holeLen + 150;
+      const onHole = g && haversineYards(g.lat, g.lng, hole.green.lat, hole.green.lng) <= len + 150;
       const origin = onHole ? g : t;
       const fromYds = Math.round(haversineYards(origin.lat, origin.lng, pt.lat, pt.lng));
       const pinYds = Math.round(haversineYards(pt.lat, pt.lng, hole.green.lat, hole.green.lng));
@@ -293,12 +362,16 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         { type: "Feature", properties: { dash: true }, geometry: { type: "LineString", coordinates: [[pt.lng, pt.lat], [hole.green.lng, hole.green.lat]] } },
       ] });
       const dot = el(dotHtml("#fbbf24"));
-      const label = el(`<div style="background:rgba(8,26,16,0.92);border:1px solid #fbbf24;color:#f0ead6;font:700 11px Inter,sans-serif;padding:3px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.6)"><span style="color:#fbbf24">${fromYds}</span> ${onHole ? "here" : "from tee"} · <span style="color:#4ade80">${pinYds}</span> to pin</div>`);
-      [dot, label].forEach(n => n.addEventListener("click", e => { e.stopPropagation(); clearMeasure(); }));
+      const label = el(`<div style="display:flex;align-items:center;gap:7px;background:rgba(8,26,16,0.92);border:1px solid #fbbf24;color:#f0ead6;font:700 11px Inter,sans-serif;padding:3px 4px 3px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.6)"><span><span style="color:#fbbf24">${fromYds}</span> ${onHole ? "here" : "from tee"} · <span style="color:#4ade80">${pinYds}</span> to pin</span><button data-view type="button" style="font:800 11px Inter,sans-serif;color:#0b1a10;background:#c9a84c;border:0;border-radius:5px;padding:4px 8px;cursor:pointer">👁 View</button></div>`);
+      dot.addEventListener("click", e => { e.stopPropagation(); clearMeasure(); });
+      label.addEventListener("click", e => {
+        e.stopPropagation();
+        if (e.target.closest("[data-view]")) lookFrom(pt); else clearMeasure();
+      });
       measureMarkersRef.current = [
         new maplibregl.Marker({ element: dot }).setLngLat([pt.lng, pt.lat]).addTo(map),
-        new maplibregl.Marker({ element: label, ...(map.project([pt.lng, pt.lat]).x > map.getContainer().clientWidth / 2
-          ? { anchor: "right", offset: [-12, -16] } : { anchor: "left", offset: [12, -16] }) }).setLngLat([pt.lng, pt.lat]).addTo(map),
+        new maplibregl.Marker({ element: label, ...labelPlacement(map.project([pt.lng, pt.lat]).x, map.getContainer().clientWidth) })
+          .setLngLat([pt.lng, pt.lat]).addTo(map),
       ];
       try { navigator.vibrate?.(12); } catch { /* ignore */ }
     };
@@ -313,7 +386,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     const onTouchMove = e => {
       if (!lpTimer || !lpStart) return;
       const r = canvasBox.getBoundingClientRect(), tt = e.touches[0];
-      if (Math.hypot(tt.clientX - r.left - lpStart[0], tt.clientY - r.top - lpStart[1]) > 10) lpCancel();
+      if (e.touches.length !== 1 || Math.hypot(tt.clientX - r.left - lpStart[0], tt.clientY - r.top - lpStart[1]) > 10) lpCancel();
     };
     canvasBox.addEventListener("touchstart", onTouchStart, { passive: true });
     canvasBox.addEventListener("touchmove", onTouchMove, { passive: true });
@@ -331,10 +404,12 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     return () => {
       flying = false;
       clearTimeout(flyTimer);
+      cancelAnimationFrame(raf);
       lpCancel();
       window.removeEventListener("resize", onResize);
       readyRef.current = false;
       queueRef.current = [];
+      ctlRef.current = {};
       gpsMarkerRef.current = null;
       shotMarkersRef.current = [];
       measureMarkersRef.current = [];
@@ -348,12 +423,21 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   useEffect(() => { fit(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ },
     [pad.top, pad.bottom, pad.left, pad.right, recenterTick]);
 
+  // Angle button: re-frame the whole hole at the chosen tilt (remembered per device)
+  const firstAngle = useRef(true);
+  useEffect(() => {
+    pitchRef.current = ANGLES[angleIdx].pitch;
+    try { localStorage.setItem("mgg_3d_angle", ANGLES[angleIdx].key); } catch { /* private mode */ }
+    if (firstAngle.current) { firstAngle.current = false; return; }
+    ctlRef.current.reset?.();
+  }, [angleIdx]);
+
   // Approach mode: zoom to player → green inside 100 yards
   useEffect(() => {
     if (!gps) return;
     whenReady(map => {
-      if (approachMode) fitTilted(map, [[gps.lng, gps.lat], [hole.green.lng, hole.green.lat]], bearing, PITCH, padRef.current, 20);
-      else fitTilted(map, holePts, bearing, PITCH, padRef.current);
+      if (approachMode) fitTilted(map, [[gps.lng, gps.lat], [hole.green.lng, hole.green.lat]], bearing, pitchRef.current, padRef.current, 20);
+      else fitTilted(map, holePts, bearing, pitchRef.current, padRef.current);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approachMode]);
@@ -410,10 +494,65 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
    
   }, [radarOn, hole.number, tee]);
 
+  // Fly-through slider: drag from TEE (bottom) to the flag (top)
+  const dragging = useRef(false);
+  const slideTo = e => {
+    const r = trackRef.current?.getBoundingClientRect();
+    if (!r) return;
+    ctlRef.current.slide?.(Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height)));
+  };
+  const railBtn = { width: 44, minHeight: 38, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    background: "rgba(6,20,12,0.82)", border: "2px solid #d4af37", borderRadius: 10, color: "#f0ead6", cursor: "pointer", padding: 0,
+    boxShadow: "0 3px 12px rgba(0,0,0,0.5)" };
+
+  const controls = (
+    <>
+      {looking && (
+        <button onClick={() => ctlRef.current.reset?.()}
+          style={{ position: "absolute", top: pad.top + 6, left: "50%", transform: "translateX(-50%)", zIndex: 1001,
+            background: "#c9a84c", color: "#0b1a10", border: "2px solid #0b1a10", borderRadius: 18, padding: "7px 14px",
+            font: "800 13px Inter, sans-serif", boxShadow: "0 3px 12px rgba(0,0,0,0.5)", cursor: "pointer", whiteSpace: "nowrap" }}>
+          ↩ Back to hole view
+        </button>
+      )}
+
+      {/* Camera rail: fly-through slider, replay, angle presets, reset */}
+      <div style={{ position: "absolute", left: 10, bottom: pad.bottom + 34, zIndex: 1001, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <div style={{ ...railBtn, padding: "5px 0", gap: 4, cursor: "default" }}>
+          <span style={{ fontSize: 13, lineHeight: 1 }} aria-hidden="true">⛳</span>
+          <div ref={trackRef} role="slider" aria-label="Fly along the hole" aria-valuemin={0} aria-valuemax={100}
+            onPointerDown={e => { dragging.current = true; e.currentTarget.setPointerCapture?.(e.pointerId); slideTo(e); }}
+            onPointerMove={e => { if (dragging.current) slideTo(e); }}
+            onPointerUp={() => { dragging.current = false; }} onPointerCancel={() => { dragging.current = false; }}
+            style={{ position: "relative", width: 30, height: 110, touchAction: "none", cursor: "ns-resize" }}>
+            <div style={{ position: "absolute", left: 13, top: 0, bottom: 0, width: 4, borderRadius: 2, background: "rgba(240,234,214,0.35)" }} />
+            <div ref={thumbRef} style={{ position: "absolute", left: 4, bottom: -11, width: 22, height: 22, borderRadius: "50%",
+              background: "#c9a84c", border: "2px solid #0b1a10", boxShadow: "0 1px 4px rgba(0,0,0,0.6)" }} />
+          </div>
+          <span style={{ font: "800 9px Inter, sans-serif", letterSpacing: 0.3 }}>TEE</span>
+        </div>
+        <button onClick={() => ctlRef.current.replay?.()} style={railBtn} aria-label="Replay the fly-over">
+          <span style={{ fontSize: 14, lineHeight: 1 }}>▶</span>
+          <span style={{ font: "800 8px Inter, sans-serif", marginTop: 2 }}>FLY</span>
+        </button>
+        <button onClick={() => setAngleIdx(i => (i + 1) % ANGLES.length)} style={railBtn} aria-label={`Camera angle: ${ANGLES[angleIdx].label}. Tap to change`}>
+          <span style={{ font: "800 8px Inter, sans-serif", opacity: 0.8 }}>ANGLE</span>
+          <span style={{ font: "800 12px Inter, sans-serif", color: "#c9a84c" }}>{ANGLES[angleIdx].label}</span>
+        </button>
+        <button onClick={() => ctlRef.current.reset?.()} style={railBtn} aria-label="Reset to the tee-to-green view">
+          <span ref={needleRef} style={{ display: "inline-block", fontSize: 15, lineHeight: 1, color: "#ef4444", transition: "transform 0.1s" }}>▲</span>
+          <span style={{ font: "800 8px Inter, sans-serif", marginTop: 2 }}>RESET</span>
+        </button>
+      </div>
+    </>
+  );
+
   return (
-    <div className="mgg3d" style={{ position: "absolute", inset: 0, "--dock": `${pad.bottom - 12}px` }}>
+    <div ref={rootRef} className="mgg3d" style={{ position: "absolute", inset: 0, "--dock": `${pad.bottom - 12}px` }}>
       <style>{`.mgg3d .maplibregl-ctrl-bottom-left{bottom:var(--dock)} .mgg3d .maplibregl-ctrl-attrib{font-size:10px;background:rgba(255,255,255,0.7)} .mgg3d .maplibregl-canvas{outline:none}`}</style>
       <div ref={boxRef} style={{ position: "absolute", inset: 0, background: "#cdd6c1" }} />
+
+      {overlayHost ? createPortal(controls, overlayHost) : controls}
     </div>
   );
 }
