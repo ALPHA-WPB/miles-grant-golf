@@ -56,7 +56,7 @@ broken.
 - [x] 11. (f2fb319) Trace hole 13.
 - [x] 12. (e4e0a1f) Trace hole 14.
 - [x] 13. (4fdd990) Trace hole 15.
-- [ ] 14. Trace hole 16.
+- [x] 14. (b9c4d64) Trace hole 16.
 - [ ] 15. Trace hole 17.
 - [ ] 16. Trace hole 18.
 - [ ] 17. Tree audit, holes 1–18 (hole 1 done 2026-11-06): numbered `check` images; remove false trees (shadows, shrubs on
@@ -74,6 +74,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 14 (b9c4d64): hole 16 traced (par 3, no fairway) — green oval (~15×18 m) between the left, right and front bunkers, two tee boxes (west ~21×7 m with the two back markers, east ~12×6 m with the forward marker) following the mowed strip between the tree clumps. No paved cart path on the line of play (the paved lane north of the tee is a road). Previewed in 3D, no errors.
 - 2026-11-06: item 13 (4fdd990): hole 15 traced (par 3, no fairway) — green oval (~19×13 m, tilted down to the east) just below its back-right bunker, one long tee strip (~24×7 m) between the tree line and the paved cart path (path added). Previewed in 3D, no errors.
 - 2026-11-06: item 12 (e4e0a1f): hole 14 traced (par 4) — green oval (~16×19 m) inside its ring of four bunkers, back tee strip (~24×7 m, two markers) beside the hedge, forward tee oval, paved cart path behind the back tee. Fairway (~13–21 m wide) follows the mowed band NORTH of the palm row (the straight tee→green line runs through the palms), ending short of the green's front-left bunker. Fairway width/position is the least certain part — owner please compare. course.json is now 1.52 MB raw (over the old 1.5 MB guide; gzip ~0.42 MB) — 4 holes left.
 - 2026-11-06: item 11 (f2fb319): hole 13 traced (par 3, no fairway) — round green (~16×17 m) just south of the left and back bunkers (the green's edge is faint on the photo; owner may want to check its position against Google 3D), one tee strip (~25×6 m) along the road holding all three markers. No paved cart path on this hole. course.json is now 1.49 MB (guide was <1.5 MB) — 5 more holes will push it to ~1.55 MB; a later run should raise the terrain grid spacing or trim precision if the size matters.
