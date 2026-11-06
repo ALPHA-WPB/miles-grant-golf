@@ -47,7 +47,7 @@ broken.
 - [x] 2. (89e28e6) Trace hole 4 (green, tees, fairway spine, cart paths visible on the photo).
 - [x] 3. (31e9bf0) Trace hole 5.
 - [x] 4. (5cdba10) Trace hole 6.
-- [ ] 5. Trace hole 7.
+- [x] 5. (5d07388) Trace hole 7.
 - [ ] 6. Trace hole 8.
 - [ ] 7. Trace hole 9.
 - [ ] 8. Trace hole 10.
@@ -74,6 +74,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 5 (5d07388): hole 7 traced (par 3, no fairway) — green oval (~17×20 m, clear of the back-left and front-right bunkers), round back tee (~9×8 m), forward tee strip (~24×6 m) holding the two forward markers, partly under the planter trees' north shadow. Previewed in 3D, no app errors (only expected local /api 404s). For item 18: the bunker behind the green at ~(810,353) hole7 px is only half detected (west part). Session switched to Auto permission mode at the owner's request.
 - 2026-11-06: owner feedback (Google 3D photo of hole 1's three traps): detected bunker outlines already match the photo; the look was the problem (pale white, flat, dark outline, brown smudge). Now warm tan sand texture, blurred grass lip under the sand, and baked crescents: `bshade` (2 steps, 0.6/1.4 m, south edge) and `blit` (0.9 m, north edge), 10 cm precision; course.json +130 KB raw (+28 KB gzip). Same session: removed the first-launch "Tap the big gold button" overlay, shorter instructions (6 cards incl. 3D fly-over, lightning, today's pin), help button now "? HELP".
 - 2026-11-06: item 4 (5cdba10): hole 6 traced — green oval (~18×20 m) between the left and front bunkers, long back-tee strip (~26×8 m) and forward tee oval, fairway (~26 m wide) along the mowed band from past the forward tee to the green's front-left. No paved cart path (only worn dirt tracks), so none added. Not previewed in the browser this run (preview server permission declined in the background session); data-only change, build OK, live course.json confirmed. For item 17: tree #2423 at ~(500,812) hole6 px sits on a dark wet patch in the rough — likely not a tree. Note: deploy check for data-only changes must compare course.json (the index-*.js name doesn't change).
 - 2026-11-06: hedges (a031889): new `hedges` list in traced.json ({tag, h, w, line}) → `hedge` features → rounded shrub wall in realScene. Hole 5: behind the tee along the back yards (3.8 m) and behind the green outside the road (4.2 m), so the houses show roofs only. Add hedges on other holes the same way where the photo shows thick shrub lines in front of houses.
