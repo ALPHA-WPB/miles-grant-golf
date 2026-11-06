@@ -1,6 +1,7 @@
 import { CANONICAL_HOST, json, error, escapeHtml } from './util.js';
 import { getSessionUser, signOut, googleStart, googleCallback, appleStart, appleCallback, unauthorized } from './auth.js';
 import { createRound, upsertScore, finalizeRound, roundHistory, leaderboard, adminUsers } from './api.js';
+import { lightning } from './lightning.js';
 
 const ALERT_FROM = 'Miles Grant Golf <alerts@milesgrant.golf>';
 
@@ -33,6 +34,7 @@ async function handleApi(request, env, ctx, url) {
   if (p === '/api/auth/apple/callback' && m === 'POST') return appleCallback(request, env, ctx, signupAlert(env));
   if (p === '/api/auth/signout' && m === 'POST') return signOut(request, env);
   if (p === '/api/leaderboard' && m === 'GET') return leaderboard(env);
+  if (p === '/api/lightning' && m === 'GET') return lightning(ctx);
 
   const user = await getSessionUser(request, env);
   if (p === '/api/me' && m === 'GET') return json({ user });

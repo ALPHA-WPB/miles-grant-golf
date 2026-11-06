@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLightning, cardinal, minutesAgo, clearTime, RADIUS_MI } from "../lib/lightning";
 
 // Hour-by-hour weather for the next 6 hours at Miles Grant (Open-Meteo: free, no key), shown over a
 // translucent screen. Tap anywhere to close.
@@ -22,8 +23,6 @@ const ICONS = (code, day) => {
 };
 const WORDS = (code) => code === 0 ? "Clear" : code <= 2 ? "Partly cloudy" : code === 3 ? "Cloudy" : code === 45 || code === 48 ? "Fog"
   : code >= 95 ? "Thunderstorms" : code >= 80 ? "Showers" : code >= 61 ? "Rain" : code >= 51 ? "Drizzle" : "Cloudy";
-const CARD = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
-const cardinal = (deg) => CARD[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 const hourLabel = (iso) => {
   const h = Number(iso.slice(11, 13));
   return `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`;
@@ -32,6 +31,7 @@ const hourLabel = (iso) => {
 export default function WeatherPanel({ onClose }) {
   const [data, setData] = useState(cache?.data ?? null);
   const [failed, setFailed] = useState(false);
+  const bolt = useLightning();
 
   useEffect(() => {
     if (cache && Date.now() - cache.at < 10 * 60 * 1000) return;
@@ -88,6 +88,19 @@ export default function WeatherPanel({ onClose }) {
           </div>
         )}
 
+        <div style={{ borderRadius: 10, padding: "6px 10px", marginBottom: 10, font: "700 13px Inter,sans-serif",
+          ...(bolt.active
+            ? { background: "rgba(250,204,21,0.92)", color: "#1c1400" }
+            : { background: "rgba(255,255,255,0.05)", color: "#c8d8cc" }) }}>
+          {bolt.active
+            ? <>⚡ Lightning {Math.round(bolt.last.mi)} mi {cardinal(bolt.last.brg)} · {minutesAgo(bolt.last.t, bolt.now) === 0 ? "just now" : `${minutesAgo(bolt.last.t, bolt.now)} min ago`} · clear at {clearTime(bolt.last.t)}</>
+            : bolt.ok === false
+              ? <>⚡ Lightning check unavailable right now</>
+              : bolt.ok
+                ? <>⚡ No lightning within {RADIUS_MI} mi in the last 30 min</>
+                : <>⚡ Checking for lightning…</>}
+        </div>
+
         {stormSoon && (
           <div style={{ background: "rgba(250,204,21,0.15)", border: "1px solid rgba(250,204,21,0.6)", borderRadius: 10, padding: "6px 10px", marginBottom: 10, font: "700 13px Inter,sans-serif", color: "#fde68a" }}>
             ⚡ Thunderstorms in the forecast in the next 6 hours
@@ -118,7 +131,7 @@ export default function WeatherPanel({ onClose }) {
         )}
 
         <div style={{ ...cell, marginTop: 10, font: "500 10px Inter,sans-serif", color: "rgba(200,216,204,0.5)" }}>
-          Wind in mph (arrow shows where it blows, g = gusts) · 💧 chance of rain · Tap anywhere to close
+          Wind in mph (arrow shows where it blows, g = gusts) · 💧 chance of rain · Lightning from NOAA's GOES satellite · Tap anywhere to close
         </div>
       </div>
     </div>

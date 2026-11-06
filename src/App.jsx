@@ -9,6 +9,7 @@ import Auth from "./components/Auth";
 import Instructions from "./components/Instructions";
 import GolfBall from "./components/GolfBall";
 import WeatherPanel from "./components/WeatherPanel";
+import LightningBanner from "./components/LightningBanner";
 import LocationGate from "./components/LocationGate";
 import GpsBanner from "./components/GpsBanner";
 import Leaderboard from "./components/Leaderboard";
@@ -2197,6 +2198,7 @@ export default function App() {
     return (
       <>
         <MainApp user={GUEST_USER} profile={GUEST_PROFILE} isGuest onExitGuest={() => setGuest(false)} onShowInstructions={openInstructions} />
+        <LightningBanner />
         {instructionsOverlay}
       </>
     );
@@ -2211,6 +2213,7 @@ export default function App() {
   if (user) return (
     <>
       <MainApp user={user} profile={profile} onProfileUpdate={setProfile} onShowInstructions={openInstructions} />
+      <LightningBanner />
       {instructionsOverlay}
     </>
   );
