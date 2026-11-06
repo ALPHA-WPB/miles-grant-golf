@@ -113,25 +113,52 @@ def detect(region):
         pts = chaikin([tuple(p) for p in c])
         bunkers.append(Polygon([region.ll(x, y) for x, y in pts]).buffer(0))
 
-    dark = ((blocked == 0) & (v < 95) & (g >= b)).astype(np.uint8) * 255
-    dark = cv2.morphologyEx(dark, cv2.MORPH_OPEN, np.ones((7, 7), np.uint8))
-    dt = cv2.distanceTransform(dark, cv2.DIST_L2, 5)
-    peaks = (dt == cv2.dilate(dt, np.ones((9, 9), np.uint8))) & (dt * mpp >= 1.1)
-    ys, xs = np.nonzero(peaks)
-    cand = sorted(zip(dt[ys, xs], xs, ys), reverse=True)
-    trees = []
-    for d, x, y in cand:
-        rm = float(min(d * mpp * 0.95, 9.0)); x, y = int(x), int(y)
-        if any(math.hypot(x - tx, y - ty) * mpp < 0.8 * (rm + tr) for tr, tx, ty in trees):
+    # Trees: canopy is mid-dark and textured; shadows are near-black and smooth (and fall
+    # north of each tree in this imagery), so they are excluded rather than mistaken for trees.
+    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY).astype(float)
+    m = cv2.blur(gray, (7, 7)); sd = np.sqrt(np.maximum(cv2.blur(gray * gray, (7, 7)) - m * m, 0))
+    tblocked = blocked > 0
+    near_shadow = cv2.dilate((v < 30).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+    canopy = ((v >= 32) & (v <= 88) & (sd >= 9) & (g >= r) & ~tblocked & ~(near_shadow & (v < 40))).astype(np.uint8) * 255
+    raw_canopy = cv2.morphologyEx(canopy, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    canopy = cv2.morphologyEx(canopy, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    canopy = cv2.morphologyEx(canopy, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    n, lbl, stats, cent = cv2.connectedComponentsWithStats(canopy)
+    dt = cv2.distanceTransform(canopy, cv2.DIST_L2, 5)
+    found = []
+    for i in range(1, n):
+        x0, y0, w, h = stats[i, :4]
+        comp = lbl[y0:y0 + h, x0:x0 + w] == i
+        area = stats[i, cv2.CC_STAT_AREA] * mpp * mpp
+        sub = dt[y0:y0 + h, x0:x0 + w] * comp
+        if area < 7 or sub.max() * mpp < 1.0:          # specks and shadow-edge slivers
             continue
-        trees.append((rm, x, y))
+        if area < 60:                                   # one tree: palms have star-shaped crowns
+            rc = ((raw_canopy[y0:y0 + h, x0:x0 + w] > 0) & comp).astype(np.uint8)
+            cs, _ = cv2.findContours(rc, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            sol = 1.0
+            if cs:
+                c = max(cs, key=cv2.contourArea)
+                sol = cv2.contourArea(c) / max(cv2.contourArea(cv2.convexHull(c)), 1)
+            rr = math.sqrt(area / math.pi)
+            palm = area < 18 or sol < 0.78
+            found.append((cent[i][0], cent[i][1], 1.6 if palm else rr * 0.85, 'palm' if palm else 'oak'))
+            continue
+        pk = (sub == cv2.dilate(sub, np.ones((15, 15), np.uint8))) & (sub * mpp >= 2.0)
+        ys, xs = np.nonzero(pk)
+        acc = []
+        for d, x, y in sorted(zip(sub[ys, xs], xs, ys), reverse=True):   # big canopies: a few wide trees
+            rr = min(float(d) * mpp, 13.0)
+            if any(math.hypot(x - ax, y - ay) * mpp < 0.9 * (rr + ar) for ax, ay, ar in acc):
+                continue
+            acc.append((x, y, rr))
+        found += [(x0 + x, y0 + y, rr, 'oak') for x, y, rr in acc]
     out = []
-    for rm, x, y in trees:
-        lng, lat = region.ll(x, y)
-        palm = rm < 2.3
-        out.append({'lng': round(lng, 7), 'lat': round(lat, 7), 'r': round(max(rm, 1.4), 1),
-                    'type': 'palm' if palm else 'oak',
-                    'h': round(9 + (x * 7 + y * 3) % 3 if palm else min(5 + rm * 1.6, 17), 1)})
+    for x, y, rr, kind in found:
+        lng, lat = region.ll(float(x), float(y))
+        jitter = (int(x) * 7 + int(y) * 3) % 3
+        out.append({'lng': round(lng, 7), 'lat': round(lat, 7), 'r': round(float(rr), 1), 'type': kind,
+                    'h': round(7.0 + jitter * 0.8 if kind == 'palm' else min(3.5 + rr * 0.9, 12.0), 1)})
     return bunkers, out
 
 # ── Assemble ─────────────────────────────────────────────────────────────
@@ -188,17 +215,20 @@ def mow_stripes(fw, tee, green, width=7.0):
     return MultiPolygon([back(g) for g in getattr(st, 'geoms', [st]) if g.geom_type == 'Polygon' and not g.is_empty])
 
 traced_holes = sorted(int(k) for k in traced['holes'])
+playing = []   # fairways, greens and tees: kept clear of trees
 for num, t in traced['holes'].items():
     for g in t.get('greens', []):
         gp = Polygon(g)
         k = math.cos(math.radians(gp.centroid.y))
         add(gp.buffer(1.6 / M_PER_DEG / k, 24), kind='fringe', hole=int(num))
         add(gp, kind='green', hole=int(num))
+        playing.append(gp.buffer(1.6 / M_PER_DEG / k))
     h = HOLES[int(num)]
     glat, glng = h['green']
     fws = [Polygon(f) for f in t.get('fairways', [])] + [spine_poly(s) for s in t.get('fairwaySpines', [])]
     for fw in fws:
         add(fw, kind='fairway', hole=int(num))
+        playing.append(fw)
         add(mow_stripes(fw, h['tees'][1], h['green']), kind='stripe', hole=int(num))
     boxes = []
     for lat, lng in h['tees']:
@@ -211,6 +241,7 @@ for num, t in traced['holes'].items():
         boxes.append(meters_poly(lng, lat, rot).buffer(0.000008, 8))
     for b in getattr(unary_union(boxes), 'geoms', [unary_union(boxes)]):
         add(b, kind='tee', hole=int(num))
+        playing.append(b)
 
 for reg in traced['regions']:
     region = Region(*reg['bbox'])
@@ -218,8 +249,14 @@ for reg in traced['regions']:
     for b in bunkers:
         add(b, kind='bunker')
     near = course.buffer(80 / M_PER_DEG)
+    clear = unary_union(playing).buffer(-1.0 / M_PER_DEG)
+    edits = traced.get('treeEdits', {})
+    gone = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in edits.get('remove', [])]
+    trees += [{'lng': lng, 'lat': lat, 'r': rr, 'type': kind, 'h': 7.5 if kind == 'palm' else min(3.5 + rr * 0.9, 12.0)}
+              for lng, lat, rr, kind in edits.get('add', [])]
     for tr in trees:
-        if not near.contains(Point(tr['lng'], tr['lat'])):
+        pt = Point(tr['lng'], tr['lat'])
+        if not near.contains(pt) or clear.contains(pt) or any(z.contains(pt) for z in gone):
             continue
         feats.append({'type': 'Feature', 'properties': {'kind': 'tree', 'r': tr['r'], 'h': tr['h'], 'type': tr['type']},
                       'geometry': {'type': 'Point', 'coordinates': [tr['lng'], tr['lat']]}})

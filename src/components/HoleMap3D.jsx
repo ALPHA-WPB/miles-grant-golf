@@ -61,17 +61,28 @@ function buildTrees(features) {
     const { r, h, type } = f.properties;
     const k = Math.cos(lat * Math.PI / 180), rot = (i * 0.618) % (Math.PI / 4);
     const shade = Math.max(r, 1.6);
-    shadows.push(P(ngon(lng - 0.45 * shade / (M * k), lat + 0.3 * shade / M, shade * 1.05, 10, rot), {}));
+    // The sun is to the south in this imagery, so shadows fall to the north
+    shadows.push(P(ngon(lng - 0.1 * shade / (M * k), lat + 0.55 * shade / M, shade * 1.05, 12, rot), {}));
     if (type === "palm") {
-      solids.push(P(ngon(lng, lat, 0.22, 6, rot), { b: 0, t: h - 0.5, c: 9 }));
-      const fr = Math.max(r, 2.2);
-      solids.push(P(starPoly(lng, lat, fr, fr * 0.38, 7, rot), { b: h - 1.1, t: h - 0.45, c: 3 }));
-      solids.push(P(ngon(lng, lat, 0.55, 6, rot), { b: h - 0.6, t: h, c: 4 }));
-    } else {
-      const c = i % 3;
-      solids.push(P(ngon(lng, lat, 0.3 + r * 0.05, 6, rot), { b: 0, t: h * 0.45, c: 9 }));
-      solids.push(P(ngon(lng, lat, r, 8, rot), { b: h * 0.32, t: h * 0.78, c }));
-      solids.push(P(ngon(lng, lat, r * 0.62, 8, rot + 0.2), { b: h * 0.78, t: h, c }));
+      solids.push(P(ngon(lng, lat, 0.16, 6, rot), { b: 0, t: h - 0.4, c: 9 }));
+      const fr = Math.max(Math.min(r, 2.0), 1.3);
+      solids.push(P(starPoly(lng, lat, fr, fr * 0.32, 7, rot), { b: h - 0.8, t: h - 0.4, c: 3 }));
+      solids.push(P(ngon(lng, lat, 0.4, 6, rot), { b: h - 0.5, t: h, c: 4 }));
+      return;
+    }
+    // Broadleaf tree: a stack of shrinking round tiers gives a domed crown; wide trees
+    // (live oaks and banyans) get extra lobes so they read as one broad, lumpy canopy.
+    const c = i % 3, n = r > 6 ? 14 : 10;
+    solids.push(P(ngon(lng, lat, 0.3 + r * 0.06, 6, rot), { b: 0, t: h * 0.5, c: 9 }));
+    [[0.82, 0.30, 0.52], [1.0, 0.50, 0.74], [0.78, 0.72, 0.90], [0.45, 0.88, 1.0]].forEach(([rf, b, t], j) =>
+      solids.push(P(ngon(lng, lat, r * rf, n, rot + j * 0.3), { b: h * b, t: h * t, c })));
+    if (r > 6) {
+      const lobes = 5;
+      for (let j = 0; j < lobes; j++) {
+        const a = rot + j * 2 * Math.PI / lobes, off = r * 0.52;
+        const lx = lng + off * Math.cos(a) / (M * k), ly = lat + off * Math.sin(a) / M;
+        solids.push(P(ngon(lx, ly, r * 0.5, 10, a), { b: h * 0.42, t: h * (0.78 + 0.06 * (j % 2)), c: (c + j) % 3 }));
+      }
     }
   });
   return { solids: { type: "FeatureCollection", features: solids }, shadows: { type: "FeatureCollection", features: shadows } };
@@ -196,7 +207,14 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "© OpenStreetMap contributors · traced from Esri imagery" }), "bottom-left");
     map.once("idle", () => map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
     mapRef.current = map;
-    let cancelled = false, flyTimer = null;
+    let flyTimer = null, flying = false, skippedAt = 0;
+    // Whole-hole camera for the current layout, worked out without visibly moving the map
+    const overviewCam = () => {
+      const cur = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
+      const cam = fitTilted(map, holePts, bearing, PITCH, padRef.current);
+      map.jumpTo(cur);
+      return cam;
+    };
 
     map.on("load", () => {
       // Static hole furniture
@@ -225,17 +243,31 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         const len = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
         const z0 = Math.max(17.6, Math.min(19.3, 19.9 - Math.log2(Math.max(len, 80) / 90)));
         const start = [t.lng + (hole.green.lng - t.lng) * 0.18, t.lat + (hole.green.lat - t.lat) * 0.18];
+        flying = true;
         map.jumpTo({ center: start, zoom: z0, pitch: 68, bearing });
         flyTimer = setTimeout(() => {
-          if (cancelled) return;
+          if (!flying) return;
           map.easeTo({ center: [hole.green.lng, hole.green.lat], zoom: z0 + 0.35, pitch: 62, duration: Math.max(1800, Math.min(3800, len * 7)), easing: x => x * (2 - x) });
-          map.once("moveend", () => { if (!cancelled) map.easeTo({ ...final, duration: 1200 }); });
+          map.once("moveend", () => {
+            if (!flying) return;
+            const cam = overviewCam();
+            if (cam) map.easeTo({ ...cam, duration: 1200 });
+            map.once("moveend", () => { flying = false; });
+          });
         }, 500);
       }
     });
 
     // Any touch or click stops the fly-over and hands the camera to the player
-    const stopFly = () => { if (!cancelled && flyTimer !== null) { cancelled = true; clearTimeout(flyTimer); map.stop(); } };
+    // A touch during the fly-over skips straight to the whole-hole view
+    const stopFly = () => {
+      if (!flying) return;
+      flying = false;
+      skippedAt = Date.now();
+      clearTimeout(flyTimer);
+      map.stop();
+      fitTilted(map, holePts, bearing, PITCH, padRef.current);
+    };
     const canvasBox = map.getCanvasContainer();
     canvasBox.addEventListener("pointerdown", stopFly, { passive: true });
     canvasBox.addEventListener("wheel", stopFly, { passive: true });
@@ -289,7 +321,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     canvasBox.addEventListener("touchcancel", lpCancel, { passive: true });
     map.on("contextmenu", e => { if (Date.now() - lastMeasure > 900) measureAt(e.lngLat); });
 
-    if (onMapTap) map.on("click", () => { if (Date.now() - lastMeasure > 700) onMapTap(); });
+    if (onMapTap) map.on("click", () => { if (Date.now() - lastMeasure > 700 && Date.now() - skippedAt > 700) onMapTap(); });
     if (onMapMove) map.on("movestart", e => { if (e.originalEvent) onMapMove(); });
     if (onMapMoveEnd) map.on("moveend", e => { if (e.originalEvent) onMapMoveEnd(); });
 
@@ -297,7 +329,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     window.addEventListener("resize", onResize);
 
     return () => {
-      cancelled = true;
+      flying = false;
       clearTimeout(flyTimer);
       lpCancel();
       window.removeEventListener("resize", onResize);

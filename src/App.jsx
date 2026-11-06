@@ -1862,24 +1862,33 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             <p style={{ fontSize: 17, lineHeight: 1.2, margin: 0 }}>{radarOn ? '🌧️' : '📡'}</p>
           </button>
 
-          {/* 2D satellite / 3D illustrated map toggle */}
+          {/* Map style switch: satellite photo or illustrated 3D course */}
           {(() => {
             const has3d = !course3d || course3d.holes?.includes(hole.number);
             const showing3d = mapMode === '3d' && has3d;
+            const choose = (next) => {
+              if (next === mapMode) return;
+              setMapMode(next);
+              if (next === '3d' && course3d && !course3d.holes?.includes(hole.number))
+                toast(`3D graphics are ready for holes ${course3d.holes.join(', ')} so far`);
+            };
+            const seg = (active) => ({ width: '100%', border: '1px solid rgba(201,168,76,0.55)', borderRadius: 7, cursor: 'pointer',
+              padding: '4px 0 3px', background: active ? '#c9a84c' : 'rgba(6,20,12,0.4)', color: active ? '#0b1a10' : '#f0ead6',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 });
             return (
-              <button onClick={() => {
-                  const next = mapMode === '3d' ? '2d' : '3d';
-                  setMapMode(next);
-                  if (next === '3d' && course3d && !course3d.holes?.includes(hole.number))
-                    toast(`3D graphics are ready for holes ${course3d.holes.join(', ')} so far`);
-                }}
-                className="side-box" aria-label={showing3d ? 'Switch to satellite map' : 'Switch to 3D course map'}
-                style={{ width: 56, padding: '5px 4px 4px', textAlign: 'center', cursor: 'pointer',
-                  background: showing3d ? 'rgba(201,168,76,0.3)' : 'rgba(6,20,12,0.78)' }}>
-                <p className="side-box-label" style={{ fontSize: 9 }}>View</p>
-                <p style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.25, margin: 0, color: '#f0ead6' }}>{showing3d ? '3D' : '2D'}</p>
-                {mapMode === '3d' && !has3d && <p style={{ fontSize: 8, margin: 0, color: '#c9a84c' }}>3D soon</p>}
-              </button>
+              <div className="side-box" role="group" aria-label="Map style"
+                style={{ width: 56, padding: '5px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <p className="side-box-label" style={{ fontSize: 9 }}>Map</p>
+                <button onClick={() => choose('2d')} aria-pressed={!showing3d} style={seg(!showing3d)}>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>🛰️</span>
+                  <span style={{ font: '800 9px Inter, sans-serif', letterSpacing: 0.3 }}>SAT</span>
+                </button>
+                <button onClick={() => choose('3d')} aria-pressed={showing3d} style={seg(showing3d)}>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>⛳</span>
+                  <span style={{ font: '800 9px Inter, sans-serif', letterSpacing: 0.3 }}>3D</span>
+                </button>
+                {mapMode === '3d' && !has3d && <p style={{ fontSize: 8, margin: 0, color: '#c9a84c', textAlign: 'center' }}>3D soon</p>}
+              </div>
             );
           })()}
 
