@@ -522,7 +522,7 @@ function sand(size, seed) {
       // rake lines: soft parallel ridges with a slight wave
       const rake = Math.sin((j + 6 * Math.sin(i / n * Math.PI * 4)) / n * Math.PI * 2 * 22) * 5;
       const g = (r() - 0.5) * 30;                     // per-grain brightness
-      let R = 236 + v * 24 + rake + g, G = 220 + v * 22 + rake + g * 0.95, B = 176 + v * 18 + rake + g * 0.85;
+      let R = 231 + v * 24 + rake + g, G = 197 + v * 22 + rake + g * 0.95, B = 152 + v * 18 + rake + g * 0.85;   // warm tan, like the real traps
       const q = r();
       if (q < 0.025) { R -= 70; G -= 66; B -= 58; }               // dark mineral grains
       else if (q < 0.05) { R -= 30; G -= 38; B -= 52; }            // tan/orange grains

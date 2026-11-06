@@ -239,11 +239,11 @@ def detect(region):
 
 # ── Assemble ─────────────────────────────────────────────────────────────
 feats = []
-def add(geom, **props):
+def add(geom, _prec=7, **props):
     if geom.is_empty: return
     g = mapping(geom)
     def rnd(o):
-        return [rnd(x) for x in o] if isinstance(o, (list, tuple)) and not isinstance(o[0], float) else [round(o[0], 7), round(o[1], 7)]
+        return [rnd(x) for x in o] if isinstance(o, (list, tuple)) and not isinstance(o[0], float) else [round(o[0], _prec), round(o[1], _prec)]
     g = {'type': g['type'], 'coordinates': rnd(g['coordinates'])}
     feats.append({'type': 'Feature', 'properties': props, 'geometry': g})
 
@@ -379,6 +379,18 @@ for bunkers, trees in detected:
             continue
         feats.append({'type': 'Feature', 'properties': {'kind': 'tree', 'r': tr['r'], 'h': tr['h'], 'type': tr['type']},
                       'geometry': {'type': 'Point', 'coordinates': [tr['lng'], tr['lat']]}})
+
+# Bunker shading, drawn over the sand so each trap reads as a sunken bowl (as on Google's 3D photo):
+# the south lip shades the sand just inside it, and the north face, which faces the sun, is lit.
+# Each is a crescent: the bunker minus itself shifted a little. Stacked steps give a soft gradient.
+from shapely.affinity import translate
+SUN = (-0.158, 0.987)   # direction shadows fall (north, a little west), as for the house shadows
+def crescent(b, d):     # d > 0: band along the sunny (south) edge; d < 0: along the north edge
+    k = math.cos(math.radians(b.centroid.y))
+    return b.difference(translate(b, SUN[0] * d / (M_PER_DEG * k), SUN[1] * d / M_PER_DEG)).simplify(0.12 / M_PER_DEG)
+for kind, steps in (('bshade', (0.6, 1.4)), ('blit', (-0.9,))):
+    for i, d in enumerate(steps):      # 10 cm precision is plenty for shading and keeps the file small
+        add(unary_union([crescent(b, d) for b in all_bunkers]), _prec=6, kind=kind, s=i + 1)
 
 # ── Terrain: USGS 3DEP bare-earth LiDAR (about 1 m), heights relative to the course ───────
 # Bunkers are deepened a little where the LiDAR smooths them, with a slight lip, so they read

@@ -16,6 +16,8 @@ broken.
   tee markers). Greens are traced ovals (often elongated), never overlapping bunkers.
 - Terrain at true scale (exaggeration 1). The course is FLAT. Never exaggerate or invent hills.
 - The 3D view defaults on; satellite (SAT) must keep working. 2D stays the fallback for untraced holes.
+- Bunkers must look like the owner's Google 3D photo: warm tan sand, soft darker grass lip, and baked shading
+  (`bshade` sun-side shadow, `blit` lit far face, from build.py). Never go back to pale flat cutouts with dark outlines.
 - Keep the phone fast: check frame rate stays reasonable; don't add heavy assets casually.
 - Questions to the owner are one at a time, multiple choice — but background runs must not block on
   questions: make the conservative choice and note it in the log.
@@ -72,6 +74,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: owner feedback (Google 3D photo of hole 1's three traps): detected bunker outlines already match the photo; the look was the problem (pale white, flat, dark outline, brown smudge). Now warm tan sand texture, blurred grass lip under the sand, and baked crescents: `bshade` (2 steps, 0.6/1.4 m, south edge) and `blit` (0.9 m, north edge), 10 cm precision; course.json +130 KB raw (+28 KB gzip). Same session: removed the first-launch "Tap the big gold button" overlay, shorter instructions (6 cards incl. 3D fly-over, lightning, today's pin), help button now "? HELP".
 - 2026-11-06: item 4 (5cdba10): hole 6 traced — green oval (~18×20 m) between the left and front bunkers, long back-tee strip (~26×8 m) and forward tee oval, fairway (~26 m wide) along the mowed band from past the forward tee to the green's front-left. No paved cart path (only worn dirt tracks), so none added. Not previewed in the browser this run (preview server permission declined in the background session); data-only change, build OK, live course.json confirmed. For item 17: tree #2423 at ~(500,812) hole6 px sits on a dark wet patch in the rough — likely not a tree. Note: deploy check for data-only changes must compare course.json (the index-*.js name doesn't change).
 - 2026-11-06: hedges (a031889): new `hedges` list in traced.json ({tag, h, w, line}) → `hedge` features → rounded shrub wall in realScene. Hole 5: behind the tee along the back yards (3.8 m) and behind the green outside the road (4.2 m), so the houses show roofs only. Add hedges on other holes the same way where the photo shows thick shrub lines in front of houses.
 - 2026-11-06: owner feedback on hole 5 (61c0d9b): palms re-placed by hand at trunk bases (9, tag h5-palms; heights from shadow length — the two tall ones 15–16.5 m); removed the mid-fairway "palm" (tall palm's shadow) and duplicate palms along trunk shadows (one palm by the bunker, not two). Hole 5 got a fairway (tee → green, north of the bunker). All greens now have a ~4.5 m first-cut collar ring outside the fringe (`collar` kind, build.py + HoleMap3D). Point label / View button, yardage arcs, tee dots, GPS and shot tags no longer fade when terrain "covers" them. Item 17 (tree audit) for hole 5 is effectively done.
