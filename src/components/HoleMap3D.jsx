@@ -285,6 +285,13 @@ function fitTilted(map, pts, bearing, pitch, padIn, maxZoom = 19.6) {
   return { center: map.getCenter(), zoom: map.getZoom(), bearing, pitch };
 }
 
+// Icons for the camera height/tilt buttons
+const iconProps = { width: 18, height: 18, viewBox: "0 0 18 18", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true };
+const ICON_UP = <svg {...iconProps}><path d="M2 15.5h14" /><path d="M9 12V3" /><path d="M5.5 6.5 9 3l3.5 3.5" /></svg>;
+const ICON_DOWN = <svg {...iconProps}><path d="M2 15.5h14" /><path d="M9 2.5v9" /><path d="M5.5 8 9 11.5 12.5 8" /></svg>;
+const ICON_LOOK_UP = <svg {...iconProps}><path d="M1.8 11c2-2.8 4.4-4.2 7.2-4.2s5.2 1.4 7.2 4.2c-2 2.8-4.4 4.2-7.2 4.2S3.8 13.8 1.8 11z" /><circle cx="9" cy="11" r="1.9" fill="currentColor" /><path d="M6.5 3.8 9 1.6l2.5 2.2" /></svg>;
+const ICON_LOOK_DOWN = <svg {...iconProps}><path d="M1.8 7c2-2.8 4.4-4.2 7.2-4.2s5.2 1.4 7.2 4.2c-2 2.8-4.4 4.2-7.2 4.2S3.8 9.8 1.8 7z" /><circle cx="9" cy="7" r="1.9" fill="currentColor" /><path d="M6.5 14.2 9 16.4l2.5-2.2" /></svg>;
+
 export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, recenterTick, approachMode, radarOn,
   onMapTap, onMapMove, onMapMoveEnd, formatShort, playerColor }) {
   const boxRef = useRef(null);
@@ -800,16 +807,15 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         <button aria-label="Turn right" data-f="0" data-t="1" style={{ ...padBtn, left: 84, top: 42 }} {...padEvents}>▶</button>
       </div>
 
-      {/* Camera height and tilt (hold to keep going) */}
-      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 64, bottom: pad.bottom + 12 + 124 + 6, width: 124, zIndex: 1001, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-        {[["h", 1, "▲", "HIGHER", "Raise the camera"], ["h", -1, "▼", "LOWER", "Lower the camera"],
-          ["p", 1, "◠", "LOOK UP", "Tilt the view up"], ["p", -1, "◡", "LOOK DN", "Tilt the view down"]].map(([axis, v, sym, label, aria]) => (
-          <button key={label} aria-label={aria} data-h={axis === "h" ? v : 0} data-p={axis === "p" ? v : 0} {...padEvents}
-            style={{ height: 26, borderRadius: 8, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 3, padding: 0, cursor: "pointer", touchAction: "none",
+      {/* Camera height and tilt, icons only (hold to keep going) */}
+      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 64, bottom: pad.bottom + 12 + 124 + 6, width: 124, zIndex: 1001, display: "flex", justifyContent: "space-between" }}>
+        {[["h", 1, "Raise the camera", ICON_UP], ["h", -1, "Lower the camera", ICON_DOWN],
+          ["p", 1, "Tilt the view up", ICON_LOOK_UP], ["p", -1, "Tilt the view down", ICON_LOOK_DOWN]].map(([axis, v, aria, ic]) => (
+          <button key={aria} aria-label={aria} title={aria} data-h={axis === "h" ? v : 0} data-p={axis === "p" ? v : 0} {...padEvents}
+            style={{ width: 28, height: 28, borderRadius: 8, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
+              display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: "pointer", touchAction: "none",
               userSelect: "none", WebkitUserSelect: "none", boxShadow: "0 3px 10px rgba(0,0,0,0.5)" }}>
-            <span style={{ fontSize: 10, lineHeight: 1 }}>{sym}</span>
-            <span style={{ font: "800 7.5px Inter, sans-serif", letterSpacing: 0.2 }}>{label}</span>
+            {ic}
           </button>
         ))}
       </div>
