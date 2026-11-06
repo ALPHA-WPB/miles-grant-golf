@@ -1,0 +1,27 @@
+{
+  "file": "heightmap.float32",
+  "dtype": "little-endian float32",
+  "width": 2356,
+  "height": 2197,
+  "row_order": "north to south",
+  "horizontal_crs": "EPSG:26917",
+  "vertical_datum": "NAVD88 GEOID12B",
+  "units": "meters",
+  "nodata": -9999,
+  "affine": [
+    0.762001524,
+    0.0,
+    580551.9317352133,
+    0.0,
+    -0.762001524,
+    3003986.3994042953
+  ],
+  "pixel_coordinates": "affine maps upper-left pixel corner; add 0.5 for center",
+  "recommended_local_origin": [
+    580551.9317352133,
+    3003986.3994042953,
+    0
+  ],
+  "mesh_axes": "X=easting-originE; Y=elevation; Z=originN-northing",
+  "resampling": "bilinear from 2.5 ft native DEM"
+}

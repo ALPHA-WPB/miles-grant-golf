@@ -60,7 +60,7 @@ broken.
 - [ ] 17. Tree audit, holes 1–18: numbered `check` images; remove false trees (shadows, shrubs on
   tees/greens) with `treeEdits.remove` [lng, lat, radius_m]; add obviously missing big trees.
 - [ ] 18. Bunker audit, holes 1–18: missing bunkers, cart-path/pool false positives (`bunkerEdits.remove`).
-- [ ] 19. TOPOGRAPHY — BLOCKED until the owner's ChatGPT LiDAR markdown exists (look in
+- [x] 19. (done 2026-11-06 for the whole course; owner reviews holes 1–3 first) TOPOGRAPHY — was blocked until the owner's ChatGPT LiDAR markdown existed (look in
   `tools/course3d/lidar/`, `~/Downloads`, `~/Desktop` for a recent .md about LiDAR/elevation for
   Miles Grant / Martin County / NOAA). Only then: read it, fetch the best source it lists, rebuild
   terrain at TRUE scale, compare against the current USGS 3DEP data, keep fairways flat.
@@ -68,6 +68,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: TERRAIN now from the owner's Martin County QL1 LiDAR (tools/course3d/lidar/, 0.76 m, aligns with the traced greens/bunkers at zero shift; the old USGS 3DEP data scored ~0 = blurred/misaligned). True scale, light 0.8 m smoothing, minimal bunker deepening. The .tif is git-ignored (16 MB) — keep it in tools/course3d/lidar/ for rebuilds. Fly-through rebuilt: starts 130 m behind the back tee at ~15 m, pre-computed and Gaussian-smoothed track (heading/tilt/height), centerClampedToGround off during custom camera paths. Flags white with hole number, waving.
 - 2026-11-06: fly-through now starts high behind the farthest-back tee (whole-hole shot) and a real 3D flagstick stands on the green (DOM flag icon only for distant views); swing button = 2-phase ball/button flash, plain ball with red NO GPS when no GPS.
 - 2026-11-06: backlog created; holes 1–3 traced and verified by hand; graphics: ez-tree oaks, leaflet palms,
   granular sand, high-res turf (commit e9ce5d3).

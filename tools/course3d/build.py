@@ -341,18 +341,38 @@ TS, TW, TN, TE = 27.1395, -80.1915, 27.1560, -80.1650
 EXAGGERATION = 1   # true scale: the course is nearly flat, and that is how it should look
 dw = int((TE - TW) * M_PER_DEG * math.cos(math.radians((TS + TN) / 2)))
 dh = int((TN - TS) * M_PER_DEG)
-dem_path = get('https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?'
-               + urllib.parse.urlencode({'bbox': f'{TW},{TS},{TE},{TN}', 'bboxSR': 4326, 'imageSR': 4326, 'size': f'{dw},{dh}',
-                                         'format': 'tiff', 'pixelType': 'F32', 'interpolation': 'RSP_BilinearInterpolation', 'f': 'image'}),
-               os.path.join(CACHE, f'dem_{dw}x{dh}.tif'))
-dem = tifffile.imread(dem_path).astype(np.float32)
+MARTIN = os.path.join(HERE, 'lidar', 'terrain_utm17_meters.tif')
+if os.path.exists(MARTIN):
+    # Martin County QL1 LiDAR bare earth (2018-19, 0.762 m, UTM 17N / NAVD88 m), supplied by the
+    # owner; resampled bilinearly onto this lat/lng grid
+    import pyproj
+    src = tifffile.TiffFile(MARTIN).pages[0]
+    mdem = src.asarray().astype(np.float32)
+    mdem[mdem < -9000] = np.nan
+    sx = src.tags['ModelPixelScaleTag'].value[0]
+    e0, n0 = src.tags['ModelTiepointTag'].value[3:5]
+    jj, ii = np.mgrid[0:dh, 0:dw]
+    lon = TW + (ii + 0.5) / dw * (TE - TW)
+    lat = TN - (jj + 0.5) / dh * (TN - TS)
+    east, north = pyproj.Transformer.from_crs('EPSG:4326', 'EPSG:26917', always_xy=True).transform(lon, lat)
+    mapx = ((east - e0) / sx - 0.5).astype(np.float32)
+    mapy = ((n0 - north) / sx - 0.5).astype(np.float32)
+    dem = cv2.remap(np.nan_to_num(mdem, nan=-9999), mapx, mapy, cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=-9999)
+    dem_source = 'Martin County QL1 LiDAR 2018-19 (0.76 m)'
+else:
+    dem_path = get('https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?'
+                   + urllib.parse.urlencode({'bbox': f'{TW},{TS},{TE},{TN}', 'bboxSR': 4326, 'imageSR': 4326, 'size': f'{dw},{dh}',
+                                             'format': 'tiff', 'pixelType': 'F32', 'interpolation': 'RSP_BilinearInterpolation', 'f': 'image'}),
+                   os.path.join(CACHE, f'dem_{dw}x{dh}.tif'))
+    dem = tifffile.imread(dem_path).astype(np.float32)
+    dem_source = 'USGS 3DEP (1 m)'
 dem[(dem < -50) | (dem > 200)] = np.nan
 dpx = lambda lng, lat: ((lng - TW) / (TE - TW) * dw - 0.5, (TN - lat) / (TN - TS) * dh - 0.5)
 cmask = np.zeros((dh, dw), np.uint8)
 cv2.fillPoly(cmask, [np.array([dpx(*c) for c in course.exterior.coords], np.int32)], 1)
 base = float(np.nanmedian(dem[cmask > 0]))
 rel = np.clip(np.nan_to_num(dem - base, nan=0.0), -2.5, 6.0)   # cap ponds/canals so they don't become pits
-rel = cv2.GaussianBlur(rel, (0, 0), 2.0)   # smooth out LiDAR speckle so fairways read flat
+rel = cv2.GaussianBlur(rel, (0, 0), 0.8 if 'Martin' in dem_source else 2.0)   # remove speckle, keep green and bunker shapes
 for b in all_bunkers:
     for poly in getattr(b, 'geoms', [b]):
         m = np.zeros((dh, dw), np.uint8)
@@ -362,11 +382,13 @@ for b in all_bunkers:
         ring = (cv2.dilate(m, np.ones((3, 3), np.uint8)) > 0) & (m == 0)
         rim = float(np.median(rel[ring]))
         inside = cv2.distanceTransform(m, cv2.DIST_L2, 3)
-        floor = rim - np.minimum(0.75, 0.2 + 0.15 * inside)
+        # the Martin LiDAR already shows bunkers as hollows: only make sure each is at least a bit below its rim
+        floor = rim - (np.minimum(0.35, 0.1 + 0.08 * inside) if 'Martin' in dem_source else np.minimum(0.75, 0.2 + 0.15 * inside))
         rel = np.where(m > 0, np.minimum(rel, floor), rel)
         outside = cv2.distanceTransform(1 - m, cv2.DIST_L2, 3)
         lip = (outside > 0) & (outside <= 2.2)
-        rel[lip] += 0.12 * (1 - outside[lip] / 2.2)
+        if 'Martin' not in dem_source:
+            rel[lip] += 0.12 * (1 - outside[lip] / 2.2)
         zone = cv2.dilate(m, np.ones((7, 7), np.uint8)) > 0
         rel = np.where(zone, cv2.GaussianBlur(rel, (0, 0), 0.8), rel)
 # fade to zero at the edge of the data so there is no cliff where it stops
@@ -424,7 +446,7 @@ gH = int((gn - gs) * M_PER_DEG / 3) + 1
 grid = np.array([[elev(gw_ + (ge - gw_) * i / (gW - 1), gn - (gn - gs) * j / (gH - 1)) for i in range(gW)] for j in range(gH)])
 terrain_meta['grid'] = {'bounds': [gw_, gs, ge, gn], 'w': gW, 'h': gH,
                         'cm': base64.b64encode(np.round(grid * 100).astype('<i2').tobytes()).decode()}
-print('terrain: base', round(base, 2), 'm, relief', round(float(rel.min()), 2), 'to', round(float(rel.max()), 2), 'm,', ntiles, 'tiles')
+print('terrain:', dem_source, '| base', round(base, 2), 'm, relief', round(float(rel.min()), 2), 'to', round(float(rel.max()), 2), 'm,', ntiles, 'tiles')
 
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 json.dump({'type': 'FeatureCollection', 'holes': traced_holes, 'terrain': terrain_meta, 'features': feats}, open(OUT, 'w'), separators=(',', ':'))

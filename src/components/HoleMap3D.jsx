@@ -254,7 +254,7 @@ function el(html, cls = "") {
   return d;
 }
 const dotHtml = c => `<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>`;
-const flagHtml = `<div style="position:relative;width:24px;height:44px"><div style="position:absolute;left:0;bottom:0;width:3px;height:42px;background:#fff;border-radius:2px;box-shadow:0 0 3px rgba(0,0,0,0.5)"></div><div style="position:absolute;left:3px;top:0;width:16px;height:11px;background:#ef4444;clip-path:polygon(0 0,100% 50%,0 100%)"></div></div>`;
+const flagHtml = (n) => `<div style="position:relative;width:30px;height:44px"><div style="position:absolute;left:0;bottom:0;width:3px;height:42px;background:#fff;border-radius:2px;box-shadow:0 0 3px rgba(0,0,0,0.6)"></div><div class="mgg-flag" style="position:absolute;left:3px;top:0;width:24px;height:16px;background:#fff;border:1px solid rgba(0,0,0,0.35);border-left:0;display:flex;align-items:center;justify-content:center;font:900 11px Inter,sans-serif;color:#0b1a10;transform-origin:left center;box-shadow:0 1px 3px rgba(0,0,0,0.5)">${n}</div></div>`;
 const tagHtml = (txt, border, color) => `<div style="background:rgba(8,26,16,0.9);border:1px solid ${border};color:${color};font:700 11px Inter,sans-serif;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.5)">${txt}</div>`;
 
 // Yardage label: centered above the dot, or to one side when the dot is near a screen edge
@@ -331,6 +331,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   const frameHole = map => {
     const pitch = pitchRef.current;
     const teeCam = pitch > 75 ? ctlRef.current.teeCam?.() : null;
+    // Our own camera paths set exact heights; the map's ground-snapping would make them bob
+    map.setCenterClampedToGround?.(!teeCam);
     if (teeCam) { map.jumpTo(teeCam); return teeCam; }
     return fitTilted(map, holePts, bearing, Math.min(pitch, 75), padRef.current);
   };
@@ -352,6 +354,12 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     const markerSet = markersRef.current;
     let flyTimer = null, raf = 0, flying = false, skippedAt = 0, flagMarker = null;
     const placeMarkers = new Set();   // facility icons: only shown nearby in low views
+    // Keep the map redrawing while the 3D flag is close enough to see it wave
+    let waveRaf = 0;
+    const wavePin = on => {
+      if (on && !waveRaf) { const tick = () => { map.triggerRepaint(); waveRaf = requestAnimationFrame(tick); }; waveRaf = requestAnimationFrame(tick); }
+      if (!on && waveRaf) { cancelAnimationFrame(waveRaf); waveRaf = 0; }
+    };
 
     // Whole-hole camera for the current layout and angle, worked out without visibly moving the map
     const overviewCam = () => {
@@ -374,9 +382,9 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       .reduce((a, b) => haversineYards(b.lat, b.lng, hole.green.lat, hole.green.lng) > haversineYards(a.lat, a.lng, hole.green.lat, hole.green.lng) ? b : a);
     const path = walkPath(backTee, hole.green, spine);
     const pin = hole.green, pinAlt = ground(pin.lng, pin.lat) + 1.3;
-    const s0 = -60, s1 = Math.max(path.total - 14, path.total * 0.6);
-    // high establishing shot behind the tees, gliding down to ~30 ft past them, then to near ground at the green
-    const eyeAt = s => FLY_EYE + (32 - FLY_EYE) * (1 - smoothstep(s0, 45, s)) - (FLY_EYE - 3) * smoothstep(s1 - 90, s1, s);
+    // Start well behind the back tee at a low "ground angle" height, end just short of the green
+    const s0 = -130, s1 = Math.max(path.total - 14, path.total * 0.6);
+    const eyeAt = s => 15 - 5 * smoothstep(s0, 0, s) - 7 * smoothstep(s1 - 120, s1, s);
     // Where does the flag come into clear view? Check the sight line past every broadleaf tree.
     const kx = Math.cos(t.lat * Math.PI / 180);
     const xy = (lng, lat) => [(lng - t.lng) * M * kx, (lat - t.lat) * M];
@@ -384,7 +392,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       .map(f => { const [lng, lat] = f.geometry.coordinates; return { p: xy(lng, lat), r: f.properties.r * 0.85, top: ground(lng, lat) + f.properties.h }; });
     const pinXY = xy(pin.lng, pin.lat);
     let lastBlocked = -Infinity;
-    for (let s = s0; s <= s1; s += 4) {
+    for (let s = 0; s <= s1; s += 4) {
       const P = path.at(s), a = xy(P.lng, P.lat), camAlt = ground(P.lng, P.lat) + eyeAt(s);
       const dx = pinXY[0] - a[0], dy = pinXY[1] - a[1], L2 = dx * dx + dy * dy || 1;
       const hit = blockers.some(b => {
@@ -395,19 +403,55 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       });
       if (hit) lastBlocked = s;
     }
-    const sClear = lastBlocked === -Infinity ? s0 - 60 : lastBlocked + 6;
+    const sClear = lastBlocked === -Infinity ? -1e9 : lastBlocked + 6;
     // look at the flag at the start (whole-hole view) and again once nothing blocks it
-    const pinWeight = s => Math.max(1 - smoothstep(s0 + 10, s0 + 85, s), smoothstep(sClear - 25, sClear + 35, s));
+    const pinWeight = s => Math.max(1 - smoothstep(s0 + 30, s0 + 160, s), smoothstep(sClear - 40, sClear + 70, s));
+
+    // Pre-compute the whole flight, then smooth heading, tilt, position and height so the camera
+    // pans slowly and never jerks or bobs; flyCam(u) just interpolates this smoothed track.
+    const NS = 480, flight = [];
+    for (let i = 0; i < NS; i++) {
+      const s = s0 + (s1 - s0) * i / (NS - 1), P = path.at(s), w = pinWeight(s);
+      let ax = 0, ay = 0;
+      for (const d of [50, 75, 100, 125]) { const q = path.at(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
+      const T = { lng: ax + (pin.lng - ax) * w, lat: ay + (pin.lat - ay) * w };
+      const tAlt = ground(ax, ay) + (pinAlt - ground(ax, ay)) * w;
+      const g = ground(P.lng, P.lat), alt = g + eyeAt(s);
+      const dH = Math.max(5, haversineYards(P.lat, P.lng, T.lat, T.lng) / 1.09361);
+      flight.push({ lng: P.lng, lat: P.lat, g, eye: eyeAt(s), yaw: bearingOf(P, T), dip: Math.atan2(alt - tAlt, dH) });
+    }
+    for (let i = 1; i < NS; i++) {                    // unwrap heading so smoothing never spins the long way
+      let d = flight[i].yaw - flight[i - 1].yaw;
+      while (d > 180) d -= 360;
+      while (d < -180) d += 360;
+      flight[i].yaw = flight[i - 1].yaw + d;
+    }
+    const smooth = (key, sigma) => {
+      const k = [], r = Math.ceil(sigma * 3);
+      for (let j = -r; j <= r; j++) k.push(Math.exp(-(j * j) / (2 * sigma * sigma)));
+      const vals = flight.map(p => p[key]);
+      flight.forEach((p, i) => {
+        let a = 0, wsum = 0;
+        for (let j = -r; j <= r; j++) { const v = vals[Math.max(0, Math.min(NS - 1, i + j))]; a += v * k[j + r]; wsum += k[j + r]; }
+        p[key] = a / wsum;
+      });
+    };
+    smooth("lng", 10); smooth("lat", 10); smooth("g", 34); smooth("yaw", 42); smooth("dip", 34);
+    const flyCam = u => {
+      const f = Math.max(0, Math.min(1, u)) * (NS - 1), i = Math.min(NS - 2, Math.floor(f)), k = f - i;
+      const L = (key) => flight[i][key] + (flight[i + 1][key] - flight[i][key]) * k;
+      const P = { lng: L("lng"), lat: L("lat") }, alt = L("g") + L("eye"), yaw = L("yaw"), dip = L("dip");
+      const T = destPoint(P.lat, P.lng, yaw, 90 * 1.09361);
+      return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(P.lng, P.lat), alt, new maplibregl.LngLat(T.lng, T.lat), alt - 90 * Math.tan(dip));
+    };
     const camAt = (s, eye, w) => {
       const P = path.at(s);
-      // look-ahead along the fairway, averaged so curves don't make the view sway
       let ax = 0, ay = 0;
       for (const d of [40, 60, 80, 100]) { const q = path.at(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
       const tLng = ax + (pin.lng - ax) * w, tLat = ay + (pin.lat - ay) * w;
       const tAlt = ground(ax, ay) + (pinAlt - ground(ax, ay)) * w;
       return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(P.lng, P.lat), ground(P.lng, P.lat) + eye, new maplibregl.LngLat(tLng, tLat), tAlt);
     };
-    const flyCam = u => { const s = s0 + (s1 - s0) * u; return camAt(s, eyeAt(s), pinWeight(s)); };
     const setThumb = u => { if (thumbRef.current) thumbRef.current.style.bottom = `calc(${(u * 100).toFixed(1)}% - 11px)`; };
 
     const stopFly = (toOverview) => {
@@ -424,10 +468,11 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       clearTimeout(flyTimer); cancelAnimationFrame(raf); map.stop();
       setLooking(false);
       flying = true;
+      map.setCenterClampedToGround?.(false);
       map.jumpTo(flyCam(0)); setThumb(0);
       flyTimer = setTimeout(() => {
         if (!flying) return;
-        const dur = Math.max(4500, Math.min(11000, path.total / 42 * 1000)), t0 = performance.now();
+        const dur = Math.max(7000, Math.min(18000, (s1 - s0) / 36 * 1000)), t0 = performance.now();
         const step = now => {
           if (!flying) return;
           const x = Math.min(1, (now - t0) / dur), u = 0.5 - 0.5 * Math.cos(Math.PI * x);
@@ -436,7 +481,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
           flyTimer = setTimeout(() => {      // a beat on the flag, then the whole hole
             if (!flying) return;
             const cam = overviewCam();
-            if (cam) map.easeTo({ ...cam, duration: 1600 });
+            map.setCenterClampedToGround?.(true);
+            if (cam) map.easeTo({ ...cam, duration: 2400 });
             map.once("moveend", () => { flying = false; });
           }, 700);
         };
@@ -448,6 +494,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     const lookFrom = pt => {
       stopFly(false);
       walk = null;
+      map.setCenterClampedToGround?.(false);
       const cam = map.calculateCameraOptionsFromTo(new maplibregl.LngLat(pt.lng, pt.lat), ground(pt.lng, pt.lat) + STAND_EYE,
         new maplibregl.LngLat(hole.green.lng, hole.green.lat), pinAlt);
       map.easeTo({ ...cam, duration: 1800 });
@@ -477,7 +524,24 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(w.lng, w.lat), ground(w.lng, w.lat) + w.above,
         new maplibregl.LngLat(T.lng, T.lat), ground(T.lng, T.lat));
     };
-    map.on("movestart", e => { if (e.originalEvent) walk = null; });   // a finger moved the map: start fresh
+    // A finger (or wheel) moved the map: hand the camera back to the map's normal ground-following,
+    // or pinch-zoom can stall after the fly-through, walking or "View" left it at a custom height
+    map.on("movestart", e => { if (e.originalEvent) { walk = null; map.setCenterClampedToGround?.(true); } });
+    let userZooming = false;
+    const handBack = e => { if (!e.touches || e.touches.length >= 2) { walk = null; userZooming = true; map.setCenterClampedToGround?.(true); } };
+    map.on("moveend", () => { userZooming = false; });
+    map.getCanvasContainer().addEventListener("touchstart", handBack, { passive: true });
+    map.getCanvasContainer().addEventListener("wheel", handBack, { passive: true });
+    // Zooming out from a near-ground view also tilts the view down (like Google Earth), so pulling
+    // back opens up the course instead of sliding along the horizon
+    let lastZoom = null;
+    map.on("zoom", e => {
+      const z = map.getZoom();
+      if ((e.originalEvent || userZooming) && lastZoom != null && z < lastZoom && map.getPitch() > 62) {
+        map.setPitch(Math.max(62, map.getPitch() - (lastZoom - z) * 14));
+      }
+      lastZoom = z;
+    });
     const stepView = (dt, { f, t: turn, h, p }) => {
       if (map.getPitch() >= 55 || walk) {
         if (!walk) walk = walkFromMap();
@@ -491,6 +555,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
           walk.lng = Math.max(bw, Math.min(be, q.lng));
           walk.lat = Math.max(bs, Math.min(bn, q.lat));
         }
+        map.setCenterClampedToGround?.(false);
         map.jumpTo(walkCam(walk));
       } else {
         const ctr = map.getCenter(), brg = map.getBearing() + turn * 45 * dt;
@@ -521,7 +586,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       move: startMove,
       forgetWalk,
       replay: () => { if (readyRef.current) runFly(); },
-      slide: u => { if (!readyRef.current) return; stopFly(false); walk = null; setLooking(false); map.jumpTo(flyCam(u)); setThumb(u); },
+      slide: u => { if (!readyRef.current) return; stopFly(false); walk = null; setLooking(false); map.setCenterClampedToGround?.(false); map.jumpTo(flyCam(u)); setThumb(u); },
       reset,
       stopFly,
       teeCam: () => camAt(-12, FLY_EYE, 0),
@@ -566,7 +631,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       COURSE_PLACES.forEach(p => placeMarkers.add(track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map))));
       [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
         track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
-      flagMarker = track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
+      flagMarker = track(new maplibregl.Marker({ element: el(flagHtml(hole.number)), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
 
       // Realistic look: textured turf and sand, and the three.js trees and houses in place of
       // the simple block ones (which stay as a fallback if the 3D layer can't start)
@@ -579,12 +644,13 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       try {
         // Flag icon follows the 3D flagstick's screen position; once the real flagstick is big
         // enough to see, the icon hides so there's only ever one flag
-        const flagEl = el(flagHtml);
+        const flagEl = el(flagHtml(hole.number));
         Object.assign(flagEl.style, { position: "absolute", left: "0", top: "0", pointerEvents: "none", zIndex: 2, display: "none" });
         map.getCanvasContainer().appendChild(flagEl);
         map.addLayer(createRealisticLayer(course, terrainOf(course).E,
-          { lng: hole.green.lng, lat: hole.green.lat, z: terrainOf(course).ground(hole.green.lng, hole.green.lat) },
+          { lng: hole.green.lng, lat: hole.green.lat, z: terrainOf(course).ground(hole.green.lng, hole.green.lat), number: hole.number },
           p => {
+            wavePin(p && p.height >= 16);
             const show = p && p.height > 0 && p.height < 16;
             flagEl.style.display = show ? "block" : "none";
             if (show) flagEl.style.transform = `translate(${(p.x - 1).toFixed(1)}px, ${(p.y - 44).toFixed(1)}px)`;
@@ -636,9 +702,10 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       ] });
       const dot = el(dotHtml("#fbbf24"));
       const label = el(`<div style="display:flex;align-items:center;gap:7px;background:rgba(8,26,16,0.92);border:1px solid #fbbf24;color:#f0ead6;font:700 11px Inter,sans-serif;padding:3px 4px 3px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.6)"><span><span style="color:#fbbf24">${fromYds}</span> ${onHole ? "here" : "from tee"} · <span style="color:#4ade80">${pinYds}</span> to pin</span><button data-view type="button" style="font:800 11px Inter,sans-serif;color:#0b1a10;background:#c9a84c;border:0;border-radius:5px;padding:4px 8px;cursor:pointer">👁 View</button></div>`);
-      dot.addEventListener("click", e => { e.stopPropagation(); clearMeasure(); });
+      dot.addEventListener("click", e => { e.stopPropagation(); lastMeasure = Date.now(); clearMeasure(); });
       label.addEventListener("click", e => {
         e.stopPropagation();
+        lastMeasure = Date.now();
         if (e.target.closest("[data-view]")) lookFrom(pt); else clearMeasure();
       });
       measureMarkersRef.current = [
@@ -679,6 +746,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       clearTimeout(flyTimer);
       cancelAnimationFrame(raf);
       cancelAnimationFrame(moveRaf);
+      cancelAnimationFrame(waveRaf);
       lpCancel();
       window.removeEventListener("resize", onResize);
       readyRef.current = false;
@@ -875,7 +943,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
 
   return (
     <div ref={rootRef} className="mgg3d" style={{ position: "absolute", inset: 0, "--dock": `${pad.bottom - 12}px` }}>
-      <style>{`.mgg3d .maplibregl-ctrl-bottom-left{bottom:var(--dock)} .mgg3d .maplibregl-ctrl-attrib{font-size:10px;background:rgba(255,255,255,0.7)} .mgg3d .maplibregl-canvas{outline:none}`}</style>
+      <style>{`.mgg3d .maplibregl-ctrl-bottom-left{bottom:var(--dock)} .mgg3d .maplibregl-ctrl-attrib{font-size:10px;background:rgba(255,255,255,0.7)} .mgg3d .maplibregl-canvas{outline:none} .mgg-flag{animation:mggflag 1.6s ease-in-out infinite} @keyframes mggflag{0%,100%{transform:skewY(-4deg) scaleX(1)}50%{transform:skewY(5deg) scaleX(0.9)}} @media (prefers-reduced-motion: reduce){.mgg-flag{animation:none}}`}</style>
       <div ref={boxRef} style={{ position: "absolute", inset: 0, background: "#cdd6c1" }} />
 
       {overlayHost ? createPortal(controls, overlayHost) : controls}

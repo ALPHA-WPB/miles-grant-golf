@@ -352,10 +352,10 @@ function makeIcon(color) {
   });
 }
 
-const flagIcon = L.divIcon({
+const flagIconFor = (n) => L.divIcon({
   className: "",
-  html: `<div style="position:relative;width:20px;height:30px"><div style="position:absolute;left:0;top:0;width:2px;height:26px;background:#fff;border-radius:1px"></div><div style="position:absolute;left:2px;top:0;width:11px;height:7px;background:#ef4444;clip-path:polygon(0 0,100% 50%,0 100%)"></div></div>`,
-  iconSize: [20, 30], iconAnchor: [1, 26],
+  html: `<div style="position:relative;width:26px;height:32px"><div style="position:absolute;left:0;top:0;width:2px;height:30px;background:#fff;border-radius:1px;box-shadow:0 0 2px rgba(0,0,0,0.6)"></div><div class="mgg-flag" style="position:absolute;left:2px;top:0;width:20px;height:13px;background:#fff;border:1px solid rgba(0,0,0,0.35);border-left:0;display:flex;align-items:center;justify-content:center;font:900 9px Inter,sans-serif;color:#0b1a10;transform-origin:left center">${n}</div></div>`,
+  iconSize: [26, 32], iconAnchor: [1, 30],
 });
 
 const gpsIcon = L.divIcon({
@@ -470,7 +470,7 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, r
     L.marker([hole.tees.champ.lat,  hole.tees.champ.lng],  { icon: makeIcon("#3b82f6") }).addTo(map);
     L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#9ca3af") }).addTo(map);
     L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444") }).addTo(map);
-    L.marker([hole.green.lat, hole.green.lng], { icon: flagIcon }).addTo(map);
+    L.marker([hole.green.lat, hole.green.lng], { icon: flagIconFor(hole.number) }).addTo(map);
     COURSE_PLACES.forEach(p => L.marker([p.lat, p.lng], { interactive: false,
       icon: L.divIcon({ className: "", html: placeBadgeHtml(p), iconSize: null, iconAnchor: [0, 0] }) }).addTo(map));
 
@@ -677,6 +677,9 @@ const css = `
   .swing-ball { position: absolute; inset: -4px; display: flex; align-items: center; justify-content: center; pointer-events: none; background: radial-gradient(circle at 50% 50%, #1d5a32 0%, #0b2414 100%); }
   .swing-idle .swing-ball { animation: swing-ball 1.2s steps(1) infinite; }
   .swing-label { position: relative; }
+  .mgg-flag { animation: mggflag 1.6s ease-in-out infinite; }
+  @keyframes mggflag { 0%,100% { transform: skewY(-4deg) scaleX(1); } 50% { transform: skewY(5deg) scaleX(0.9); } }
+  @media (prefers-reduced-motion: reduce) { .mgg-flag { animation: none; } }
   .swing-idle .swing-label { animation: swing-label 1.2s steps(1) infinite; }
   @keyframes swing-label { 0%, 49.99% { opacity: 1; } 50%, 100% { opacity: 0; } }
   .swing-nogps { overflow: hidden; border-color: #9a8a5a; cursor: not-allowed; background: #0b2414; }

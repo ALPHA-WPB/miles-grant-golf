@@ -29,3 +29,4 @@ node-v*.tar.gz
 tools/course3d/.cache/
 tools/course3d/.venv/
 tools/course3d/.work/
+tools/course3d/lidar/*.tif

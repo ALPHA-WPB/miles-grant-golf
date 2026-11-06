@@ -1,0 +1,1 @@
+This is an independent terrain package, not a multipart archive. Read SEND_TO_CLAUDE.md. The PNG is a shaded terrain preview, not aerial imagery.

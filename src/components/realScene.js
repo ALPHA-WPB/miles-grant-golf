@@ -257,7 +257,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
     .scale(new THREE.Vector3(s, -s, s))
     .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
 
-  let renderer, scene, camera, map;
+  let renderer, scene, camera, map, flagMesh = null, flagBase = null;
   return {
     id, type: "custom", renderingMode: "3d",
     onAdd(m, gl) {
@@ -329,16 +329,31 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         const white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.5 });
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 2.13, 10), white);
         pole.position.set(px, py + 2.13 / 2, pz);
-        const flagGeo = new THREE.PlaneGeometry(0.52, 0.36, 12, 4);
-        const fp = flagGeo.attributes.position;
-        for (let k = 0; k < fp.count; k++) {                 // a gentle wave in the cloth
-          const x = fp.getX(k) + 0.26;
-          fp.setZ(k, Math.sin(x * 9) * 0.035 * (x / 0.52));
-          fp.setX(k, x);
-        }
-        flagGeo.computeVertexNormals();
-        const flag = new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({ color: 0xe8333a, emissive: 0x4a0606, roughness: 0.7, side: THREE.DoubleSide }));
-        flag.position.set(px + 0.016, py + 2.13 - 0.2, pz);
+        // White flag with the hole number on both sides; its cloth ripples in the wind (render())
+        const flagTex = (() => {
+          const cv = document.createElement("canvas"); cv.width = 256; cv.height = 176;
+          const x = cv.getContext("2d");
+          x.fillStyle = "#fbfbf8"; x.fillRect(0, 0, 256, 176);
+          x.fillStyle = "#0f3b22"; x.font = "900 128px Inter, Arial, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+          x.fillText(String(pin.number ?? ""), 128, 96);
+          const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+          return t;
+        })();
+        const flagGeo = new THREE.PlaneGeometry(0.72, 0.5, 16, 6);
+        flagGeo.translate(0.36, 0, 0);
+        flagBase = Float32Array.from(flagGeo.attributes.position.array);
+        const backGeo = new THREE.BufferGeometry();
+        backGeo.setAttribute("position", flagGeo.attributes.position);          // shares the moving cloth
+        backGeo.setAttribute("normal", flagGeo.attributes.normal);
+        backGeo.setIndex(flagGeo.index);
+        const uvs = Float32Array.from(flagGeo.attributes.uv.array);
+        for (let k = 0; k < uvs.length; k += 2) uvs[k] = 1 - uvs[k];            // number reads correctly from behind
+        backGeo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+        const clothMat = { map: flagTex, roughness: 0.8, emissive: 0xffffff, emissiveMap: flagTex, emissiveIntensity: 0.45 };
+        flagMesh = new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({ ...clothMat, side: THREE.FrontSide }));
+        const flagBack = new THREE.Mesh(backGeo, new THREE.MeshStandardMaterial({ ...clothMat, side: THREE.BackSide }));
+        const flag = new THREE.Group(); flag.add(flagMesh, flagBack);
+        flag.position.set(px + 0.016, py + 2.13 - 0.27, pz);
         flag.rotation.y = -0.4;
         const cup = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.054, 20), white);
         cup.rotation.x = -Math.PI / 2;
@@ -377,6 +392,16 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       THREE.DefaultLoadingManager.onLoad = () => { renderer.shadowMap.needsUpdate = true; map.triggerRepaint(); };
     },
     render(gl, args) {
+      if (flagMesh && flagBase) {                       // wind ripple: stronger toward the free edge
+        const pa = flagMesh.geometry.attributes.position, t = performance.now() / 1000;
+        for (let k = 0; k < pa.count; k++) {
+          const x = flagBase[k * 3], y = flagBase[k * 3 + 1], f = x / 0.72;
+          pa.setZ(k, f * (0.06 * Math.sin(x * 11 - t * 6.5) + 0.025 * Math.sin(y * 9 + t * 4.1)));
+          pa.setX(k, x * (1 - 0.04 * f * (1 + Math.sin(t * 3))));
+        }
+        pa.needsUpdate = true;
+        flagMesh.geometry.computeVertexNormals();
+      }
       camera.projectionMatrix = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix).multiply(model);
       // Where the flagstick lands on screen, so the flag icon can follow it exactly (or hide)
       if (pin && onPin) {
