@@ -51,7 +51,7 @@ broken.
 - [x] 6. (b6156a4) Trace hole 8.
 - [x] 7. (68a3092) Trace hole 9.
 - [x] 8. (f927a05) Trace hole 10.
-- [ ] 9. Trace hole 11.
+- [x] 9. (620baf5) Trace hole 11.
 - [ ] 10. Trace hole 12.
 - [ ] 11. Trace hole 13.
 - [ ] 12. Trace hole 14.
@@ -74,6 +74,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 9 (620baf5): hole 11 traced (par 3, no fairway) — tall green oval (~16×22 m) between the left and right bunkers, one diagonal tee strip (~20×6 m) holding all three markers, paved cart paths behind the tee and short of the green. For item 18: small sand patch at ~(575,516) hole11 px by the tee-side planter is probably a planter bed, not a bunker. Previewed in 3D, no errors.
 - 2026-11-06: item 8 (f927a05): hole 10 traced (par 4) — green oval (~14×19 m) between the back-right and front-right bunkers, forward tee oval, back tee strip (~27×8 m, both back markers) along the paved cart path (path added from the forward tee past the back tee toward the clubhouse). Fairway winds between the tree groups (narrow, ~13 m, at x≈740 hole10 px where trees close in on both sides; nudged north at x≈1415 to keep a real tree). The north cart path near (1600–1720, 180–320) was not added (off this hole's line). Previewed in 3D, no errors.
 - 2026-11-06: item 7 (68a3092): hole 9 traced (par 4) — green oval (~23×15 m) between the front-left and right bunkers, 3 separate tee ovals, fairway (~20–28 m wide) from just past the tee-side trees (x≈900 hole9 px) to the green front, kept clear of the real oak at ~(932,506) and of the palms along the south edge. Fairway edges are faint on the photo between x 1300–1500 (narrow gap between trees) — owner may want to eyeball its width there. Previewed in 3D, no errors.
 - 2026-11-06: item 6 (b6156a4): hole 8 traced (par 3, no fairway) — elongated green (~25×11 m, tilted down to the right) fitted between the back bunker and the two front bunkers; one long diagonal tee strip (~27×6 m) through the tree pocket holding all three markers (middle part is under tree shadow, so its edges are estimated). The traced green also dropped a false "bunker" the color detector had placed on the green (67→66 bunkers; DEM tiles changed slightly with it). Previewed in 3D, no app errors.
