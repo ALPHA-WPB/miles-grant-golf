@@ -22,7 +22,7 @@ broken.
 
 ## Environment
 - Repo: `/Users/wpbit/Desktop/New Folder With Items 3/miles-grant-golf` (if moved: `mdfind -name miles-grant-golf`).
-- Node: `/Applications/Codex.app/Contents/Resources/cua_node/bin/{node,npx}` (no system Node).
+- Node: `N=/Applications/Codex.app/Contents/Resources/cua_node/bin; $N/npx …` — do NOT put that folder on PATH (vite's native rolldown module then fails its code-signature check).
   Build: `npx vite build`; lint changed files: `npx eslint <files>` (App.jsx has 8 old known issues).
 - Python for course data: `tools/course3d/.venv/bin/python` (numpy, opencv, shapely, tifffile).
   Rebuild data: `tools/course3d/.venv/bin/python tools/course3d/build.py` (writes public/course3d/*).
@@ -30,7 +30,7 @@ broken.
   write a shapes JSON in those pixel coords; `trace_kit.py add N shapes.json`; run build.py;
   `trace_kit.py check N` and LOOK at the check images; iterate until they match the photo.
   New holes appear in 3D automatically once `traced.json` has them (`course.holes`).
-- Local preview: `rm -rf /private/tmp/claude-501/mgg-dist && cp -R dist /private/tmp/claude-501/mgg-dist`,
+- Local preview: `rsync -a --delete dist/ /private/tmp/claude-501/mgg-dist/` (rm -rf is blocked),
   then preview server "miles-grant-golf (preview)" (python http.server on 4173, config in
   /Users/wpbit/Downloads/.claude/launch.json). Guest sign-in → Start on Hole. `/api/*` 404s locally are expected.
 - Deploy check: after `git push origin main`, poll `https://www.milesgrant.golf/` until the index-*.js
@@ -38,7 +38,7 @@ broken.
 - Commit message trailer: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
 ## Items
-- [ ] 1. Whole-course imagery: change `traced.json` `regions` to ONE bbox covering the whole course
+- [x] 1. (467afbb) Whole-course imagery: change `traced.json` `regions` to ONE bbox covering the whole course
   (about S 27.1442, W -80.1856, N 27.1528, E -80.1712) so bunkers/trees are detected for all 18 holes
   without duplicates. Verify holes 1–3 still look the same (`check 1..3`), tree/bunker counts sane,
   course.json size reasonable (<1.5 MB; raise terrain grid spacing to 4 m if needed).
@@ -72,6 +72,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 1 (467afbb): one whole-course detection region; holes 1–3 unchanged (29 bunkers, 311 palms, +1 real oak at the old edge); 1,912 trees / 67 bunkers course-wide (bunker count looks low for 18 holes — item 18 audit should check for missed bunkers); course.json 1.2 MB.
 - 2026-11-06: hole 1 palms: owner flagged missing palms (group of 3 short of the green, others along the south side) — 10 added by hand at trunk bases; build.py now follows each palm's trunk shadow south to its base (381 of 618 palms course-wide were sitting on their crown shadows, ~4–12 m too far north) and turns small 'oaks' with a trunk shadow into palms; 4 false shadow-trees removed on hole 1.
 - 2026-11-06: TERRAIN now from the owner's Martin County QL1 LiDAR (tools/course3d/lidar/, 0.76 m, aligns with the traced greens/bunkers at zero shift; the old USGS 3DEP data scored ~0 = blurred/misaligned). True scale, light 0.8 m smoothing, minimal bunker deepening. The .tif is git-ignored (16 MB) — keep it in tools/course3d/lidar/ for rebuilds. Fly-through rebuilt: starts 130 m behind the back tee at ~15 m, pre-computed and Gaussian-smoothed track (heading/tilt/height), centerClampedToGround off during custom camera paths. Flags white with hole number, waving.
 - 2026-11-06: fly-through now starts high behind the farthest-back tee (whole-hole shot) and a real 3D flagstick stands on the green (DOM flag icon only for distant views); swing button = 2-phase ball/button flash, plain ball with red NO GPS when no GPS.
