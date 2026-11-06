@@ -670,16 +670,18 @@ const css = `
   .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
   .shot-pill-disabled { opacity: 0.4; cursor: not-allowed; }
   .swing-btn { position: absolute; bottom: 12px; right: 12px; z-index: 1000; width: 100px; height: 100px; border-radius: 50%; border: 4px solid #d4af37; cursor: pointer; font-family: 'Inter',sans-serif; font-weight: 800; font-size: 14px; line-height: 1.1; text-transform: uppercase; box-shadow: 0 6px 24px rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; text-align: center; padding: 8px; -webkit-tap-highlight-color: transparent; }
-  .swing-idle { animation: swing-flash 1.5s steps(1) infinite; position: absolute; overflow: hidden; }
-  .swing-ball { position: absolute; inset: -4px; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; background: radial-gradient(circle at 50% 50%, #1d5a32 0%, #0b2414 100%); }
-  .swing-idle .swing-ball { animation: swing-ball 1.5s steps(1) infinite; }
+  .swing-idle { animation: swing-flash 1.2s steps(1) infinite; overflow: hidden; }
+  .swing-ball { position: absolute; inset: -4px; display: flex; align-items: center; justify-content: center; pointer-events: none; background: radial-gradient(circle at 50% 50%, #1d5a32 0%, #0b2414 100%); }
+  .swing-idle .swing-ball { animation: swing-ball 1.2s steps(1) infinite; }
   .swing-label { position: relative; }
-  .swing-idle .swing-label { animation: swing-label 1.5s steps(1) infinite; }
-  @keyframes swing-label { 0%, 66.66% { opacity: 1; } 66.67%, 100% { opacity: 0; } }
+  .swing-idle .swing-label { animation: swing-label 1.2s steps(1) infinite; }
+  @keyframes swing-label { 0%, 49.99% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  .swing-nogps { overflow: hidden; border-color: #9a8a5a; cursor: not-allowed; background: #0b2414; }
+  .swing-nogps .swing-label { color: #c0262d; font-size: 15px; font-weight: 900; letter-spacing: 0.02em; text-shadow: 0 0 3px #fff, 0 0 2px #fff, 0 1px 0 #fff; }
   .swing-active { background: #d4af37; color: #000; border-color: #fff; animation: swing-pulse 1.2s ease-in-out infinite; }
   .swing-disabled { background: #333; color: #999; border-color: #666; cursor: not-allowed; animation: none; }
-  @keyframes swing-flash { 0%,100% { background: #000; color: #d4af37; } 33.33% { background: #d4af37; color: #000; } 66.67% { background: #0b2414; color: #0b2414; } }
-  @keyframes swing-ball { 0%, 66.66% { opacity: 0; } 66.67%, 100% { opacity: 1; } }
+  @keyframes swing-flash { 0%, 49.99% { background: #d4af37; color: #000; } 50%, 100% { background: #0b2414; color: transparent; } }
+  @keyframes swing-ball { 0%, 49.99% { opacity: 0; } 50%, 100% { opacity: 1; } }
   @keyframes swing-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
   .big-dist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .big-dist-box { background: #06140c; border: 2px solid rgba(212,175,55,0.55); border-radius: 14px; padding: 6px 4px 4px; text-align: center; }
@@ -1984,7 +1986,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             disabled={!gps}
             style={{ bottom: dockH + 12 }}
             aria-label={shotFrom ? "Tap at your ball" : "Tap before swing"}
-            className={`swing-btn ${!gps ? "swing-disabled" : shotFrom ? "swing-active" : "swing-idle"}`}>
+            className={`swing-btn ${!gps ? "swing-nogps" : shotFrom ? "swing-active" : "swing-idle"}`}>
+            {!gps && <span className="swing-ball"><GolfBall size={86} logo={false} /></span>}
             {gps && !shotFrom && <span className="swing-ball"><GolfBall size={86} /></span>}
             <span className="swing-label">{!gps ? (bannerStatus === "checking" || bannerStatus === "timeout" ? "Finding GPS…" : "No GPS") : shotFrom ? "Tap at ball" : "Tap before swing"}</span>
           </button>

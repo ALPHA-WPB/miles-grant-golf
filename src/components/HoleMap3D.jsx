@@ -349,7 +349,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     map.once("idle", () => map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
     mapRef.current = map;
     const markerSet = markersRef.current;
-    let flyTimer = null, raf = 0, flying = false, skippedAt = 0;
+    let flyTimer = null, raf = 0, flying = false, skippedAt = 0, flagMarker = null;
 
     // Whole-hole camera for the current layout and angle, worked out without visibly moving the map
     const overviewCam = () => {
@@ -367,10 +367,14 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     const { ground } = terrainOf(course);
     const spine = course.features.filter(f => f.properties.kind === "spine" && f.properties.hole === hole.number)
       .flatMap(f => f.geometry.coordinates.map(([lng, lat]) => ({ lng, lat })));
-    const path = walkPath(t, hole.green, spine);
+    // start from the farthest-back tee so the flight passes over every tee box
+    const backTee = [hole.tees.champ, hole.tees.mens, hole.tees.womens].filter(p => p && isFinite(p.lat))
+      .reduce((a, b) => haversineYards(b.lat, b.lng, hole.green.lat, hole.green.lng) > haversineYards(a.lat, a.lng, hole.green.lat, hole.green.lng) ? b : a);
+    const path = walkPath(backTee, hole.green, spine);
     const pin = hole.green, pinAlt = ground(pin.lng, pin.lat) + 1.3;
-    const s0 = -12, s1 = Math.max(path.total - 14, path.total * 0.6);
-    const eyeAt = s => FLY_EYE - (FLY_EYE - 3) * smoothstep(s1 - 90, s1, s);
+    const s0 = -60, s1 = Math.max(path.total - 14, path.total * 0.6);
+    // high establishing shot behind the tees, gliding down to ~30 ft past them, then to near ground at the green
+    const eyeAt = s => FLY_EYE + (32 - FLY_EYE) * (1 - smoothstep(s0, 45, s)) - (FLY_EYE - 3) * smoothstep(s1 - 90, s1, s);
     // Where does the flag come into clear view? Check the sight line past every broadleaf tree.
     const kx = Math.cos(t.lat * Math.PI / 180);
     const xy = (lng, lat) => [(lng - t.lng) * M * kx, (lat - t.lat) * M];
@@ -390,16 +394,18 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       if (hit) lastBlocked = s;
     }
     const sClear = lastBlocked === -Infinity ? s0 - 60 : lastBlocked + 6;
-    const pinWeight = s => smoothstep(sClear - 25, sClear + 35, s);
-    const flyCam = u => {
-      const s = s0 + (s1 - s0) * u, P = path.at(s), w = pinWeight(s);
+    // look at the flag at the start (whole-hole view) and again once nothing blocks it
+    const pinWeight = s => Math.max(1 - smoothstep(s0 + 10, s0 + 85, s), smoothstep(sClear - 25, sClear + 35, s));
+    const camAt = (s, eye, w) => {
+      const P = path.at(s);
       // look-ahead along the fairway, averaged so curves don't make the view sway
       let ax = 0, ay = 0;
       for (const d of [40, 60, 80, 100]) { const q = path.at(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
       const tLng = ax + (pin.lng - ax) * w, tLat = ay + (pin.lat - ay) * w;
       const tAlt = ground(ax, ay) + (pinAlt - ground(ax, ay)) * w;
-      return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(P.lng, P.lat), ground(P.lng, P.lat) + eyeAt(s), new maplibregl.LngLat(tLng, tLat), tAlt);
+      return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(P.lng, P.lat), ground(P.lng, P.lat) + eye, new maplibregl.LngLat(tLng, tLat), tAlt);
     };
+    const flyCam = u => { const s = s0 + (s1 - s0) * u; return camAt(s, eyeAt(s), pinWeight(s)); };
     const setThumb = u => { if (thumbRef.current) thumbRef.current.style.bottom = `calc(${(u * 100).toFixed(1)}% - 11px)`; };
 
     const stopFly = (toOverview) => {
@@ -516,7 +522,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       slide: u => { if (!readyRef.current) return; stopFly(false); walk = null; setLooking(false); map.jumpTo(flyCam(u)); setThumb(u); },
       reset,
       stopFly,
-      teeCam: () => flyCam(0),
+      teeCam: () => camAt(-12, FLY_EYE, 0),
     };
 
     // Compass needle shows how far the view is turned from tee-to-green
@@ -534,6 +540,10 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       markersRef.current.forEach(m => {
         if (!m.getElement().isConnected) { markersRef.current.delete(m); return; }
         let hide = false;
+        if (m === flagMarker && cam) {     // close and low: the 3D flagstick takes over
+          const ll = m.getLngLat();
+          if (haversineYards(cam.lat, cam.lng, ll.lat, ll.lng) < 160) { m.getElement().style.visibility = "hidden"; return; }
+        }
         if (cam) {
           const ll = m.getLngLat();
           const off = Math.abs(((bearingOf(cam, ll) - brg + 540) % 360) - 180);
@@ -557,7 +567,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       });
       [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
         track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
-      track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
+      flagMarker = track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
 
       // Realistic look: textured turf and sand, and the three.js trees and houses in place of
       // the simple block ones (which stay as a fallback if the 3D layer can't start)
@@ -568,7 +578,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         map.setPaintProperty("bg", "background-pattern", "tex-ground");
       } catch { /* plain colors remain */ }
       try {
-        map.addLayer(createRealisticLayer(course, terrainOf(course).E));
+        map.addLayer(createRealisticLayer(course, terrainOf(course).E,
+          { lng: hole.green.lng, lat: hole.green.lat, z: terrainOf(course).ground(hole.green.lng, hole.green.lat) }));
         ["trees", "buildings"].forEach(id => map.setLayoutProperty(id, "visibility", "none"));
       } catch (err) {
         console.warn("3D trees unavailable, using simple shapes", err);

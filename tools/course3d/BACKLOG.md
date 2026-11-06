@@ -68,5 +68,6 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: fly-through now starts high behind the farthest-back tee (whole-hole shot) and a real 3D flagstick stands on the green (DOM flag icon only for distant views); swing button = 2-phase ball/button flash, plain ball with red NO GPS when no GPS.
 - 2026-11-06: backlog created; holes 1–3 traced and verified by hand; graphics: ez-tree oaks, leaflet palms,
   granular sand, high-res turf (commit e9ce5d3).

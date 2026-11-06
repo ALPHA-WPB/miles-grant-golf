@@ -243,7 +243,7 @@ function housesGeometry(buildings, toLocal, exaggeration) {
   return g;
 }
 
-export function createRealisticLayer(course, exaggeration = 1, id = "real3d") {
+export function createRealisticLayer(course, exaggeration = 1, pin = null, id = "real3d") {
   const trees = course.features.filter(f => f.properties.kind === "tree");
   const buildings = course.features.filter(f => f.properties.kind === "building");
   const allPts = trees.map(f => f.geometry.coordinates);
@@ -321,6 +321,30 @@ export function createRealisticLayer(course, exaggeration = 1, id = "real3d") {
       crowns.forEach((c, v) => { c.count = counts[v]; c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; scene.add(c); });
       palmTrunks.castShadow = true; palmTrunks.frustumCulled = false;
       scene.add(palmTrunks);
+
+      // Flagstick on the green, at the green's measured height (2.1 m white pole, red flag,
+      // white cup liner), so it stands on the surface in every view
+      if (pin) {
+        const [px, pz] = toLocal(pin.lng, pin.lat), py = pin.z || 0;
+        const white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.5 });
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 2.13, 10), white);
+        pole.position.set(px, py + 2.13 / 2, pz);
+        const flagGeo = new THREE.PlaneGeometry(0.52, 0.36, 12, 4);
+        const fp = flagGeo.attributes.position;
+        for (let k = 0; k < fp.count; k++) {                 // a gentle wave in the cloth
+          const x = fp.getX(k) + 0.26;
+          fp.setZ(k, Math.sin(x * 9) * 0.035 * (x / 0.52));
+          fp.setX(k, x);
+        }
+        flagGeo.computeVertexNormals();
+        const flag = new THREE.Mesh(flagGeo, new THREE.MeshStandardMaterial({ color: 0xe8333a, emissive: 0x4a0606, roughness: 0.7, side: THREE.DoubleSide }));
+        flag.position.set(px + 0.016, py + 2.13 - 0.2, pz);
+        flag.rotation.y = -0.4;
+        const cup = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.054, 20), white);
+        cup.rotation.x = -Math.PI / 2;
+        cup.position.set(px, py + 0.02, pz);
+        for (const m of [pole, flag, cup]) { m.castShadow = true; m.frustumCulled = false; scene.add(m); }
+      }
 
       // Houses
       const houses = new THREE.Mesh(housesGeometry(buildings, toLocal, exaggeration), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }));

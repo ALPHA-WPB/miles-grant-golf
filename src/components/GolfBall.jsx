@@ -15,7 +15,7 @@ const DIMPLES = (() => {
   return out;
 })();
 
-export default function GolfBall({ size = 100, style }) {
+export default function GolfBall({ size = 100, style, logo = true }) {
   return (
     <svg viewBox="-104 -104 208 208" width={size} height={size} style={{ textTransform: "none", ...style }} aria-hidden="true">
       <defs>
@@ -44,13 +44,13 @@ export default function GolfBall({ size = 100, style }) {
         ))}
       </g>
       {/* printed logo, slightly worn into the dimples */}
-      <g style={{ mixBlendMode: "multiply" }}>
+      {logo && <g style={{ mixBlendMode: "multiply" }}>
         <text x="0" y="-14" textAnchor="middle" fontFamily="'Playfair Display', Georgia, serif" fontStyle="italic"
           fontWeight="700" fontSize="27" fill="#0f3b22" textLength="128" lengthAdjust="spacingAndGlyphs">Miles Grant</text>
         <line x1="-46" y1="-4" x2="46" y2="-4" stroke="#b8932f" strokeWidth="2.2" />
         <text x="0" y="50" textAnchor="middle" fontFamily="'Inter', Arial, sans-serif" fontWeight="800"
           fontSize="54" fill="#c0262d">3</text>
-      </g>
+      </g>}
       <circle r={R} fill="url(#gbRim)" />
       <ellipse cx="-36" cy="-44" rx="22" ry="13" fill="#fff" opacity="0.55" transform="rotate(-35 -36 -44)" />
     </svg>
