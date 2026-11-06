@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createRealisticLayer, GROUND_TEXTURES } from "./realScene";
+import { COURSE_PLACES, placeBadgeHtml } from "../lib/places";
 
 // Illustrated, tilted 3D view of a hole: drawn fairways, greens, bunkers and water
 // (public/course3d/course.json), low-poly trees and houses, plus the same overlays as
@@ -540,10 +541,6 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       markersRef.current.forEach(m => {
         if (!m.getElement().isConnected) { markersRef.current.delete(m); return; }
         let hide = false;
-        if (m === flagMarker && cam) {     // close and low: the 3D flagstick takes over
-          const ll = m.getLngLat();
-          if (haversineYards(cam.lat, cam.lng, ll.lat, ll.lng) < 160) { m.getElement().style.visibility = "hidden"; return; }
-        }
         if (cam) {
           const ll = m.getLngLat();
           const off = Math.abs(((bearingOf(cam, ll) - brg + 540) % 360) - 180);
@@ -565,6 +562,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         const p = destPoint(hole.green.lat, hole.green.lng, back, y);
         track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`) }).setLngLat([p.lng, p.lat]).addTo(map));
       });
+      COURSE_PLACES.forEach(p => track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map)));
       [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
         track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
       flagMarker = track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
@@ -578,8 +576,20 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         map.setPaintProperty("bg", "background-pattern", "tex-ground");
       } catch { /* plain colors remain */ }
       try {
+        // Flag icon follows the 3D flagstick's screen position; once the real flagstick is big
+        // enough to see, the icon hides so there's only ever one flag
+        const flagEl = el(flagHtml);
+        Object.assign(flagEl.style, { position: "absolute", left: "0", top: "0", pointerEvents: "none", zIndex: 2, display: "none" });
+        map.getCanvasContainer().appendChild(flagEl);
         map.addLayer(createRealisticLayer(course, terrainOf(course).E,
-          { lng: hole.green.lng, lat: hole.green.lat, z: terrainOf(course).ground(hole.green.lng, hole.green.lat) }));
+          { lng: hole.green.lng, lat: hole.green.lat, z: terrainOf(course).ground(hole.green.lng, hole.green.lat) },
+          p => {
+            const show = p && p.height > 0 && p.height < 16;
+            flagEl.style.display = show ? "block" : "none";
+            if (show) flagEl.style.transform = `translate(${(p.x - 1).toFixed(1)}px, ${(p.y - 44).toFixed(1)}px)`;
+          }));
+        flagMarker?.remove();
+        flagMarker = null;
         ["trees", "buildings"].forEach(id => map.setLayoutProperty(id, "visibility", "none"));
       } catch (err) {
         console.warn("3D trees unavailable, using simple shapes", err);

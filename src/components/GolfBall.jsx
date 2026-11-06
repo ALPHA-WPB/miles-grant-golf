@@ -1,4 +1,4 @@
-// A Miles Grant #3 golf ball, drawn as vector art so it stays sharp at any size. Dimples sit on
+// A Miles Grant golf ball marked with the year the course opened (1972), drawn as vector art so it stays sharp at any size. Dimples sit on
 // a sphere (Fibonacci layout) and are foreshortened toward the edge like a real ball.
 const R = 100;
 const DIMPLES = (() => {
@@ -48,8 +48,8 @@ export default function GolfBall({ size = 100, style, logo = true }) {
         <text x="0" y="-14" textAnchor="middle" fontFamily="'Playfair Display', Georgia, serif" fontStyle="italic"
           fontWeight="700" fontSize="27" fill="#0f3b22" textLength="128" lengthAdjust="spacingAndGlyphs">Miles Grant</text>
         <line x1="-46" y1="-4" x2="46" y2="-4" stroke="#b8932f" strokeWidth="2.2" />
-        <text x="0" y="50" textAnchor="middle" fontFamily="'Inter', Arial, sans-serif" fontWeight="800"
-          fontSize="54" fill="#c0262d">3</text>
+        <text x="0" y="40" textAnchor="middle" fontFamily="'Inter', Arial, sans-serif" fontWeight="800"
+          fontSize="40" fill="#c0262d" letterSpacing="1">1972</text>
       </g>}
       <circle r={R} fill="url(#gbRim)" />
       <ellipse cx="-36" cy="-44" rx="22" ry="13" fill="#fff" opacity="0.55" transform="rotate(-35 -36 -44)" />

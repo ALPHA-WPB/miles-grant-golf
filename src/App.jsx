@@ -15,6 +15,7 @@ import RoundHistory from "./components/RoundHistory";
 import Profile from "./components/Profile";
 import AdminUsers, { isAdmin } from "./components/AdminUsers";
 import { loadCourse3d } from "./lib/course3d";
+import { COURSE_PLACES, placeBadgeHtml } from "./lib/places";
 const HoleMap3D = lazy(() => import("./components/HoleMap3D"));
 
 const HOLES = [
@@ -470,6 +471,8 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, r
     L.marker([hole.tees.mens.lat,   hole.tees.mens.lng],   { icon: makeIcon("#9ca3af") }).addTo(map);
     L.marker([hole.tees.womens.lat, hole.tees.womens.lng], { icon: makeIcon("#ef4444") }).addTo(map);
     L.marker([hole.green.lat, hole.green.lng], { icon: flagIcon }).addTo(map);
+    COURSE_PLACES.forEach(p => L.marker([p.lat, p.lng], { interactive: false,
+      icon: L.divIcon({ className: "", html: placeBadgeHtml(p), iconSize: null, iconAnchor: [0, 0] }) }).addTo(map));
 
     // Faint yardage arcs from the pin, labeled along the fairway line back to the tee
     const holeYds = haversineYards(gt.lat, gt.lng, hole.green.lat, hole.green.lng);

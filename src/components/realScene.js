@@ -243,7 +243,7 @@ function housesGeometry(buildings, toLocal, exaggeration) {
   return g;
 }
 
-export function createRealisticLayer(course, exaggeration = 1, pin = null, id = "real3d") {
+export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d") {
   const trees = course.features.filter(f => f.properties.kind === "tree");
   const buildings = course.features.filter(f => f.properties.kind === "building");
   const allPts = trees.map(f => f.geometry.coordinates);
@@ -378,6 +378,17 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, id = 
     },
     render(gl, args) {
       camera.projectionMatrix = new THREE.Matrix4().fromArray(args.defaultProjectionData.mainMatrix).multiply(model);
+      // Where the flagstick lands on screen, so the flag icon can follow it exactly (or hide)
+      if (pin && onPin) {
+        const [px, pz] = toLocal(pin.lng, pin.lat), py = pin.z || 0, cv = map.getCanvas();
+        const W = cv.clientWidth, H = cv.clientHeight;
+        const toScreen = y => {
+          const v = new THREE.Vector4(px, y, pz, 1).applyMatrix4(camera.projectionMatrix);
+          return v.w <= 0 ? null : { x: (v.x / v.w + 1) / 2 * W, y: (1 - v.y / v.w) / 2 * H };
+        };
+        const base = toScreen(py), top = toScreen(py + 2.13);
+        onPin(base && top ? { x: base.x, y: base.y, height: base.y - top.y } : null);
+      }
       renderer.resetState();
       renderer.render(scene, camera);
     },
