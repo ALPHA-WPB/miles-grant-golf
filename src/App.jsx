@@ -898,11 +898,11 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
 
   // Rain radar overlay: manual toggle, plus one automatic switch-on when rain is close
   const [radarOn, setRadarOn] = useState(false);
-  // Illustrated 3D map: remembered per device; loads its data only once switched on
-  const [mapMode, setMapMode] = useState(() => { try { return localStorage.getItem('mgg_map_mode') === '3d' ? '3d' : '2d'; } catch { return '2d'; } });
+  // Map style: the illustrated 3D course by default; a switch to satellite is remembered per device
+  const [mapMode, setMapMode] = useState(() => { try { return localStorage.getItem('mgg_map_style') === '2d' ? '2d' : '3d'; } catch { return '3d'; } });
   const [course3d, setCourse3d] = useState(null);
   useEffect(() => {
-    try { localStorage.setItem('mgg_map_mode', mapMode); } catch { /* private mode */ }
+    try { localStorage.setItem('mgg_map_style', mapMode); } catch { /* private mode */ }
     if (mapMode === '3d' && !course3d) loadCourse3d().then(setCourse3d).catch(() => { setMapMode('2d'); toast.error('3D view needs a connection the first time'); });
   }, [mapMode, course3d]);
   const radarAutoRef = useRef(false);

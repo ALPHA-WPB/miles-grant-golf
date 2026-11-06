@@ -46,7 +46,7 @@ export default function Auth({ onGuest, onShowInstructions }) {
       <div style={{position:"relative", zIndex:2, height:"100dvh", display:"flex", flexDirection:"column", justifyContent:"flex-end", padding:"0 1.25rem", paddingBottom:"max(env(safe-area-inset-bottom),28px)"}}>
         <div style={{textAlign:"center", marginBottom:"1rem"}}>
           <h1 style={{fontFamily:"'Playfair Display',serif", fontSize:38, fontWeight:700, color:"#fff", lineHeight:1.05, marginBottom:6, textShadow:"0 2px 20px rgba(0,0,0,0.8)"}}>
-            Miles Grant<br/>Country Club
+            Miles Grant<br/>Golf
           </h1>
           <p style={{fontSize:10, color:"rgba(201,168,76,0.95)", letterSpacing:"0.08em", textTransform:"uppercase"}}>The Unofficial Golf Companion App</p>
         </div>

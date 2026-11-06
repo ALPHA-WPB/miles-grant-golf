@@ -249,6 +249,8 @@ for num, t in traced['holes'].items():
     h = HOLES[int(num)]
     glat, glng = h['green']
     fws = [Polygon(f) for f in t.get('fairways', [])] + [spine_poly(s) for s in t.get('fairwaySpines', [])]
+    for sp in t.get('fairwaySpines', []):     # fairway centerline: the fly-through walks along it
+        add(LineString([(lng, lat) for lng, lat, _ in sp]), kind='spine', hole=int(num))
     for fw in fws:
         add(fw, kind='fairway', hole=int(num))
         playing.append(fw)

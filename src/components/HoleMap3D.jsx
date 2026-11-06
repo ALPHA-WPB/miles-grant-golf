@@ -12,10 +12,50 @@ const PITCH = 48;            // standard overview tilt
 // Camera angle presets, cycled by the Angle button
 const ANGLES = [
   { key: "std", label: "STD", pitch: PITCH },
-  { key: "low", label: "LOW", pitch: 72 },
+  { key: "low", label: "LOW", pitch: 66 },
+  { key: "ground", label: "GROUND", pitch: 82 },
   { key: "top", label: "TOP", pitch: 0 },
 ];
+const FLY_EYE = 9;           // fly-through camera height: about 30 ft
+const FLY_LOOK = 80;         // how far ahead (m) the fly-through camera looks
+const STAND_EYE = 2;         // "look from a spot" camera height: standing eye level
 const FLAG_ROOM = 56;        // the flag stands above the green, so leave space at the top
+
+// Walking path for the fly-through: tee → fairway centerline (follows doglegs) → green,
+// smoothed with a Catmull-Rom curve. at(s) gives the point s meters along it.
+function walkPath(tee, green, spine) {
+  const k = Math.cos(tee.lat * Math.PI / 180);
+  const toM = p => [(p.lng - tee.lng) * M * k, (p.lat - tee.lat) * M];
+  const toLL = ([x, y]) => ({ lng: tee.lng + x / (M * k), lat: tee.lat + y / M });
+  const toGreen = p => haversineYards(p.lat, p.lng, green.lat, green.lng);
+  const teeDist = toGreen(tee);
+  const mids = spine.filter(p => toGreen(p) < teeDist - 15 && toGreen(p) > 20);
+  const ctrl = [tee, ...mids, green].map(toM);
+  const pts = [];
+  for (let i = 0; i < ctrl.length - 1; i++) {
+    const p0 = ctrl[Math.max(0, i - 1)], p1 = ctrl[i], p2 = ctrl[i + 1], p3 = ctrl[Math.min(ctrl.length - 1, i + 2)];
+    for (let j = 0; j < 16; j++) {
+      const t = j / 16, t2 = t * t, t3 = t2 * t;
+      pts.push([0, 1].map(d => 0.5 * (2 * p1[d] + (p2[d] - p0[d]) * t + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2 + (3 * p1[d] - p0[d] - 3 * p2[d] + p3[d]) * t3)));
+    }
+  }
+  pts.push(ctrl[ctrl.length - 1]);
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const total = cum[cum.length - 1];
+  const at = s => {
+    if (s <= 0) {   // behind the tee: extend the first stretch backwards
+      const [a, b] = pts, L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      return toLL([a[0] + (b[0] - a[0]) * s / L, a[1] + (b[1] - a[1]) * s / L]);
+    }
+    if (s >= total) return toLL(pts[pts.length - 1]);
+    let lo = 0, hi = cum.length - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] < s) lo = mid; else hi = mid; }
+    const f = (s - cum[lo]) / (cum[hi] - cum[lo] || 1);
+    return toLL([pts[lo][0] + (pts[hi][0] - pts[lo][0]) * f, pts[lo][1] + (pts[hi][1] - pts[lo][1]) * f]);
+  };
+  return { at, total };
+}
 const EMPTY = { type: "FeatureCollection", features: [] };
 const flown = new Set();     // holes whose tee-to-green fly-over already played this session
 
@@ -198,6 +238,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   const gpsMarkerRef = useRef(null);
   const shotMarkersRef = useRef([]);
   const measureMarkersRef = useRef([]);
+  const markersRef = useRef(new Set());   // every marker on the map, for hiding ones behind the camera
+  const track = m => { markersRef.current.add(m); return m; };
   const ctlRef = useRef({});            // camera actions created along with the map
   const trackRef = useRef(null);
   const thumbRef = useRef(null);
@@ -217,13 +259,21 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   const bearing = bearingOf(t, hole.green);
   const holePts = [hole.tees.champ, hole.tees.mens, hole.tees.womens, hole.green].map(p => [p.lng, p.lat]);
   const whenReady = fn => { if (readyRef.current && mapRef.current) fn(mapRef.current); else queueRef.current.push(fn); };
-  const fit = () => whenReady(map => { setLooking(false); fitTilted(map, holePts, bearing, pitchRef.current, padRef.current); });
+  // Hole view at the chosen angle. GROUND is the fly-through's starting spot: about 30 ft up
+  // behind the tee, looking down the fairway.
+  const frameHole = map => {
+    const pitch = pitchRef.current;
+    const teeCam = pitch > 75 ? ctlRef.current.teeCam?.() : null;
+    if (teeCam) { map.jumpTo(teeCam); return teeCam; }
+    return fitTilted(map, holePts, bearing, Math.min(pitch, 75), padRef.current);
+  };
+  const fit = () => whenReady(map => { setLooking(false); frameHole(map); });
 
   useEffect(() => {
     const map = new maplibregl.Map({
       container: boxRef.current,
       style: buildStyle(course),
-      center: [hole.green.lng, hole.green.lat], zoom: 17, bearing, pitch: pitchRef.current, maxPitch: 80,
+      center: [hole.green.lng, hole.green.lat], zoom: 17, bearing, pitch: pitchRef.current, maxPitch: 89,
       attributionControl: false,
       dragRotate: false, pitchWithRotate: false, touchPitch: true, keyboard: false,
       canvasContextAttributes: { antialias: true },
@@ -232,23 +282,29 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "© OpenStreetMap contributors · traced from Esri imagery" }), "bottom-left");
     map.once("idle", () => map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
     mapRef.current = map;
+    const markerSet = markersRef.current;
     let flyTimer = null, raf = 0, flying = false, skippedAt = 0;
 
     // Whole-hole camera for the current layout and angle, worked out without visibly moving the map
-    const camFor = (pts, brg, pitch, maxZoom, extraTop = 0) => {
+    const overviewCam = () => {
       const cur = { center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() };
-      const cam = fitTilted(map, pts, brg, pitch, { ...padRef.current, top: padRef.current.top + extraTop }, maxZoom);
+      const cam = frameHole(map);
       map.jumpTo(cur);
       return cam;
     };
-    const overviewCam = () => camFor(holePts, bearing, pitchRef.current);
 
-    // The fly-through path: low behind the tee to over the green. u runs 0 (tee) → 1 (green).
+    // The fly-through: a camera about 30 ft up walking the fairway centerline from just
+    // behind the tee to short of the green, always looking ahead. u runs 0 (tee) → 1 (green).
     const len = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
-    const z0 = Math.max(17.6, Math.min(19.3, 19.9 - Math.log2(Math.max(len, 80) / 90)));
-    const start = [t.lng + (hole.green.lng - t.lng) * 0.18, t.lat + (hole.green.lat - t.lat) * 0.18];
-    const flyCam = u => ({ center: [start[0] + (hole.green.lng - start[0]) * u, start[1] + (hole.green.lat - start[1]) * u],
-      zoom: z0 + 0.35 * u, pitch: 68 - 6 * u, bearing });
+    const spine = course.features.filter(f => f.properties.kind === "spine" && f.properties.hole === hole.number)
+      .flatMap(f => f.geometry.coordinates.map(([lng, lat]) => ({ lng, lat })));
+    const path = walkPath(t, hole.green, spine);
+    const s0 = -12, s1 = Math.max(path.total - 35, path.total * 0.5);
+    const flyCam = u => {
+      const s = s0 + (s1 - s0) * u;
+      const pos = path.at(s), tgt = path.at(Math.min(s + FLY_LOOK, path.total));
+      return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(pos.lng, pos.lat), FLY_EYE, new maplibregl.LngLat(tgt.lng, tgt.lat), 0);
+    };
     const setThumb = u => { if (thumbRef.current) thumbRef.current.style.bottom = `calc(${(u * 100).toFixed(1)}% - 11px)`; };
 
     const stopFly = (toOverview) => {
@@ -258,7 +314,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       clearTimeout(flyTimer);
       cancelAnimationFrame(raf);
       map.stop();
-      if (toOverview) fitTilted(map, holePts, bearing, pitchRef.current, padRef.current);
+      if (toOverview) frameHole(map);
     };
     const runFly = () => {
       clearTimeout(flyTimer); cancelAnimationFrame(raf); map.stop();
@@ -267,10 +323,10 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       map.jumpTo(flyCam(0)); setThumb(0);
       flyTimer = setTimeout(() => {
         if (!flying) return;
-        const dur = Math.max(1800, Math.min(3800, len * 7)), t0 = performance.now();
+        const dur = Math.max(3500, Math.min(9000, path.total / 55 * 1000)), t0 = performance.now();
         const step = now => {
           if (!flying) return;
-          const x = Math.min(1, (now - t0) / dur), u = x * (2 - x);
+          const x = Math.min(1, (now - t0) / dur), u = 0.5 - 0.5 * Math.cos(Math.PI * x);
           map.jumpTo(flyCam(u)); setThumb(u);
           if (x < 1) { raf = requestAnimationFrame(step); return; }
           const cam = overviewCam();
@@ -281,12 +337,12 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       }, 500);
     };
 
-    // Look from a spot: a low view from that spot toward the green, the spot at the bottom
+    // Look from a spot: standing at that spot at eye level, looking at the green
     const lookFrom = pt => {
       stopFly(false);
-      const brg = bearingOf(pt, hole.green);
-      const cam = camFor([[pt.lng, pt.lat], [hole.green.lng, hole.green.lat]], brg, 70, 20.5, 46);   // room for the Back button
-      if (cam) map.easeTo({ ...cam, duration: 1600 });
+      const cam = map.calculateCameraOptionsFromTo(new maplibregl.LngLat(pt.lng, pt.lat), STAND_EYE,
+        new maplibregl.LngLat(hole.green.lng, hole.green.lat), 0);
+      map.easeTo({ ...cam, duration: 1800 });
       setLooking(true);
     };
     const reset = () => {
@@ -300,6 +356,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       slide: u => { if (!readyRef.current) return; stopFly(false); setLooking(false); map.jumpTo(flyCam(u)); setThumb(u); },
       reset,
       stopFly,
+      teeCam: () => flyCam(0),
     };
 
     // Compass needle shows how far the view is turned from tee-to-green
@@ -308,6 +365,24 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       if (needleRef.current) needleRef.current.style.transform = `rotate(${off.toFixed(1)}deg)`;
     };
     map.on("rotate", onTurn);
+
+    // In low views, hide markers that are behind the camera (or right under it); the map
+    // would otherwise draw them mirrored up into the sky
+    const hideBehind = () => {
+      const cam = map.getPitch() > 30 ? map.transform.getCameraLngLat?.() : null;
+      const brg = map.getBearing();
+      markersRef.current.forEach(m => {
+        if (!m.getElement().isConnected) { markersRef.current.delete(m); return; }
+        let hide = false;
+        if (cam) {
+          const ll = m.getLngLat();
+          const off = Math.abs(((bearingOf(cam, ll) - brg + 540) % 360) - 180);
+          hide = off > 80 || haversineYards(cam.lat, cam.lng, ll.lat, ll.lng) < 4;
+        }
+        m.getElement().style.visibility = hide ? "hidden" : "";
+      });
+    };
+    map.on("move", hideBehind);
 
     map.on("load", () => {
       // Static hole furniture
@@ -318,14 +393,14 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         geometry: { type: "LineString", coordinates: Array.from({ length: 73 }, (_, i) => { const p = destPoint(hole.green.lat, hole.green.lng, i * 5, y); return [p.lng, p.lat]; }) } })) });
       arcs.forEach(y => {
         const p = destPoint(hole.green.lat, hole.green.lng, back, y);
-        new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`) }).setLngLat([p.lng, p.lat]).addTo(map);
+        track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`) }).setLngLat([p.lng, p.lat]).addTo(map));
       });
       [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
-        new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map));
-      new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0] }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map);
+        track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
+      track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0] }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
 
       readyRef.current = true;
-      const final = fitTilted(map, holePts, bearing, pitchRef.current, padRef.current);
+      const final = frameHole(map);
       queueRef.current.splice(0).forEach(fn => fn(map));
 
       // One tee-to-green fly-over the first time each hole opens
@@ -369,9 +444,9 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         if (e.target.closest("[data-view]")) lookFrom(pt); else clearMeasure();
       });
       measureMarkersRef.current = [
-        new maplibregl.Marker({ element: dot }).setLngLat([pt.lng, pt.lat]).addTo(map),
-        new maplibregl.Marker({ element: label, ...labelPlacement(map.project([pt.lng, pt.lat]).x, map.getContainer().clientWidth) })
-          .setLngLat([pt.lng, pt.lat]).addTo(map),
+        track(new maplibregl.Marker({ element: dot }).setLngLat([pt.lng, pt.lat]).addTo(map)),
+        track(new maplibregl.Marker({ element: label, ...labelPlacement(map.project([pt.lng, pt.lat]).x, map.getContainer().clientWidth) })
+          .setLngLat([pt.lng, pt.lat]).addTo(map)),
       ];
       try { navigator.vibrate?.(12); } catch { /* ignore */ }
     };
@@ -413,6 +488,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       gpsMarkerRef.current = null;
       shotMarkersRef.current = [];
       measureMarkersRef.current = [];
+      markerSet.clear();
       try { map.remove(); } catch { /* ignore */ }
       mapRef.current = null;
     };
@@ -437,7 +513,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     if (!gps) return;
     whenReady(map => {
       if (approachMode) fitTilted(map, [[gps.lng, gps.lat], [hole.green.lng, hole.green.lat]], bearing, pitchRef.current, padRef.current, 20);
-      else fitTilted(map, holePts, bearing, pitchRef.current, padRef.current);
+      else frameHole(map);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approachMode]);
@@ -448,7 +524,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       if (gpsMarkerRef.current) { gpsMarkerRef.current.remove(); gpsMarkerRef.current = null; }
       if (!gps) return;
       const node = el(`<div style="display:flex;align-items:center;gap:6px"><div style="width:16px;height:16px;border-radius:50%;background:#4ade80;border:2px solid #fff;box-shadow:0 0 0 4px rgba(74,222,128,0.3)"></div>${tagHtml("You", "#4ade80", "#4ade80")}</div>`);
-      gpsMarkerRef.current = new maplibregl.Marker({ element: node, anchor: "left", offset: [-8, 0] }).setLngLat([gps.lng, gps.lat]).addTo(map);
+      gpsMarkerRef.current = track(new maplibregl.Marker({ element: node, anchor: "left", offset: [-8, 0] }).setLngLat([gps.lng, gps.lat]).addTo(map));
     });
    
   }, [gps, tee]);
@@ -464,7 +540,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       holeShots.forEach(s => {
         const mid = [(s.from.lng + s.to.lng) / 2, (s.from.lat + s.to.lat) / 2];
         const label = formatShort ? formatShort(s.yards) : `${s.yards} yds`;
-        shotMarkersRef.current.push(new maplibregl.Marker({ element: el(tagHtml(label, playerColor || "#4ade80", playerColor || "#4ade80")) }).setLngLat(mid).addTo(map));
+        shotMarkersRef.current.push(track(new maplibregl.Marker({ element: el(tagHtml(label, playerColor || "#4ade80", playerColor || "#4ade80")) }).setLngLat(mid).addTo(map)));
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -537,7 +613,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         </button>
         <button onClick={() => setAngleIdx(i => (i + 1) % ANGLES.length)} style={railBtn} aria-label={`Camera angle: ${ANGLES[angleIdx].label}. Tap to change`}>
           <span style={{ font: "800 8px Inter, sans-serif", opacity: 0.8 }}>ANGLE</span>
-          <span style={{ font: "800 12px Inter, sans-serif", color: "#c9a84c" }}>{ANGLES[angleIdx].label}</span>
+          <span style={{ font: `800 ${ANGLES[angleIdx].label.length > 4 ? 9 : 12}px Inter, sans-serif`, color: "#c9a84c" }}>{ANGLES[angleIdx].label}</span>
         </button>
         <button onClick={() => ctlRef.current.reset?.()} style={railBtn} aria-label="Reset to the tee-to-green view">
           <span ref={needleRef} style={{ display: "inline-block", fontSize: 15, lineHeight: 1, color: "#ef4444", transition: "transform 0.1s" }}>▲</span>
