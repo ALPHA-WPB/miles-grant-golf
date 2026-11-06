@@ -57,8 +57,12 @@ broken.
 - [ ] 14. Trace hole 16.
 - [ ] 15. Trace hole 17.
 - [ ] 16. Trace hole 18.
-- [ ] 17. Tree audit, holes 1–18: numbered `check` images; remove false trees (shadows, shrubs on
-  tees/greens) with `treeEdits.remove` [lng, lat, radius_m]; add obviously missing big trees.
+- [ ] 17. Tree audit, holes 1–18 (hole 1 done 2026-11-06): numbered `check` images; remove false trees (shadows, shrubs on
+  tees/greens, 'palms' sitting inside the dark shadow masses that oaks cast north onto the grass, duplicates midway
+  along a palm's trunk shadow) with `treeEdits.remove` [lng, lat, radius_m]; ADD missing palms — thin palms in and
+  beside fairways are often missed; the owner wants them (they block the pin). A palm belongs at the SOUTH end of its
+  shadow (trunk base), never on the dark crown shadow. Add with `treeEdits.add` [lng, lat, r, 'palm', tag, height_m];
+  hand-added trees skip the fairway/no-tree filters.
 - [ ] 18. Bunker audit, holes 1–18: missing bunkers, cart-path/pool false positives (`bunkerEdits.remove`).
 - [x] 19. (done 2026-11-06 for the whole course; owner reviews holes 1–3 first) TOPOGRAPHY — was blocked until the owner's ChatGPT LiDAR markdown existed (look in
   `tools/course3d/lidar/`, `~/Downloads`, `~/Desktop` for a recent .md about LiDAR/elevation for
@@ -68,6 +72,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: hole 1 palms: owner flagged missing palms (group of 3 short of the green, others along the south side) — 10 added by hand at trunk bases; build.py now follows each palm's trunk shadow south to its base (381 of 618 palms course-wide were sitting on their crown shadows, ~4–12 m too far north) and turns small 'oaks' with a trunk shadow into palms; 4 false shadow-trees removed on hole 1.
 - 2026-11-06: TERRAIN now from the owner's Martin County QL1 LiDAR (tools/course3d/lidar/, 0.76 m, aligns with the traced greens/bunkers at zero shift; the old USGS 3DEP data scored ~0 = blurred/misaligned). True scale, light 0.8 m smoothing, minimal bunker deepening. The .tif is git-ignored (16 MB) — keep it in tools/course3d/lidar/ for rebuilds. Fly-through rebuilt: starts 130 m behind the back tee at ~15 m, pre-computed and Gaussian-smoothed track (heading/tilt/height), centerClampedToGround off during custom camera paths. Flags white with hole number, waving.
 - 2026-11-06: fly-through now starts high behind the farthest-back tee (whole-hole shot) and a real 3D flagstick stands on the green (DOM flag icon only for distant views); swing button = 2-phase ball/button flash, plain ball with red NO GPS when no GPS.
 - 2026-11-06: backlog created; holes 1–3 traced and verified by hand; graphics: ez-tree oaks, leaflet palms,

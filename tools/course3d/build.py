@@ -193,6 +193,42 @@ def detect(region):
         if not shadow:
             keep.append((x, y, rr, kind))
     found = keep
+    # Palm crowns are small and green, so what gets found is often the crown's SHADOW, which lies
+    # north of the tree. Follow the thin trunk shadow south to where it ends: that is the base.
+    def snap_palm(x, y):
+        xi, yi = int(round(x)), int(round(y)); cx = xi; end = None; gap = 0; started = False
+        for dy in range(0, 110):
+            row = yi + dy
+            if row >= H or cx < 10 or cx >= W - 10: break
+            seg = v[row, cx - 3:cx + 4]; j = int(np.argmin(seg))
+            wide = int((v[row, cx - 9:cx + 10] < 72).sum())
+            if not started:
+                # step south through the wide crown shadow until it narrows to the trunk shadow
+                if seg[j] < 72 and wide <= 6:
+                    started = True; cx = cx - 3 + j; end = row
+                elif dy > 18 or seg[j] >= 72:
+                    if dy > 18 or wide == 0: break
+                continue
+            if seg[j] < 72 and wide <= 7:
+                cx = cx - 3 + j; end = row; gap = 0
+            else:
+                gap += 1
+                if gap > 2: break
+        if started and end is not None and end - yi >= 8:
+            return float(cx), float(end + 2), True
+        return x, y, False
+    snapped = []; nmoved = 0
+    for x, y, rr, kind in found:
+        if kind == 'palm':
+            x, y, moved = snap_palm(x, y); nmoved += moved
+        elif rr < 3.2:
+            # a small "oak" with a thin trunk shadow running south of it is really a palm's crown shadow
+            x2, y2, moved = snap_palm(x, y)
+            if moved:
+                x, y, rr, kind = x2, y2, 1.9, 'palm'; nmoved += 1
+        snapped.append((x, y, rr, kind))
+    found = snapped
+    print('palms moved from crown shadow to trunk base:', nmoved, 'of', sum(1 for f in found if f[3] == 'palm'))
     out = []
     for x, y, rr, kind in found:
         lng, lat = region.ll(float(x), float(y))
@@ -323,12 +359,17 @@ for bunkers, trees in detected:
     tg = unary_union(tees_greens)
     edits = traced.get('treeEdits', {})
     gone = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in edits.get('remove', [])]
-    trees += [{'lng': lng, 'lat': lat, 'r': rr, 'type': kind, 'h': 7.5 if kind == 'palm' else min(3.5 + rr * 0.9, 12.0)}
-              for lng, lat, rr, kind in edits.get('add', [])]
+    # hand-placed trees (verified on the photo): [lng, lat, r, kind, tag?, height?]; they skip the
+    # automatic filters, since real trees do stand in fairways
+    trees += [{'lng': a[0], 'lat': a[1], 'r': a[2], 'type': a[3], 'manual': True,
+               'h': a[5] if len(a) > 5 else (7.5 if a[3] == 'palm' else min(3.5 + a[2] * 0.9, 12.0))}
+              for a in edits.get('add', [])]
+    manual_pts = [Point(t['lng'], t['lat']) for t in trees if t.get('manual')]
+    trees = [t for t in trees if t.get('manual') or not any(m.distance(Point(t['lng'], t['lat'])) < 3.0 / M_PER_DEG for m in manual_pts)]
     for tr in trees:
         pt = Point(tr['lng'], tr['lat'])
         overhangs = tg.distance(pt) < 0.6 * tr['r'] / M_PER_DEG    # canopy would hang over a tee or green
-        if not near.contains(pt) or clear.contains(pt) or overhangs or any(z.contains(pt) for z in gone):
+        if not tr.get('manual') and (not near.contains(pt) or clear.contains(pt) or overhangs or any(z.contains(pt) for z in gone)):
             continue
         feats.append({'type': 'Feature', 'properties': {'kind': 'tree', 'r': tr['r'], 'h': tr['h'], 'type': tr['type']},
                       'geometry': {'type': 'Point', 'coordinates': [tr['lng'], tr['lat']]}})
