@@ -11,6 +11,7 @@ import GolfBall from "./components/GolfBall";
 import WeatherPanel from "./components/WeatherPanel";
 import LightningBanner from "./components/LightningBanner";
 import PinSetter from "./components/PinSetter";
+import HoleLoader from "./components/HoleLoader";
 import { readCachedPins, applyPins, fetchPins, flushPending, pinAge } from "./lib/pins";
 import LocationGate from "./components/LocationGate";
 import GpsBanner from "./components/GpsBanner";
@@ -1832,7 +1833,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               pad: { top: topH + 16, bottom: dockH + 20, left: 24, right: 24 },
             };
             return mapMode === '3d' && course3d?.holes?.includes(hole.number)
-              ? <Suspense key={'3d' + hole.number + '-' + pinsV} fallback={<div style={{ position: 'absolute', inset: 0, background: '#cdd6c1' }} />}>
+              ? <Suspense key={'3d' + hole.number + '-' + pinsV} fallback={<div style={{ position: 'absolute', inset: 0, background: '#0b2215' }}><HoleLoader hole={hole} tee={playerTee} progress={0.06} label="Loading the 3D course…" /></div>}>
                   <HoleMap3D {...mapProps} course={course3d} formatShort={fmtShort} playerColor={PLAYER_COLOR} />
                 </Suspense>
               : <HoleMap {...mapProps} key={hole.number + '-' + pinsV} />;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import HoleLoader from "./HoleLoader";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createRealisticLayer, GROUND_TEXTURES } from "./realScene";
@@ -315,6 +316,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   });
   const pitchRef = useRef(ANGLES[angleIdx].pitch);
   const [looking, setLooking] = useState(false);   // camera is at a "look from here" spot
+  // loading page: progress 0..1 and what's happening, until the map is ready to show
+  const [load, setLoad] = useState({ p: 0.12, label: "Loading the 3D course…", done: false });
   const moveRef = useRef({ f: 0, t: 0, h: 0, p: 0 });   // held controls: forward/back, turn, height, tilt
   // Controls render into the play screen's overlay layer so the app's own overlays can't cover them
   const [overlayHost, setOverlayHost] = useState(null);
@@ -363,10 +366,25 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       if (revealed) return;
       revealed = true;
       clearTimeout(revealTimer);
+      setLoad(l => ({ ...l, p: 1, done: true }));
       shown.style.transition = "opacity 0.35s ease-out";
       shown.style.opacity = "1";
     };
     const revealTimer = setTimeout(reveal, 6000);    // never leave it hidden
+    // Loading progress for the loading page: style → scene → map tiles
+    let tilesWanted = 0, tilesGot = 0, base = 0.12, lastSet = 0;
+    const bump = (p, label, force) => {
+      if (revealed) return;
+      const now = performance.now();
+      if (!force && now - lastSet < 90) return;
+      lastSet = now;
+      setLoad(l => (l.done ? l : { ...l, p: Math.max(l.p, p), label: label ?? l.label }));
+    };
+    const tileProgress = () => base + (0.97 - base) * (tilesWanted ? tilesGot / tilesWanted : 0);
+    map.on("dataloading", e => { if (e.tile) { tilesWanted++; bump(tileProgress()); } });
+    map.on("data", e => { if (e.tile && e.dataType === "source") { tilesGot = Math.min(tilesWanted, tilesGot + 1); bump(tileProgress()); } });
+    map.on("error", e => { if (e.tile) { tilesGot = Math.min(tilesWanted, tilesGot + 1); bump(tileProgress()); } });
+    map.once("styledata", () => { base = 0.3; bump(0.3, "Laying out the hole…", true); });
     const placeMarkers = new Set();   // facility icons: only shown nearby in low views
     // Keep the map redrawing while the 3D flag is close enough to see it wave
     let waveRaf = 0;
@@ -708,6 +726,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     map.on("move", hideBehind);
 
     map.on("load", () => {
+      base = Math.max(base, 0.5);
+      bump(0.5, "Planting the trees…", true);
       // Static hole furniture
       map.getSource("guide").setData({ type: "Feature", geometry: { type: "LineString", coordinates: [[t.lng, t.lat], [hole.green.lng, hole.green.lat]] } });
       const back = bearingOf(hole.green, t);
@@ -754,6 +774,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       }
 
       readyRef.current = true;
+      base = Math.max(base, 0.65);
+      bump(tileProgress(), "Getting the fly-through ready…", true);
       const final = frameHole(map);
       queueRef.current.splice(0).forEach(fn => fn(map));
 
@@ -1038,6 +1060,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       <div ref={boxRef} style={{ position: "absolute", inset: 0, background: "#cdd6c1" }} />
 
       {overlayHost ? createPortal(controls, overlayHost) : controls}
+      <HoleLoader hole={hole} tee={tee} progress={load.p} label={load.label} done={load.done} />
     </div>
   );
 }
