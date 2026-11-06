@@ -92,6 +92,10 @@ def detect(region):
             region.fill(blocked, ring(e))
         if t.get('highway') in ('residential', 'service', 'tertiary'):
             cv2.polylines(blocked, [np.array([region.px(*c) for c in ring(e)], np.int32)], False, 255, 18)
+    paths = np.zeros((H, W), np.uint8)
+    for e in osm:
+        if e.get('tags', {}).get('highway') in ('footway', 'path', 'cycleway'):
+            cv2.polylines(paths, [np.array([region.px(*c) for c in ring(e)], np.int32)], False, 255, 14)
     blocked = cv2.dilate(blocked, np.ones((15, 15), np.uint8))
     ok = (mask > 0) & (blocked == 0)
     hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV).astype(int)
@@ -99,15 +103,27 @@ def detect(region):
     s, v = hsv[..., 1], hsv[..., 2]
     mpp = region.mpp
 
-    sand = (ok & (v > 165) & (s < 70) & (r >= g - 5) & (r > b + 12)).astype(np.uint8) * 255
+    ok_sand = ok & (paths == 0)
+    strong = ok_sand & (v > 165) & (s < 70) & (r > b + 12) & (r >= g - 5)
+    weak = ok_sand & (v > 138) & (s < 62) & (r > b + 15) & (r >= g - 5)      # sand in partial shade
+    sand = (strong | weak).astype(np.uint8) * 255
     sand = cv2.morphologyEx(sand, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
     sand = cv2.morphologyEx(sand, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
     bunkers = []
     for c in cv2.findContours(sand, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]:
         area = cv2.contourArea(c) * mpp * mpp
         (_, _), (rw, rh), _ = cv2.minAreaRect(c)
-        if area < 12 or max(rw, rh) / max(min(rw, rh), 1) > 5:   # specks and cart paths
+        aspect = max(rw, rh) / max(min(rw, rh), 1)
+        if area < 12 or aspect > 3.5:                            # specks and cart paths
             continue
+        blob = np.zeros(sand.shape, np.uint8); cv2.drawContours(blob, [c], -1, 1, -1)
+        if (strong & (blob > 0)).sum() < 0.3 * blob.sum():
+            # mostly shaded sand: only accept a compact, bunker-shaped patch away from greens
+            solidity = cv2.contourArea(c) / max(cv2.contourArea(cv2.convexHull(c)), 1)
+            cx, cy = c.reshape(-1, 2).mean(0)
+            on_green = any(Polygon(gr).contains(Point(*region.ll(cx, cy))) for t in traced['holes'].values() for gr in t.get('greens', []))
+            if area < 15 or aspect > 2.5 or solidity < 0.88 or on_green:
+                continue
         c = cv2.approxPolyDP(c, 1.5, True).reshape(-1, 2)
         if len(c) < 3: continue
         pts = chaikin([tuple(p) for p in c])
@@ -214,13 +230,20 @@ def mow_stripes(fw, tee, green, width=7.0):
     from shapely.geometry import MultiPolygon
     return MultiPolygon([back(g) for g in getattr(st, 'geoms', [st]) if g.geom_type == 'Polygon' and not g.is_empty])
 
+regions = [Region(*reg['bbox']) for reg in traced['regions']]
+detected = [detect(rg) for rg in regions]
+not_sand = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in traced.get('bunkerEdits', {}).get('remove', [])]
+detected = [([b for b in bs if not any(z.intersects(b) for z in not_sand)], ts) for bs, ts in detected]
+all_bunkers = [b for bs, _ in detected for b in bs]
 traced_holes = sorted(int(k) for k in traced['holes'])
 playing = []   # fairways, greens and tees: kept clear of trees
 for num, t in traced['holes'].items():
     for g in t.get('greens', []):
         gp = Polygon(g)
         k = math.cos(math.radians(gp.centroid.y))
-        add(gp.buffer(1.6 / M_PER_DEG / k, 24), kind='fringe', hole=int(num))
+        sand = unary_union([b.buffer(0.8 / M_PER_DEG) for b in all_bunkers if b.distance(gp) < 10 / M_PER_DEG] or [Polygon()])
+        add(gp.buffer(1.2 / M_PER_DEG / k, 24).difference(sand), kind='fringe', hole=int(num))
+        gp = gp.difference(sand)
         add(gp, kind='green', hole=int(num))
         playing.append(gp.buffer(1.6 / M_PER_DEG / k))
     h = HOLES[int(num)]
@@ -243,9 +266,7 @@ for num, t in traced['holes'].items():
         add(b, kind='tee', hole=int(num))
         playing.append(b)
 
-for reg in traced['regions']:
-    region = Region(*reg['bbox'])
-    bunkers, trees = detect(region)
+for bunkers, trees in detected:
     for b in bunkers:
         add(b, kind='bunker')
     near = course.buffer(80 / M_PER_DEG)
