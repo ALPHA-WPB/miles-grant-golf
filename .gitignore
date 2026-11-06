@@ -27,3 +27,5 @@ dist-ssr
 .dev.vars
 node-v*.tar.gz
 tools/course3d/.cache/
+tools/course3d/.venv/
+tools/course3d/.work/
