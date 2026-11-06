@@ -138,17 +138,19 @@ function palmCrown(seed, bend) {
 // ── Houses: walls from the footprint, hip roof on its best-fit rectangle ──────────────────
 const WALLS = ["#f4efe4", "#efe6d6", "#f7f3ec", "#e9dfcf", "#f1ead9"];
 const ROOFS = ["#9d5a45", "#8a8580", "#b07a5a", "#6f6a66", "#c9b8a2"];
-function housesGeometry(buildings, toLocal) {
+function housesGeometry(buildings, toLocal, exaggeration) {
   const pos = [], col = [];
+  let lift = 0;   // ground height under the current house
   const tri = (a, b, c, hex) => {
-    pos.push(...a, ...b, ...c);
+    pos.push(a[0], a[1] + lift, a[2], b[0], b[1] + lift, b[2], c[0], c[1] + lift, c[2]);
     const k = color(hex);
     for (let i = 0; i < 3; i++) col.push(k.r, k.g, k.b);
   };
   buildings.forEach(f => {
     const ring = f.geometry.coordinates[0].map(([lng, lat]) => toLocal(lng, lat));
     if (ring.length < 4) return;
-    const tall = f.properties.h > 7, wallH = tall ? 6 : 3.1;
+    const tall = f.properties.h > 7, wallH = tall ? 6 : 3.1, base = (f.properties.z || 0) * exaggeration;
+    lift = base;
     const wall = WALLS[f.properties.c % WALLS.length];
     const roof = f.properties.roof || ROOFS[(f.properties.c * 7 + ring.length) % ROOFS.length];
     // walls (shaded a touch darker than the roof color would suggest at the base)
@@ -200,7 +202,7 @@ function housesGeometry(buildings, toLocal) {
   return g;
 }
 
-export function createRealisticLayer(course, id = "real3d") {
+export function createRealisticLayer(course, exaggeration = 1, id = "real3d") {
   const trees = course.features.filter(f => f.properties.kind === "tree");
   const buildings = course.features.filter(f => f.properties.kind === "building");
   const allPts = trees.map(f => f.geometry.coordinates);
@@ -242,8 +244,8 @@ export function createRealisticLayer(course, id = "real3d") {
         const mine = oaks.filter((_, i) => i % 4 === v);
         const crown = new THREE.InstancedMesh(oakCrown(17 + v * 31, tints[v]), leafMat, mine.length);
         mine.forEach((f, i) => {
-          const [x, z] = toLocal(...f.geometry.coordinates), { r, h } = f.properties;
-          dummy.position.set(x, h * 0.34, z);
+          const [x, z] = toLocal(...f.geometry.coordinates), { r, h } = f.properties, y0 = (f.properties.z || 0) * exaggeration;
+          dummy.position.set(x, y0 + h * 0.34, z);
           dummy.rotation.set(0, hash3(x, z, v) * Math.PI * 2, 0);
           dummy.scale.set(r * 1.08, h * 0.74, r * 1.08);
           dummy.updateMatrix();
@@ -256,8 +258,8 @@ export function createRealisticLayer(course, id = "real3d") {
         scene.add(crown);
       }
       oaks.forEach((f, i) => {
-        const [x, z] = toLocal(...f.geometry.coordinates), { r, h } = f.properties;
-        dummy.position.set(x, 0, z); dummy.rotation.set(0, 0, 0);
+        const [x, z] = toLocal(...f.geometry.coordinates), { r, h } = f.properties, y0 = (f.properties.z || 0) * exaggeration;
+        dummy.position.set(x, y0 - 0.5, z); dummy.rotation.set(0, 0, 0);
         const tw = 0.22 + r * 0.035;
         dummy.scale.set(tw, h * 0.55, tw);
         dummy.updateMatrix();
@@ -273,8 +275,8 @@ export function createRealisticLayer(course, id = "real3d") {
       const crowns = [0, 1].map(v => new THREE.InstancedMesh(palmCrown(5 + v * 13, bend), frondMat, Math.ceil(palms.length / 2)));
       const counts = [0, 0];
       palms.forEach((f, i) => {
-        const [x, z] = toLocal(...f.geometry.coordinates), h = f.properties.h;
-        dummy.position.set(x, 0, z);
+        const [x, z] = toLocal(...f.geometry.coordinates), h = f.properties.h, y0 = (f.properties.z || 0) * exaggeration;
+        dummy.position.set(x, y0 - 0.3, z);
         dummy.rotation.set(0, hash3(x, z, 7) * Math.PI * 2, 0);
         dummy.scale.setScalar(h);
         dummy.updateMatrix();
@@ -287,21 +289,15 @@ export function createRealisticLayer(course, id = "real3d") {
       scene.add(palmTrunks);
 
       // Houses
-      const houses = new THREE.Mesh(housesGeometry(buildings, toLocal), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }));
+      const houses = new THREE.Mesh(housesGeometry(buildings, toLocal, exaggeration), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }));
       houses.castShadow = houses.receiveShadow = true;
       houses.frustumCulled = false;
       scene.add(houses);
 
-      // Ground that only shows shadows, over the whole area
+      // Shadow area: everything we placed (ground shadows are drawn by the map, draped on the terrain)
       const box = new THREE.Box3().setFromObject(houses);
       allPts.forEach(p => { const [x, z] = toLocal(...p); box.expandByPoint(new THREE.Vector3(x, 0, z)); });
       const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-      const ground = new THREE.Mesh(new THREE.PlaneGeometry(size.x + 80, size.z + 80), new THREE.ShadowMaterial({ opacity: 0.42, depthWrite: false }));
-      ground.rotation.x = -Math.PI / 2;
-      ground.position.set(mid.x, 0.05, mid.z);
-      ground.receiveShadow = true;
-      ground.renderOrder = -1;
-      scene.add(ground);
 
       const ext = Math.max(size.x, size.z) / 2 + 60;
       sun.position.set(mid.x + 140, 420, mid.z + 330);

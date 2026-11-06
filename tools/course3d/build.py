@@ -4,7 +4,7 @@ Sources: OpenStreetMap (course outline, buildings, roads, pools, water), Esri Wo
 Imagery (bunkers and trees, detected by color), tools/course3d/traced.json (greens and
 fairways traced by hand), and the hole/tee coordinates in src/App.jsx (tee boxes).
 
-Run from the repo root with numpy, opencv-python-headless and shapely installed:
+Run from the repo root with numpy, opencv-python-headless, shapely and tifffile installed:
     python tools/course3d/build.py
 Downloads are cached in tools/course3d/.cache (git-ignored).
 """
@@ -49,6 +49,10 @@ course = Polygon(ring(course_el))
 # ── Imagery helpers ──────────────────────────────────────────────────────
 def tile_xy(lat, lng):
     n = 2 ** Z
+    return (lng + 180) / 360 * n, (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
+
+def tile_xy_z(lat, lng, z):
+    n = 2 ** z
     return (lng + 180) / 360 * n, (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
 
 class Region:
@@ -273,8 +277,8 @@ for num, t in traced['holes'].items():
         add(fw, kind='fairway', hole=int(num))
         playing.append(fw)
         add(mow_stripes(fw, h['tees'][1], h['green']), kind='stripe', hole=int(num))
-    boxes = []
-    for lat, lng in h['tees']:
+    boxes = [Polygon(tp) for tp in t.get('tees', [])]   # traced tee boxes when we have them
+    for lat, lng in ([] if boxes else h['tees']):
         k = math.cos(math.radians(lat))
         dx, dy = (glng - lng) * k, glat - lat
         ang = math.atan2(dy, dx)
@@ -302,8 +306,100 @@ for bunkers, trees in detected:
         feats.append({'type': 'Feature', 'properties': {'kind': 'tree', 'r': tr['r'], 'h': tr['h'], 'type': tr['type']},
                       'geometry': {'type': 'Point', 'coordinates': [tr['lng'], tr['lat']]}})
 
+# ── Terrain: USGS 3DEP bare-earth LiDAR (about 1 m), heights relative to the course ───────
+# Bunkers are deepened a little where the LiDAR smooths them, with a slight lip, so they read
+# as real hollows. The result becomes terrarium-encoded elevation tiles the map drapes over.
+import tifffile, shutil
+TS, TW, TN, TE = 27.1395, -80.1915, 27.1560, -80.1650
+EXAGGERATION = 3
+dw = int((TE - TW) * M_PER_DEG * math.cos(math.radians((TS + TN) / 2)))
+dh = int((TN - TS) * M_PER_DEG)
+dem_path = get('https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/exportImage?'
+               + urllib.parse.urlencode({'bbox': f'{TW},{TS},{TE},{TN}', 'bboxSR': 4326, 'imageSR': 4326, 'size': f'{dw},{dh}',
+                                         'format': 'tiff', 'pixelType': 'F32', 'interpolation': 'RSP_BilinearInterpolation', 'f': 'image'}),
+               os.path.join(CACHE, f'dem_{dw}x{dh}.tif'))
+dem = tifffile.imread(dem_path).astype(np.float32)
+dem[(dem < -50) | (dem > 200)] = np.nan
+dpx = lambda lng, lat: ((lng - TW) / (TE - TW) * dw - 0.5, (TN - lat) / (TN - TS) * dh - 0.5)
+cmask = np.zeros((dh, dw), np.uint8)
+cv2.fillPoly(cmask, [np.array([dpx(*c) for c in course.exterior.coords], np.int32)], 1)
+base = float(np.nanmedian(dem[cmask > 0]))
+rel = np.clip(np.nan_to_num(dem - base, nan=0.0), -2.5, 6.0)   # cap ponds/canals so they don't become pits
+for b in all_bunkers:
+    for poly in getattr(b, 'geoms', [b]):
+        m = np.zeros((dh, dw), np.uint8)
+        cv2.fillPoly(m, [np.array([dpx(*c) for c in poly.exterior.coords], np.int32)], 1)
+        if m.sum() < 4:
+            continue
+        ring = (cv2.dilate(m, np.ones((3, 3), np.uint8)) > 0) & (m == 0)
+        rim = float(np.median(rel[ring]))
+        inside = cv2.distanceTransform(m, cv2.DIST_L2, 3)
+        floor = rim - np.minimum(0.5, 0.15 + 0.12 * inside)
+        rel = np.where(m > 0, np.minimum(rel, floor), rel)
+        outside = cv2.distanceTransform(1 - m, cv2.DIST_L2, 3)
+        lip = (outside > 0) & (outside <= 2.2)
+        rel[lip] += 0.12 * (1 - outside[lip] / 2.2)
+        zone = cv2.dilate(m, np.ones((7, 7), np.uint8)) > 0
+        rel = np.where(zone, cv2.GaussianBlur(rel, (0, 0), 0.8), rel)
+# fade to zero at the edge of the data so there is no cliff where it stops
+edge = np.minimum.reduce([np.arange(dw)[None, :].repeat(dh, 0), np.arange(dw)[::-1][None, :].repeat(dh, 0),
+                          np.arange(dh)[:, None].repeat(dw, 1), np.arange(dh)[::-1][:, None].repeat(dw, 1)])
+rel *= np.clip(edge / 120.0, 0, 1)
+
+def elev(lng, lat):
+    x, y = dpx(lng, lat)
+    x0, y0 = int(math.floor(x)), int(math.floor(y))
+    if x0 < 0 or y0 < 0 or x0 >= dw - 1 or y0 >= dh - 1:
+        return 0.0
+    fx, fy = x - x0, y - y0
+    return float(rel[y0, x0] * (1 - fx) * (1 - fy) + rel[y0, x0 + 1] * fx * (1 - fy) + rel[y0 + 1, x0] * (1 - fx) * fy + rel[y0 + 1, x0 + 1] * fx * fy)
+
+DEM_DIR = os.path.join(ROOT, 'public', 'course3d', 'dem')
+shutil.rmtree(DEM_DIR, ignore_errors=True)
+ntiles = 0
+for z in range(13, 18):
+    n = 2 ** z
+    x0t, y0t = [int(v) for v in tile_xy_z(TN, TW, z)]
+    x1t, y1t = [int(v) for v in tile_xy_z(TS, TE, z)]
+    for tx in range(x0t, x1t + 1):
+        for ty in range(y0t, y1t + 1):
+            ii, jj = np.meshgrid(np.arange(256) + 0.5, np.arange(256) + 0.5)
+            lng = (tx + ii / 256) / n * 360 - 180
+            lat = np.degrees(np.arctan(np.sinh(np.pi * (1 - 2 * (ty + jj / 256) / n))))
+            px_ = (lng - TW) / (TE - TW) * dw - 0.5
+            py_ = (TN - lat) / (TN - TS) * dh - 0.5
+            vals = cv2.remap(rel, px_.astype(np.float32), py_.astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+            v = vals.astype(np.float64) + 32768.0
+            r_ = np.floor(v / 256); g_ = np.floor(v) % 256; b_ = np.floor((v - np.floor(v)) * 256)
+            img = np.dstack([b_, g_, r_]).astype(np.uint8)
+            os.makedirs(os.path.join(DEM_DIR, str(z), str(tx)), exist_ok=True)
+            cv2.imwrite(os.path.join(DEM_DIR, str(z), str(tx), f'{ty}.png'), img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+            ntiles += 1
+
+# ground height under every tree and house, for placing the 3D models on the terrain
+for f in feats:
+    pr = f['properties']
+    if pr['kind'] == 'tree':
+        pr['z'] = round(elev(*f['geometry']['coordinates']), 2)
+    elif pr['kind'] == 'building':
+        pr['z'] = round(min(elev(lng, lat) for lng, lat in f['geometry']['coordinates'][0]), 2)
+terrain_meta = {'tiles': '/course3d/dem/{z}/{x}/{y}.png', 'minzoom': 13, 'maxzoom': 17,
+                'bounds': [TW, TS, TE, TN], 'exaggeration': EXAGGERATION}
+# compact 3 m height grid over the traced holes, so the app knows the ground height anywhere
+import base64
+gs, gw_, gn, ge = traced['regions'][0]['bbox'][0], traced['regions'][0]['bbox'][1], traced['regions'][0]['bbox'][2], traced['regions'][0]['bbox'][3]
+for reg in traced['regions'][1:]:
+    a, b_, c, d_ = reg['bbox']; gs, gw_, gn, ge = min(gs, a), min(gw_, b_), max(gn, c), max(ge, d_)
+gs, gw_, gn, ge = gs - 0.001, gw_ - 0.001, gn + 0.001, ge + 0.001
+gW = int((ge - gw_) * M_PER_DEG * math.cos(math.radians((gs + gn) / 2)) / 3) + 1
+gH = int((gn - gs) * M_PER_DEG / 3) + 1
+grid = np.array([[elev(gw_ + (ge - gw_) * i / (gW - 1), gn - (gn - gs) * j / (gH - 1)) for i in range(gW)] for j in range(gH)])
+terrain_meta['grid'] = {'bounds': [gw_, gs, ge, gn], 'w': gW, 'h': gH,
+                        'cm': base64.b64encode(np.round(grid * 100).astype('<i2').tobytes()).decode()}
+print('terrain: base', round(base, 2), 'm, relief', round(float(rel.min()), 2), 'to', round(float(rel.max()), 2), 'm,', ntiles, 'tiles')
+
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
-json.dump({'type': 'FeatureCollection', 'holes': traced_holes, 'features': feats}, open(OUT, 'w'), separators=(',', ':'))
+json.dump({'type': 'FeatureCollection', 'holes': traced_holes, 'terrain': terrain_meta, 'features': feats}, open(OUT, 'w'), separators=(',', ':'))
 kinds = {}
 for f in feats: kinds[f['properties']['kind']] = kinds.get(f['properties']['kind'], 0) + 1
 print(OUT, os.path.getsize(OUT) // 1024, 'KB', kinds)

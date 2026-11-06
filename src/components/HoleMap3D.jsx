@@ -18,9 +18,43 @@ const ANGLES = [
   { key: "top", label: "TOP", pitch: 0 },
 ];
 const FLY_EYE = 9;           // fly-through camera height: about 30 ft
-const FLY_LOOK = 80;         // how far ahead (m) the fly-through camera looks
 const STAND_EYE = 2;         // "look from a spot" camera height: standing eye level
 const FLAG_ROOM = 56;        // the flag stands above the green, so leave space at the top
+
+// Ground height (meters, already exaggerated like the map's terrain) from the course's
+// compact height grid; 0 where there's no grid
+const terrainCache = new WeakMap();
+function terrainOf(course) {
+  if (terrainCache.has(course)) return terrainCache.get(course);
+  const t = course.terrain, E = t?.exaggeration || 1;
+  let height = () => 0;
+  if (t?.grid) {
+    const g = t.grid, bin = atob(g.cm), cm = new Int16Array(bin.length / 2);
+    for (let i = 0; i < cm.length; i++) cm[i] = ((bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8)) << 16) >> 16;
+    const [w, s, e, n] = g.bounds;
+    height = (lng, lat) => {
+      const x = (lng - w) / (e - w) * (g.w - 1), y = (n - lat) / (n - s) * (g.h - 1);
+      const x0 = Math.floor(x), y0 = Math.floor(y);
+      if (x0 < 0 || y0 < 0 || x0 >= g.w - 1 || y0 >= g.h - 1) return 0;
+      const fx = x - x0, fy = y - y0, at = (i, j) => cm[j * g.w + i] / 100;
+      return at(x0, y0) * (1 - fx) * (1 - fy) + at(x0 + 1, y0) * fx * (1 - fy) + at(x0, y0 + 1) * (1 - fx) * fy + at(x0 + 1, y0 + 1) * fx * fy;
+    };
+  }
+  const out = { E, ground: (lng, lat) => height(lng, lat) * E };
+  terrainCache.set(course, out);
+  return out;
+}
+const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a || 1))); return t * t * (3 - 2 * t); };
+
+// Convex hull (for a house's shadow: its footprint swept away from the sun)
+function hull(pts) {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]), cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const q of p) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of p.reverse()) { while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], q) <= 0) up.pop(); up.push(q); }
+  const h = lo.slice(0, -1).concat(up.slice(0, -1));
+  return [...h, h[0]];
+}
 
 // Walking path for the fly-through: tee → fairway centerline (follows doglegs) → green,
 // smoothed with a Catmull-Rom curve. at(s) gives the point s meters along it.
@@ -143,9 +177,21 @@ function buildStyle(course) {
   const kind = k => ["==", ["get", "kind"], k];
   const fill = (id, k, color, extra = {}) => ({ id, type: "fill", source: "ground", filter: kind(k), paint: { "fill-color": color, "fill-antialias": true, ...extra } });
   const roadW = ["match", ["get", "cls"], "tertiary", 11, "residential", 7, "service", 4.5, 6];
+  const houseShadows = { type: "FeatureCollection", features: course.features.filter(f => f.properties.kind === "building").map(f => {
+    const ring = f.geometry.coordinates[0], lat = ring[0][1], k = Math.cos(lat * Math.PI / 180);
+    const off = (f.properties.h > 7 ? 7.5 : 4.2);   // wall + roof height × sun angle
+    const moved = ring.map(([x, y]) => [x - 0.12 * off / (M * k), y + 0.75 * off / M]);
+    return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [hull([...ring, ...moved])] } };
+  }) };
+  const terr = course.terrain;
+  const demSource = terr && { type: "raster-dem", tiles: [location.origin + terr.tiles], encoding: "terrarium", tileSize: 256,
+    minzoom: terr.minzoom, maxzoom: terr.maxzoom, bounds: terr.bounds };
   return {
     version: 8,
+    ...(terr ? { terrain: { source: "dem", exaggeration: terr.exaggeration } } : {}),
     sources: {
+      ...(terr ? { dem: demSource, demShade: { ...demSource } } : {}),
+      houseShadows: { type: "geojson", data: houseShadows },
       ground: { type: "geojson", data: ground },
       treeShadows: { type: "geojson", data: trees.shadows },
       trees: { type: "geojson", data: trees.solids },
@@ -172,10 +218,14 @@ function buildStyle(course) {
       fill("green", "green", "#a3e672"),
       { id: "green-edge", type: "line", source: "ground", filter: kind("green"), paint: { "line-color": "#6cba4d", "line-width": 3, "line-blur": 3, "line-opacity": 0.8 } },
       fill("tee", "tee", "#8bd862"),
-      { id: "tree-shadow", type: "fill", source: "treeShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.2 } },
+      { id: "house-shadow", type: "fill", source: "houseShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.22 } },
+      { id: "tree-shadow", type: "fill", source: "treeShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.24 } },
       fill("bunker", "bunker", "#f3e4b6"),
       { id: "bunker-shade", type: "line", source: "ground", filter: kind("bunker"), paint: { "line-color": "#b39a62", "line-width": 6, "line-blur": 5, "line-opacity": 0.55 } },
       { id: "bunker-edge", type: "line", source: "ground", filter: kind("bunker"), paint: { "line-color": "#3e7d36", "line-width": 1.6, "line-opacity": 0.85 } },
+      ...(terr ? [{ id: "hillshade", type: "hillshade", source: "demShade", paint: { "hillshade-exaggeration": 0.5,
+        "hillshade-shadow-color": "rgba(16,38,16,0.6)", "hillshade-highlight-color": "rgba(255,255,236,0.35)",
+        "hillshade-accent-color": "rgba(24,48,24,0.3)", "hillshade-illumination-direction": 160, "hillshade-illumination-anchor": "map" } }] : []),
       { id: "arcs", type: "line", source: "arcs", paint: { "line-color": "#fff6d8", "line-width": 1.2, "line-opacity": 0.55, "line-dasharray": [1, 4] } },
       { id: "guide", type: "line", source: "guide", paint: { "line-color": "#fff3c4", "line-width": 2, "line-opacity": 0.8, "line-dasharray": [3, 3] } },
       { id: "shots", type: "line", source: "shots", layout: { "line-cap": "round" }, paint: { "line-color": "#16a34a", "line-width": 3.5, "line-opacity": 0.95 } },
@@ -297,17 +347,46 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       return cam;
     };
 
-    // The fly-through: a camera about 30 ft up walking the fairway centerline from just
-    // behind the tee to short of the green, always looking ahead. u runs 0 (tee) → 1 (green).
+    // The fly-through: a camera about 30 ft up walking the fairway centerline from behind the
+    // tee. It follows the fairway until no tree blocks the flag (e.g. round a dogleg), then turns
+    // smoothly onto the pin, keeps it centered and glides in, dropping to near ground level.
+    // u runs 0 (tee) → 1 (at the green).
     const len = haversineYards(t.lat, t.lng, hole.green.lat, hole.green.lng);
+    const { ground } = terrainOf(course);
     const spine = course.features.filter(f => f.properties.kind === "spine" && f.properties.hole === hole.number)
       .flatMap(f => f.geometry.coordinates.map(([lng, lat]) => ({ lng, lat })));
     const path = walkPath(t, hole.green, spine);
-    const s0 = -12, s1 = Math.max(path.total - 35, path.total * 0.5);
+    const pin = hole.green, pinAlt = ground(pin.lng, pin.lat) + 1.3;
+    const s0 = -12, s1 = Math.max(path.total - 14, path.total * 0.6);
+    const eyeAt = s => FLY_EYE - (FLY_EYE - 3) * smoothstep(s1 - 90, s1, s);
+    // Where does the flag come into clear view? Check the sight line past every broadleaf tree.
+    const kx = Math.cos(t.lat * Math.PI / 180);
+    const xy = (lng, lat) => [(lng - t.lng) * M * kx, (lat - t.lat) * M];
+    const blockers = course.features.filter(f => f.properties.kind === "tree" && f.properties.type !== "palm")
+      .map(f => { const [lng, lat] = f.geometry.coordinates; return { p: xy(lng, lat), r: f.properties.r * 0.85, top: ground(lng, lat) + f.properties.h }; });
+    const pinXY = xy(pin.lng, pin.lat);
+    let lastBlocked = -Infinity;
+    for (let s = s0; s <= s1; s += 4) {
+      const P = path.at(s), a = xy(P.lng, P.lat), camAlt = ground(P.lng, P.lat) + eyeAt(s);
+      const dx = pinXY[0] - a[0], dy = pinXY[1] - a[1], L2 = dx * dx + dy * dy || 1;
+      const hit = blockers.some(b => {
+        const tt = ((b.p[0] - a[0]) * dx + (b.p[1] - a[1]) * dy) / L2;
+        if (tt < 0.04 || tt > 0.96) return false;
+        const d = Math.hypot(a[0] + dx * tt - b.p[0], a[1] + dy * tt - b.p[1]);
+        return d < b.r && b.top > camAlt + (pinAlt - camAlt) * tt;
+      });
+      if (hit) lastBlocked = s;
+    }
+    const sClear = lastBlocked === -Infinity ? s0 - 60 : lastBlocked + 6;
+    const pinWeight = s => smoothstep(sClear - 25, sClear + 35, s);
     const flyCam = u => {
-      const s = s0 + (s1 - s0) * u;
-      const pos = path.at(s), tgt = path.at(Math.min(s + FLY_LOOK, path.total));
-      return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(pos.lng, pos.lat), FLY_EYE, new maplibregl.LngLat(tgt.lng, tgt.lat), 0);
+      const s = s0 + (s1 - s0) * u, P = path.at(s), w = pinWeight(s);
+      // look-ahead along the fairway, averaged so curves don't make the view sway
+      let ax = 0, ay = 0;
+      for (const d of [40, 60, 80, 100]) { const q = path.at(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
+      const tLng = ax + (pin.lng - ax) * w, tLat = ay + (pin.lat - ay) * w;
+      const tAlt = ground(ax, ay) + (pinAlt - ground(ax, ay)) * w;
+      return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(P.lng, P.lat), ground(P.lng, P.lat) + eyeAt(s), new maplibregl.LngLat(tLng, tLat), tAlt);
     };
     const setThumb = u => { if (thumbRef.current) thumbRef.current.style.bottom = `calc(${(u * 100).toFixed(1)}% - 11px)`; };
 
@@ -327,15 +406,18 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       map.jumpTo(flyCam(0)); setThumb(0);
       flyTimer = setTimeout(() => {
         if (!flying) return;
-        const dur = Math.max(3500, Math.min(9000, path.total / 55 * 1000)), t0 = performance.now();
+        const dur = Math.max(4500, Math.min(11000, path.total / 42 * 1000)), t0 = performance.now();
         const step = now => {
           if (!flying) return;
           const x = Math.min(1, (now - t0) / dur), u = 0.5 - 0.5 * Math.cos(Math.PI * x);
           map.jumpTo(flyCam(u)); setThumb(u);
           if (x < 1) { raf = requestAnimationFrame(step); return; }
-          const cam = overviewCam();
-          if (cam) map.easeTo({ ...cam, duration: 1200 });
-          map.once("moveend", () => { flying = false; });
+          flyTimer = setTimeout(() => {      // a beat on the flag, then the whole hole
+            if (!flying) return;
+            const cam = overviewCam();
+            if (cam) map.easeTo({ ...cam, duration: 1600 });
+            map.once("moveend", () => { flying = false; });
+          }, 700);
         };
         raf = requestAnimationFrame(step);
       }, 500);
@@ -344,8 +426,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     // Look from a spot: standing at that spot at eye level, looking at the green
     const lookFrom = pt => {
       stopFly(false);
-      const cam = map.calculateCameraOptionsFromTo(new maplibregl.LngLat(pt.lng, pt.lat), STAND_EYE,
-        new maplibregl.LngLat(hole.green.lng, hole.green.lat), 0);
+      const cam = map.calculateCameraOptionsFromTo(new maplibregl.LngLat(pt.lng, pt.lat), ground(pt.lng, pt.lat) + STAND_EYE,
+        new maplibregl.LngLat(hole.green.lng, hole.green.lat), pinAlt);
       map.easeTo({ ...cam, duration: 1800 });
       setLooking(true);
     };
@@ -401,7 +483,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       });
       [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
         track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
-      track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0] }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
+      track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
 
       // Realistic look: textured turf and sand, and the three.js trees and houses in place of
       // the simple block ones (which stay as a fallback if the 3D layer can't start)
@@ -412,8 +494,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         map.setPaintProperty("bg", "background-pattern", "tex-ground");
       } catch { /* plain colors remain */ }
       try {
-        map.addLayer(createRealisticLayer(course));
-        ["trees", "tree-shadow", "buildings"].forEach(id => map.setLayoutProperty(id, "visibility", "none"));
+        map.addLayer(createRealisticLayer(course, terrainOf(course).E));
+        ["trees", "buildings"].forEach(id => map.setLayoutProperty(id, "visibility", "none"));
       } catch (err) {
         console.warn("3D trees unavailable, using simple shapes", err);
         if (map.getLayer("real3d")) map.removeLayer("real3d");
