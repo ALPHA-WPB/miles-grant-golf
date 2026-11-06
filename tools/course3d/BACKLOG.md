@@ -49,7 +49,7 @@ broken.
 - [x] 4. (5cdba10) Trace hole 6.
 - [x] 5. (5d07388) Trace hole 7.
 - [x] 6. (b6156a4) Trace hole 8.
-- [ ] 7. Trace hole 9.
+- [x] 7. (68a3092) Trace hole 9.
 - [ ] 8. Trace hole 10.
 - [ ] 9. Trace hole 11.
 - [ ] 10. Trace hole 12.
@@ -74,6 +74,7 @@ broken.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 
 ## Log
+- 2026-11-06: item 7 (68a3092): hole 9 traced (par 4) — green oval (~23×15 m) between the front-left and right bunkers, 3 separate tee ovals, fairway (~20–28 m wide) from just past the tee-side trees (x≈900 hole9 px) to the green front, kept clear of the real oak at ~(932,506) and of the palms along the south edge. Fairway edges are faint on the photo between x 1300–1500 (narrow gap between trees) — owner may want to eyeball its width there. Previewed in 3D, no errors.
 - 2026-11-06: item 6 (b6156a4): hole 8 traced (par 3, no fairway) — elongated green (~25×11 m, tilted down to the right) fitted between the back bunker and the two front bunkers; one long diagonal tee strip (~27×6 m) through the tree pocket holding all three markers (middle part is under tree shadow, so its edges are estimated). The traced green also dropped a false "bunker" the color detector had placed on the green (67→66 bunkers; DEM tiles changed slightly with it). Previewed in 3D, no app errors.
 - 2026-11-06: item 5 (5d07388): hole 7 traced (par 3, no fairway) — green oval (~17×20 m, clear of the back-left and front-right bunkers), round back tee (~9×8 m), forward tee strip (~24×6 m) holding the two forward markers, partly under the planter trees' north shadow. Previewed in 3D, no app errors (only expected local /api 404s). For item 18: the bunker behind the green at ~(810,353) hole7 px is only half detected (west part). Session switched to Auto permission mode at the owner's request.
 - 2026-11-06: owner feedback (Google 3D photo of hole 1's three traps): detected bunker outlines already match the photo; the look was the problem (pale white, flat, dark outline, brown smudge). Now warm tan sand texture, blurred grass lip under the sand, and baked crescents: `bshade` (2 steps, 0.6/1.4 m, south edge) and `blit` (0.9 m, north edge), 10 cm precision; course.json +130 KB raw (+28 KB gzip). Same session: removed the first-launch "Tap the big gold button" overlay, shorter instructions (6 cards incl. 3D fly-over, lightning, today's pin), help button now "? HELP".
