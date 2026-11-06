@@ -347,6 +347,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       dragRotate: false, pitchWithRotate: false, touchPitch: true, keyboard: false,
       canvasContextAttributes: { antialias: true },
       fadeDuration: 0,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),   // 3x phone screens: same look, far less GPU work
     });
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "© OpenStreetMap contributors · traced from Esri imagery" }), "bottom-left");
     map.once("idle", () => map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
@@ -405,15 +406,38 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     }
     const sClear = lastBlocked === -Infinity ? -1e9 : lastBlocked + 6;
     // look at the flag at the start (whole-hole view) and again once nothing blocks it
-    const pinWeight = s => Math.max(1 - smoothstep(s0 + 30, s0 + 160, s), smoothstep(sClear - 40, sClear + 70, s));
+    // Dogleg: where the fairway bends farthest from the straight tee-to-pin line. Until the camera nears
+    // the bend it looks up the fairway to it (so the whole fairway is in view), then pans slowly to the pin.
+    let sCorner = null, maxDev = 0;
+    {
+      const G = xy(pin.lng, pin.lat), B = xy(backTee.lng, backTee.lat), L = Math.hypot(G[0] - B[0], G[1] - B[1]) || 1;
+      for (let s = 0; s <= path.total; s += 3) {
+        const P = xy(path.at(s).lng, path.at(s).lat);
+        const dev = Math.abs(((G[0] - B[0]) * (P[1] - B[1]) - (G[1] - B[1]) * (P[0] - B[0])) / L);
+        if (dev > maxDev) { maxDev = dev; sCorner = s; }
+      }
+      if (maxDev < 12) sCorner = null;           // effectively straight
+    }
+    const panStart = sCorner == null ? sClear - 40 : Math.max(sCorner - 80, sClear - 40);
+    const panEnd = panStart + (sCorner == null ? 110 : 150);
+    const pinWeight = s => Math.max(1 - smoothstep(s0 + 30, s0 + 160, s), smoothstep(panStart, panEnd, s));
+    const lookAhead = s => {
+      if (sCorner != null && s < sCorner - 100) return path.at(sCorner);     // up the fairway to the bend
+      let ax = 0, ay = 0;
+      for (const d of [50, 75, 100, 125]) { const q = path.at(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
+      if (sCorner != null && s < sCorner) {                                  // ease from the bend to the look-ahead
+        const c = path.at(sCorner), f = smoothstep(sCorner - 100, sCorner, s);
+        return { lng: c.lng + (ax - c.lng) * f, lat: c.lat + (ay - c.lat) * f };
+      }
+      return { lng: ax, lat: ay };
+    };
 
     // Pre-compute the whole flight, then smooth heading, tilt, position and height so the camera
     // pans slowly and never jerks or bobs; flyCam(u) just interpolates this smoothed track.
     const NS = 480, flight = [];
     for (let i = 0; i < NS; i++) {
       const s = s0 + (s1 - s0) * i / (NS - 1), P = path.at(s), w = pinWeight(s);
-      let ax = 0, ay = 0;
-      for (const d of [50, 75, 100, 125]) { const q = path.at(Math.min(s + d, path.total)); ax += q.lng / 4; ay += q.lat / 4; }
+      const A = lookAhead(s), ax = A.lng, ay = A.lat;
       const T = { lng: ax + (pin.lng - ax) * w, lat: ay + (pin.lat - ay) * w };
       const tAlt = ground(ax, ay) + (pinAlt - ground(ax, ay)) * w;
       const g = ground(P.lng, P.lat), alt = g + eyeAt(s);
@@ -470,7 +494,12 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       flying = true;
       map.setCenterClampedToGround?.(false);
       map.jumpTo(flyCam(0)); setThumb(0);
-      flyTimer = setTimeout(() => {
+      // start once the opening view has loaded (or after 1.5 s), so tile loading doesn't stutter the flight
+      let begun = false;
+      const begin = () => { if (begun) return; begun = true; clearTimeout(flyTimer); go(); };
+      map.once("idle", () => { flyTimer = setTimeout(begin, 250); });
+      flyTimer = setTimeout(begin, 1500);
+      const go = () => {
         if (!flying) return;
         const dur = Math.max(7000, Math.min(18000, (s1 - s0) / 36 * 1000)), t0 = performance.now();
         const step = now => {
@@ -487,7 +516,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
           }, 700);
         };
         raf = requestAnimationFrame(step);
-      }, 500);
+      };
     };
 
     // Look from a spot: standing at that spot at eye level, looking at the green

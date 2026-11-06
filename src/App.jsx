@@ -452,7 +452,9 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, r
 
     L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      { maxZoom: 20, maxNativeZoom: 19 }
+      // Esri has real 13 cm detail at z20 here (z21+ is upscaled). On phone screens, fetch one level
+      // sharper than the zoom (detectRetina), so the normal hole view uses it.
+      { maxZoom: 21, maxNativeZoom: 19, detectRetina: true }
     ).addTo(map);
 
     try { if (typeof map.setBearing === "function") map.setBearing(rotation); } catch { /* ignore */ }
@@ -571,7 +573,7 @@ function HoleMap({ hole, tee, gps, holeShots, pad, recenterTick, approachMode, r
         remove();
         radarLayerRef.current = L.tileLayer(
           `https://tilecache.rainviewer.com${path}/256/{z}/{x}/{y}/2/1_1.png`,
-          { opacity: 0.6, maxZoom: 20, maxNativeZoom: 12 }
+          { opacity: 0.6, maxZoom: 21, maxNativeZoom: 12 }
         ).addTo(map);
       } catch { /* offline or API down — leave map as is */ }
     };

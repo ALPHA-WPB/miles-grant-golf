@@ -386,7 +386,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
       renderer.autoClear = false;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFShadowMap;      // cheaper than PCFSoft on phones; shadow.radius keeps edges soft
       renderer.shadowMap.autoUpdate = false;   // the scene and sun never move: draw shadows once
       renderer.shadowMap.needsUpdate = true;
       THREE.DefaultLoadingManager.onLoad = () => { renderer.shadowMap.needsUpdate = true; map.triggerRepaint(); };
