@@ -627,8 +627,15 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       return { lng: C.lng, lat: C.lat, above: Math.max(1.5, Math.min(80, A - ground(C.lng, C.lat))),
         brg: map.getBearing(), pitch: Math.max(40, Math.min(86, map.getPitch())) };
     };
+    const camHeight = () => {
+      const tr = map.transform, C = tr.getCameraLngLat?.(), A = tr.getCameraAltitude?.();
+      return C && A != null ? A - ground(C.lng, C.lat) : Infinity;
+    };
     const walkCam = w => {
-      const d = Math.max(4, w.above * Math.tan(w.pitch * Math.PI / 180));
+      // The look-at point stays within 300 m: looking at the horizon from high up would otherwise put
+      // the map's center a kilometer or more away, and a pinch/wheel zoom about that far point then
+      // threw the camera kilometers off the course (the blank "city view")
+      const d = Math.max(4, Math.min(300, w.above * Math.tan(w.pitch * Math.PI / 180)));
       const T = destPoint(w.lat, w.lng, w.brg, d * 1.09361);
       return map.calculateCameraOptionsFromTo(new maplibregl.LngLat(w.lng, w.lat), ground(w.lng, w.lat) + w.above,
         new maplibregl.LngLat(T.lng, T.lat), ground(T.lng, T.lat));
@@ -652,8 +659,24 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       zoomStartZ = null;
       if (out > 0.3 && map.getPitch() > 65) map.easeTo({ pitch: Math.max(58, map.getPitch() - out * 10), duration: 500 });
     });
+    // Safety net: if the view ever ends up far off the course or zoomed out to town level, bring it
+    // back to the hole instead of leaving a blank plain
+    const mid = holePts.reduce((a, p) => [a[0] + p[0] / holePts.length, a[1] + p[1] / holePts.length], [0, 0]);
+    let rescuing = false;
+    map.on("moveend", () => {
+      if (flying || rescuing || moving) return;
+      const c = map.getCenter(), far = haversineYards(c.lat, c.lng, mid[1], mid[0]) / 1.09361 > 2000;
+      if (far || map.getZoom() < 14.5) {
+        rescuing = true;
+        walk = null;
+        reset();
+        map.once("moveend", () => { rescuing = false; });
+      }
+    });
     const stepView = (dt, { f, t: turn, h, p }) => {
-      if (map.getPitch() >= 55 || walk) {
+      // Walk only when the camera really is low; tilting the high overview past 55° used to drop the
+      // camera straight from ~300 m to 80 m
+      if (walk || (map.getPitch() >= 55 && camHeight() <= 80)) {
         if (!walk) walk = walkFromMap();
         if (!walk) return;
         walk.brg += turn * 45 * dt;
@@ -668,11 +691,13 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         map.setCenterClampedToGround?.(false);
         map.jumpTo(walkCam(walk));
       } else {
-        const ctr = map.getCenter(), brg = map.getBearing() + turn * 45 * dt;
+        // high views tilt up only to 72° (steeper from up high just aims at the horizon, kilometers off)
+        const ctr = map.getCenter(), brg = map.getBearing() + turn * 45 * dt, p0 = map.getPitch();
+        const pitch = p > 0 ? Math.max(p0, Math.min(72, p0 + p * 22 * dt)) : Math.max(0, p0 + p * 22 * dt);
         const mpp = 40075016.7 * Math.cos(ctr.lat * Math.PI / 180) / (512 * 2 ** map.getZoom());
         const c2 = f ? destPoint(ctr.lat, ctr.lng, brg, f * 320 * mpp * dt * 1.09361) : ctr;
         map.jumpTo({ center: [c2.lng, c2.lat], bearing: brg, zoom: map.getZoom() - h * 0.9 * dt,
-          pitch: Math.max(0, Math.min(85, map.getPitch() + p * 22 * dt)) });
+          pitch });
       }
     };
     const startMove = () => {
