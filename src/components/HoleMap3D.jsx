@@ -287,7 +287,7 @@ function fitTilted(map, pts, bearing, pitch, padIn, maxZoom = 19.6) {
 }
 
 // Icons for the camera height/tilt buttons
-const iconProps = { width: 18, height: 18, viewBox: "0 0 18 18", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true };
+const iconProps = { width: 21, height: 21, viewBox: "0 0 18 18", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true };
 const ICON_UP = <svg {...iconProps}><path d="M2 15.5h14" /><path d="M9 12V3" /><path d="M5.5 6.5 9 3l3.5 3.5" /></svg>;
 const ICON_DOWN = <svg {...iconProps}><path d="M2 15.5h14" /><path d="M9 2.5v9" /><path d="M5.5 8 9 11.5 12.5 8" /></svg>;
 const ICON_LOOK_UP = <svg {...iconProps}><path d="M1.8 11c2-2.8 4.4-4.2 7.2-4.2s5.2 1.4 7.2 4.2c-2 2.8-4.4 4.2-7.2 4.2S3.8 13.8 1.8 11z" /><circle cx="9" cy="11" r="1.9" fill="currentColor" /><path d="M6.5 3.8 9 1.6l2.5 2.2" /></svg>;
@@ -351,6 +351,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     mapRef.current = map;
     const markerSet = markersRef.current;
     let flyTimer = null, raf = 0, flying = false, skippedAt = 0, flagMarker = null;
+    const placeMarkers = new Set();   // facility icons: only shown nearby in low views
 
     // Whole-hole camera for the current layout and angle, worked out without visibly moving the map
     const overviewCam = () => {
@@ -542,9 +543,9 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         if (!m.getElement().isConnected) { markersRef.current.delete(m); return; }
         let hide = false;
         if (cam) {
-          const ll = m.getLngLat();
+          const ll = m.getLngLat(), dist = haversineYards(cam.lat, cam.lng, ll.lat, ll.lng);
           const off = Math.abs(((bearingOf(cam, ll) - brg + 540) % 360) - 180);
-          hide = off > 80 || haversineYards(cam.lat, cam.lng, ll.lat, ll.lng) < 4;
+          hide = off > 80 || dist < 4 || (placeMarkers.has(m) && map.getPitch() >= 58 && dist > 150);
         }
         m.getElement().style.visibility = hide ? "hidden" : "";
       });
@@ -562,7 +563,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         const p = destPoint(hole.green.lat, hole.green.lng, back, y);
         track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`) }).setLngLat([p.lng, p.lat]).addTo(map));
       });
-      COURSE_PLACES.forEach(p => track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map)));
+      COURSE_PLACES.forEach(p => placeMarkers.add(track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map))));
       [["champ", "#3b82f6"], ["mens", "#9ca3af"], ["womens", "#ef4444"]].forEach(([k, c]) =>
         track(new maplibregl.Marker({ element: el(dotHtml(c)) }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
       flagMarker = track(new maplibregl.Marker({ element: el(flagHtml), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
@@ -829,11 +830,11 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       </div>
 
       {/* Camera height and tilt, icons only (hold to keep going) */}
-      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 64, bottom: pad.bottom + 12 + 124 + 6, width: 124, zIndex: 1001, display: "flex", justifyContent: "space-between" }}>
+      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 64 + 124 + 8, bottom: pad.bottom + 12, zIndex: 1001, display: "flex", flexDirection: "column", gap: 5 }}>
         {[["h", 1, "Raise the camera", ICON_UP], ["h", -1, "Lower the camera", ICON_DOWN],
           ["p", 1, "Tilt the view up", ICON_LOOK_UP], ["p", -1, "Tilt the view down", ICON_LOOK_DOWN]].map(([axis, v, aria, ic]) => (
           <button key={aria} aria-label={aria} title={aria} data-h={axis === "h" ? v : 0} data-p={axis === "p" ? v : 0} {...padEvents}
-            style={{ width: 28, height: 28, borderRadius: 8, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
+            style={{ width: 34, height: 34, borderRadius: 9, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
               display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: "pointer", touchAction: "none",
               userSelect: "none", WebkitUserSelect: "none", boxShadow: "0 3px 10px rgba(0,0,0,0.5)" }}>
             {ic}
