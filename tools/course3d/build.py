@@ -280,10 +280,17 @@ for b in BRIDGES:
     add(Polygon(b['ring']), kind='bridge', deck=b['deck'])
 # Lakes: shorelines from the hydro-flattened LiDAR terrain (lidar_water.py); the river is left to
 # the aerial photo
+lakes = []
 for w in json.load(open(os.path.join(HERE, 'lidar', 'water.json'))):
     wp = Polygon(w['ring'])
     if club.contains(wp.centroid) or course.contains(wp.centroid):
-        add(wp.simplify(0.4 / 111320), kind='water')
+        lakes.append(wp.simplify(0.4 / 111320).buffer(0))
+# plus water traced from the photo with water_kit.py (canal and river edge behind 17 green, pond SE of the club)
+for wr in traced.get('water', []):
+    lakes.append(Polygon(wr).buffer(0))
+merged = unary_union(lakes) if lakes else Polygon()
+for wp in getattr(merged, 'geoms', [merged]):
+    if not wp.is_empty: add(wp, kind='water')
 
 M_PER_DEG = 111320
 def meters_poly(lng, lat, coords_m):
