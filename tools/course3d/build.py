@@ -261,6 +261,14 @@ for e in osm:
         add(Polygon(ring(e)), kind='water')
     elif t.get('highway') in ('residential', 'tertiary', 'service', 'unclassified', 'primary', 'secondary'):
         add(LineString(ring(e)), kind='road', cls=t['highway'])
+# Lakes/canals OpenStreetMap lacks (the two lakes along holes 17/18, the canal behind 17 green…),
+# traced from the photo + LiDAR with water_kit.py
+lakes = []
+for wr in traced.get('water', []):
+    wp = Polygon(wr)
+    wp = wp if wp.is_valid else wp.buffer(0)
+    lakes.append(wp)
+    add(wp, kind='water')
 # Club housing OpenStreetMap lacks (condos etc.), found in the imagery by houses_kit.py; only inside
 # the club perimeter (the area enclosed by Miles Grant Road and Cove Road)
 for i, hs in enumerate(traced.get('houses', [])):
@@ -369,6 +377,7 @@ for bunkers, trees in detected:
     tg = unary_union(tees_greens)
     edits = traced.get('treeEdits', {})
     gone = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in edits.get('remove', [])]
+    if lakes: gone.append(unary_union(lakes).buffer(-1.5 / M_PER_DEG))   # no trees standing in a traced lake
     # hand-placed trees (verified on the photo): [lng, lat, r, kind, tag?, height?]; they skip the
     # automatic filters, since real trees do stand in fairways
     trees += [{'lng': a[0], 'lat': a[1], 'r': a[2], 'type': a[3], 'manual': True,
