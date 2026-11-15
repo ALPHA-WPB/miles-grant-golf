@@ -21,6 +21,7 @@ const ANGLES = [
 ];
 const FLY_EYE = 9;           // fly-through camera height: about 30 ft
 const STAND_EYE = 2;         // "look from a spot" camera height: standing eye level
+const BADGE_ZOOM = 17.0;     // hole-number badges never show when zoomed in closer than this
 const FLAG_ROOM = 56;        // the flag stands above the green, so leave space at the top
 
 // Ground height (meters, already exaggerated like the map's terrain) from the course's
@@ -275,6 +276,8 @@ function el(html, cls = "") {
 }
 const dotHtml = (c, ring = "#fff") => `<div style="width:14px;height:14px;border-radius:50%;background:${c};border:2px solid ${ring};box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>`;
 const flagHtml = (n) => `<div style="position:relative;width:30px;height:44px"><div style="position:absolute;left:0;bottom:0;width:3px;height:42px;background:#fff;border-radius:2px;box-shadow:0 0 3px rgba(0,0,0,0.6)"></div><div class="mgg-flag" style="position:absolute;left:3px;top:0;width:24px;height:16px;background:#fff;border:1px solid rgba(0,0,0,0.35);border-left:0;display:flex;align-items:center;justify-content:center;font:900 11px Inter,sans-serif;color:#0b1a10;transform-origin:left center;box-shadow:0 1px 3px rgba(0,0,0,0.5)">${n}</div></div>`;
+// Hole-number badge over a green, shown only in zoomed-out views (current hole in gold)
+const holeBadgeHtml = (n, current) => `<div style="opacity:0;transition:opacity .25s;pointer-events:none;width:24px;height:24px;border-radius:50%;background:${current ? "#e8c15a" : "#ffffff"};border:2px solid #0f3b22;display:flex;align-items:center;justify-content:center;font:900 12px Inter,sans-serif;color:#0b1a10;box-shadow:0 2px 6px rgba(0,0,0,0.55)">${n}</div>`;
 const tagHtml = (txt, border, color) => `<div style="background:rgba(8,26,16,0.9);border:1px solid ${border};color:${color};font:700 11px Inter,sans-serif;padding:2px 7px;border-radius:5px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.5)">${txt}</div>`;
 
 // Yardage label: centered above the dot, or to one side when the dot is near a screen edge
@@ -769,6 +772,17 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     };
     map.on("move", hideBehind);
 
+    // Hole numbers over every green: visible when zoomed out to look across the course, faded away
+    // once zoomed in on a hole or down in a low view, so they never clutter the hole being played
+    // (they start to appear a little wider than this hole's own overview, whatever the screen size)
+    const holeBadges = [];
+    let badgeZoom = BADGE_ZOOM;
+    const fadeBadges = () => {
+      const o = map.getPitch() >= 78 ? 0 : Math.max(0, Math.min(1, (badgeZoom - map.getZoom()) / 0.4));
+      holeBadges.forEach(b => { b.style.opacity = o; });
+    };
+    map.on("move", fadeBadges);
+
     map.on("load", () => {
       base = Math.max(base, 0.5);
       bump(0.5, "Planting the trees…", true);
@@ -783,6 +797,18 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`), opacityWhenCovered: "1" }).setLngLat([p.lng, p.lat]).addTo(map));
       });
       COURSE_PLACES.forEach(p => placeMarkers.add(track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map))));
+      course.features.forEach(f => {
+        const n = f.properties.hole;
+        if (f.properties.kind !== "green" || !n) return;
+        const ring = f.geometry.type === "Polygon" ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
+        const c = ring.reduce((acc, q) => [acc[0] + q[0] / ring.length, acc[1] + q[1] / ring.length], [0, 0]);
+        const node = el(holeBadgeHtml(n, n === hole.number));
+        holeBadges.push(node.firstChild);
+        // the current hole's badge sits below its flag, the others are centred on their greens
+        track(new maplibregl.Marker({ element: node, opacityWhenCovered: "1", ...(n === hole.number ? { anchor: "top", offset: [0, 4] } : {}) }).setLngLat(c).addTo(map));
+      });
+      badgeZoom = Math.min(BADGE_ZOOM, (overviewCam()?.zoom ?? BADGE_ZOOM) - 0.3);
+      fadeBadges();
       [["champ", "#3b82f6"], ["mens", "#f8f8f6", "#334155"], ["womens", "#ef4444"]].forEach(([k, c, ring]) =>
         track(new maplibregl.Marker({ element: el(dotHtml(c, ring)), opacityWhenCovered: "1" }).setLngLat([hole.tees[k].lng, hole.tees[k].lat]).addTo(map)));
       flagMarker = track(new maplibregl.Marker({ element: el(flagHtml(hole.number)), anchor: "bottom-left", offset: [-1, 0], opacityWhenCovered: "1" }).setLngLat([hole.green.lng, hole.green.lat]).addTo(map));
