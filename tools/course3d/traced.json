@@ -20084,7 +20084,94 @@
      27.1478167
     ]
    ]
+  },
+  {
+   "name": "Cove Road (public road along the south side, to the river)",
+   "w": 7.3,
+   "centerLine": true,
+   "line": [
+    [
+     -80.1858,
+     27.142194
+    ],
+    [
+     -80.184843,
+     27.142571
+    ],
+    [
+     -80.183755,
+     27.143001
+    ],
+    [
+     -80.1833416,
+     27.1431642
+    ],
+    [
+     -80.1830912,
+     27.1432619
+    ],
+    [
+     -80.1829182,
+     27.1433314
+    ],
+    [
+     -80.1826755,
+     27.143428
+    ],
+    [
+     -80.182006,
+     27.143684
+    ],
+    [
+     -80.180147,
+     27.144405
+    ],
+    [
+     -80.178998,
+     27.144857
+    ],
+    [
+     -80.17854,
+     27.145036
+    ],
+    [
+     -80.177289,
+     27.145524
+    ],
+    [
+     -80.175407,
+     27.14626
+    ],
+    [
+     -80.174609,
+     27.146562
+    ],
+    [
+     -80.172136,
+     27.147523
+    ],
+    [
+     -80.171382,
+     27.147817
+    ],
+    [
+     -80.1701701,
+     27.1482917
+    ],
+    [
+     -80.1700965,
+     27.1483185
+    ],
+    [
+     -80.169316,
+     27.148623
+    ],
+    [
+     -80.1687126,
+     27.1488393
+    ]
+   ]
   }
  ],
- "_roadsNote": "Perimeter road (owner, 2026-11-15): SE Miles Grant Road around the whole community, centreline from OpenStreetMap ways 11103095 + 11104109 (checked against the photo), plus the short divided entrance by the clubhouse. Drawn black with a yellow dashed centre line; w = paved width in metres from the photo."
+ "_roadsNote": "Perimeter road (owner, 2026-11-15): SE Miles Grant Road around the whole community, centreline from OpenStreetMap ways 11103095 + 11104109 (checked against the photo), plus the short divided entrance by the clubhouse. Drawn black with a yellow dashed centre line; w = paved width in metres from the photo. Cove Road added the same way (owner, 2026-11-15): OpenStreetMap ways 542882657 \u2026 543607144 from just west of the club to the river end, 7.3 m wide on the photo."
 }
