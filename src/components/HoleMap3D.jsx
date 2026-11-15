@@ -179,7 +179,8 @@ function buildStyle(course) {
   const trees = buildTrees(course.features.filter(f => f.properties.kind === "tree"));
   const kind = k => ["==", ["get", "kind"], k];
   const fill = (id, k, color, extra = {}) => ({ id, type: "fill", source: "ground", filter: kind(k), paint: { "fill-color": color, "fill-antialias": true, ...extra } });
-  const roadW = ["match", ["get", "cls"], "tertiary", 11, "residential", 7, "service", 4.5, 6];
+  const roadW = ["coalesce", ["get", "w"], 6.2];     // paved width in metres
+  const M_PX13 = 1 / (78271.517 * Math.cos(27.148 * Math.PI / 180) / 2 ** 13);   // screen px per metre at zoom 13
   const houseShadows = { type: "FeatureCollection", features: course.features.filter(f => f.properties.kind === "building").map(f => {
     const ring = f.geometry.coordinates[0], lat = ring[0][1], k = Math.cos(lat * Math.PI / 180);
     const off = (f.properties.h > 7 ? 7.5 : 4.2);   // wall + roof height × sun angle
@@ -220,10 +221,15 @@ function buildStyle(course) {
       { id: "water-edge", type: "line", source: "ground", filter: kind("water"), paint: { "line-color": "#9fc4c4", "line-opacity": 0.45, "line-width": 1 } },
       fill("pool", "pool", "#6fcbee"),
       fill("bridge", "bridge", "#9a7b55"),
+      // Perimeter road (Miles Grant Road): black asphalt at its true width, a worn grey shoulder line
+      // and a yellow dashed centre line (3 m dashes, 9 m gaps)
       { id: "road-case", type: "line", source: "ground", filter: kind("road"), layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#b4ae9e", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["*", roadW, 0.3], 20, ["*", roadW, 9.6]] } },
+        paint: { "line-color": "#55554f", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, ["*", roadW, M_PX13 * 1.12], 22, ["*", roadW, M_PX13 * 512 * 1.12]] } },
       { id: "road", type: "line", source: "ground", filter: kind("road"), layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#f3efe4", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["*", roadW, 0.24], 20, ["*", roadW, 8]] } },
+        paint: { "line-color": "#1b1c1f", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, ["*", roadW, M_PX13], 22, ["*", roadW, M_PX13 * 512]] } },
+      { id: "road-line", type: "line", source: "ground", filter: ["all", kind("road"), ["==", ["get", "line"], 1]], minzoom: 15.5, layout: { "line-cap": "butt", "line-join": "round" },
+        paint: { "line-color": "#f2c81e", "line-dasharray": [10, 30],
+                 "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, 0.3 * M_PX13, 22, 0.3 * M_PX13 * 512] } },
       fill("fairway", "fairway", "#79c552"),
       fill("stripe", "stripe", "#86d05e"),
       { id: "fairway-edge", type: "line", source: "ground", filter: kind("fairway"), paint: { "line-color": "#4f9a45", "line-width": 6, "line-blur": 5, "line-opacity": 0.75 } },

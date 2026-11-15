@@ -388,6 +388,10 @@ for num, t in traced['holes'].items():
     for cp in t.get('cartPaths', []):
         add(LineString(cp), kind='cartpath', hole=int(num))
 
+# the perimeter road (Miles Grant Road loop): black asphalt with a yellow dashed centre line in the app
+for rd in traced.get('roads', []):
+    add(LineString(rd['line']), kind='road', w=rd.get('w', 6.2), line=1 if rd.get('centerLine') else 0)
+
 # hand-traced hedge lines (thick shrub rows, e.g. along back yards): drawn as a solid leafy wall
 for hg in traced.get('hedges', []):
     add(LineString(hg['line']), kind='hedge', h=hg.get('h', 3.8), w=hg.get('w', 3.0))
