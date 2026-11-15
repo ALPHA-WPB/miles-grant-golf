@@ -22,9 +22,18 @@ UA = {'User-Agent': 'miles-grant-golf-course3d'}
 os.makedirs(CACHE, exist_ok=True)
 
 def get(url, path, data=None):
-    if not os.path.exists(path):
-        req = urllib.request.Request(url, data=data, headers=UA)
-        open(path, 'wb').write(urllib.request.urlopen(req, timeout=120).read())
+    if not os.path.exists(path) or os.path.getsize(path) == 0:     # an empty file is a failed earlier download
+        try:
+            req = urllib.request.Request(url, data=data, headers=UA)
+            body = urllib.request.urlopen(req, timeout=120).read()
+        except Exception:
+            # the macOS system Python (LibreSSL 2.8) can't complete a TLS handshake with some servers
+            # (e.g. overpass-api.de); curl can
+            import subprocess
+            cmd = ['curl', '-sS', '-f', '--max-time', '180', '-A', UA.get('User-Agent', 'mgg-course3d')]
+            if data is not None: cmd += ['--data-binary', '@-']
+            body = subprocess.run(cmd + [url], input=data, capture_output=True, check=True).stdout
+        open(path, 'wb').write(body)
     return path
 
 # ── Hole data from the app ───────────────────────────────────────────────
@@ -247,24 +256,34 @@ def add(geom, _prec=7, **props):
     g = {'type': g['type'], 'coordinates': rnd(g['coordinates'])}
     feats.append({'type': 'Feature', 'properties': props, 'geometry': g})
 
-add(course, kind='course')
+# Built-up parts inside the course outline (clubhouse grounds): the aerial photo shows there instead of drawn turf
+turf = course
+for pa in traced.get('photoAreas', []):
+    turf = turf.difference(Polygon(pa['ring']).buffer(0))
+add(turf, kind='course')
+# Miles Grant itself: the Miles Grant Rd / Cove Rd loop plus the SE Landing Way riverside condos and
+# marina (owner, 2026-11-15). Nothing outside it is modeled; the aerial photo shows the rest.
+club = unary_union([Polygon(traced['clubPerimeter'])] + [Polygon(r) for r in traced.get('clubExtra', [])]).buffer(0)
 for e in osm:
     t = e.get('tags', {})
-    if 'building' in t and len(e['geometry']) >= 4:
-        p = Polygon(ring(e))
-        area = p.area * (111320 ** 2) * math.cos(math.radians(27.15))
-        h = 9 if t.get('building') in ('apartments', 'commercial') or area > 500 else 5.5
-        add(p, kind='building', h=h, c=e['id'] % 4)
-    elif t.get('leisure') == 'swimming_pool' and len(e['geometry']) >= 4:
+    if t.get('leisure') == 'swimming_pool' and len(e['geometry']) >= 4 and club.contains(Polygon(ring(e)).centroid):
         add(Polygon(ring(e)), kind='pool')
-    elif t.get('natural') == 'water' and len(e['geometry']) >= 4:
-        add(Polygon(ring(e)), kind='water')
-    elif t.get('highway') in ('residential', 'tertiary', 'service', 'unclassified', 'primary', 'secondary'):
-        add(LineString(ring(e)), kind='road', cls=t['highway'])
-# Club housing OpenStreetMap lacks (condos etc.), found in the imagery by houses_kit.py; only inside
-# the club perimeter (the area enclosed by Miles Grant Road and Cove Road)
-for i, hs in enumerate(traced.get('houses', [])):
-    add(Polygon(hs['ring']), kind='building', h=hs.get('h', 5.5), c=i % 4)
+# Buildings: every roof inside Miles Grant from the owner's 2018-19 LiDAR (lidar_buildings.py), with
+# its measured height and a 1 m roof height grid the app turns into the real roof shape. This
+# replaces OpenStreetMap's partial buildings and the photo-traced condo boxes (traced.json houses).
+LIDAR_B = json.load(open(os.path.join(HERE, 'lidar', 'buildings.json')))['buildings']
+for i, b in enumerate(LIDAR_B):
+    if not club.intersects(Polygon(b['ring'])): continue
+    add(Polygon(b['ring']), kind='building', h=round(b['top'], 1), c=i % 5, g=b['grid'], wr=b['walls'], gnd=b['ground'])
+BRIDGES = json.load(open(os.path.join(HERE, 'lidar', 'bridges.json')))
+for b in BRIDGES:
+    add(Polygon(b['ring']), kind='bridge', deck=b['deck'])
+# Lakes: shorelines from the hydro-flattened LiDAR terrain (lidar_water.py); the river is left to
+# the aerial photo
+for w in json.load(open(os.path.join(HERE, 'lidar', 'water.json'))):
+    wp = Polygon(w['ring'])
+    if club.contains(wp.centroid) or course.contains(wp.centroid):
+        add(wp.simplify(0.4 / 111320), kind='water')
 
 M_PER_DEG = 111320
 def meters_poly(lng, lat, coords_m):
@@ -297,12 +316,15 @@ def mow_stripes(fw, tee, green, width=7.0):
 regions = [Region(*reg['bbox']) for reg in traced['regions']]
 detected = [detect(rg) for rg in regions]
 
-# Roof colors: the median color of each house's footprint in the imagery (edges trimmed)
+# Roof colors: the median color of each house's footprint in the imagery (edges trimmed); the photo
+# covers all of Miles Grant (the detection regions stop at the course)
+cs_, cw_, cn_, ce_ = club.bounds[1], club.bounds[0], club.bounds[3], club.bounds[2]
+roof_regions = [Region(cs_ - 0.0003, cw_ - 0.0003, cn_ + 0.0003, ce_ + 0.0003)]
 for f in feats:
     if f['properties']['kind'] != 'building':
         continue
     ring_ll = f['geometry']['coordinates'][0]
-    for rg in regions:
+    for rg in roof_regions:
         pts = np.array([rg.px(lng, lat) for lng, lat in ring_ll], np.int32)
         H, W = rg.img.shape[:2]
         if pts[:, 0].min() < 0 or pts[:, 1].min() < 0 or pts[:, 0].max() >= W or pts[:, 1].max() >= H:
@@ -313,6 +335,8 @@ for f in feats:
             continue
         b, g, r = [int(np.median(rg.img[..., i][m > 0])) for i in range(3)]
         f['properties']['roof'] = '#%02x%02x%02x' % (r, g, b)
+        # roof type from its colour: t = clay tile (orange/red/brown), m = white or metal, s = shingle
+        f['properties']['rt'] = 'm' if min(r, g, b) > 150 and max(r, g, b) - min(r, g, b) < 40 else 't' if r > b + 28 and r >= g else 's'
         break
 not_sand = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in traced.get('bunkerEdits', {}).get('remove', [])]
 detected = [([b for b in bs if not any(z.intersects(b) for z in not_sand)], ts) for bs, ts in detected]
@@ -361,6 +385,8 @@ for num, t in traced['holes'].items():
 for hg in traced.get('hedges', []):
     add(LineString(hg['line']), kind='hedge', h=hg.get('h', 3.8), w=hg.get('w', 3.0))
 
+roofs_u = unary_union([Polygon(b['ring']) for b in LIDAR_B])        # no detected 'trees' on roofs or in the lakes
+lakes_u = unary_union([Polygon(f['geometry']['coordinates'][0]) for f in feats if f['properties']['kind'] == 'water'] or [Polygon()])
 for bunkers, trees in detected:
     for b in bunkers:
         add(b, kind='bunker')
@@ -379,7 +405,8 @@ for bunkers, trees in detected:
     for tr in trees:
         pt = Point(tr['lng'], tr['lat'])
         overhangs = tg.distance(pt) < 0.6 * tr['r'] / M_PER_DEG    # canopy would hang over a tee or green
-        if not tr.get('manual') and (not near.contains(pt) or clear.contains(pt) or overhangs or any(z.contains(pt) for z in gone)):
+        if not tr.get('manual') and (not near.contains(pt) or clear.contains(pt) or overhangs or any(z.contains(pt) for z in gone)
+                                     or roofs_u.contains(pt) or lakes_u.contains(pt)):
             continue
         feats.append({'type': 'Feature', 'properties': {'kind': 'tree', 'r': tr['r'], 'h': tr['h'], 'type': tr['type']},
                       'geometry': {'type': 'Point', 'coordinates': [tr['lng'], tr['lat']]}})
@@ -434,7 +461,7 @@ dpx = lambda lng, lat: ((lng - TW) / (TE - TW) * dw - 0.5, (TN - lat) / (TN - TS
 cmask = np.zeros((dh, dw), np.uint8)
 cv2.fillPoly(cmask, [np.array([dpx(*c) for c in course.exterior.coords], np.int32)], 1)
 base = float(np.nanmedian(dem[cmask > 0]))
-rel = np.clip(np.nan_to_num(dem - base, nan=0.0), -2.5, 6.0)   # cap ponds/canals so they don't become pits
+rel = np.clip(np.nan_to_num(dem - base, nan=0.0), -4.6, 6.0)   # the lakes sit ~2 m below their banks (real); the river is capped just below them
 rel = cv2.GaussianBlur(rel, (0, 0), 0.8 if 'Martin' in dem_source else 2.0)   # remove speckle, keep green and bunker shapes
 for b in all_bunkers:
     for poly in getattr(b, 'geoms', [b]):
@@ -495,7 +522,9 @@ for f in feats:
     if pr['kind'] == 'tree':
         pr['z'] = round(elev(*f['geometry']['coordinates']), 2)
     elif pr['kind'] == 'building':
-        pr['z'] = round(min(elev(lng, lat) for lng, lat in f['geometry']['coordinates'][0]), 2)
+        pr['z'] = round(pr.pop('gnd') - base, 2)          # the ground level its roof heights were measured from
+    elif pr['kind'] == 'bridge':
+        pr['z'] = round(pr.pop('deck') - base, 2)         # deck height
     elif pr['kind'] == 'hedge':
         pr['zs'] = [round(elev(lng, lat), 2) for lng, lat in f['geometry']['coordinates']]
 terrain_meta = {'tiles': '/course3d/dem/{z}/{x}/{y}.png', 'minzoom': 13, 'maxzoom': 17,

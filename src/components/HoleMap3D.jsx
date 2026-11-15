@@ -194,6 +194,8 @@ function buildStyle(course) {
     sources: {
       ...(terr ? { dem: demSource, demShade: { ...demSource } } : {}),
       houseShadows: { type: "geojson", data: houseShadows },
+      photo: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+               tileSize: 256, maxzoom: 19, attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
       ground: { type: "geojson", data: ground },
       treeShadows: { type: "geojson", data: trees.shadows },
       trees: { type: "geojson", data: trees.solids },
@@ -205,10 +207,18 @@ function buildStyle(course) {
     sky: { "sky-color": "#8ccbf0", "horizon-color": "#e3f2f8", "fog-color": "#e8f1ea", "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.7, "fog-ground-blend": 0.9, "atmosphere-blend": 0 },
     light: { anchor: "map", position: [1.4, 135, 40], intensity: 0.38, color: "#ffffff" },
     layers: [
-      { id: "bg", type: "background", paint: { "background-color": "#cdd6c1" } },
+      { id: "bg", type: "background", paint: { "background-color": "#6f8563" } },   // shows only until the photo tiles arrive (a pattern here would hide the photo on terrain)
+      // Around the course the real aerial photo is the ground (parking lots, streets, yards, courts),
+      // graded a little brighter and greener so it sits next to the drawn turf
+      { id: "photo", type: "raster", source: "photo", paint: { "raster-saturation": 0.12, "raster-contrast": 0.05, "raster-brightness-min": 0.04, "raster-fade-duration": 0 } },
       fill("course", "course", "#4d9a45"),
-      fill("water", "water", "#4aa6dc"),
+      // Lakes: dark, still water with a wet bank line and a thin bright edge
+      { id: "water-bank", type: "line", source: "ground", filter: kind("water"), layout: { "line-join": "round" },
+        paint: { "line-color": "#3c4a2c", "line-opacity": 0.55, "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.5, 19, 12, 21, 44], "line-blur": ["interpolate", ["exponential", 2], ["zoom"], 15, 1, 19, 7, 21, 26] } },
+      fill("water", "water", "#2c5a66"),
+      { id: "water-edge", type: "line", source: "ground", filter: kind("water"), paint: { "line-color": "#9fc4c4", "line-opacity": 0.45, "line-width": 1 } },
       fill("pool", "pool", "#6fcbee"),
+      fill("bridge", "bridge", "#9a7b55"),
       { id: "road-case", type: "line", source: "ground", filter: kind("road"), layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#b4ae9e", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["*", roadW, 0.3], 20, ["*", roadW, 9.6]] } },
       { id: "road", type: "line", source: "ground", filter: kind("road"), layout: { "line-cap": "round", "line-join": "round" },
@@ -783,7 +793,6 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         Object.entries(GROUND_TEXTURES).forEach(([id, make]) => { if (!map.hasImage(id)) map.addImage(id, make(), { pixelRatio: 2 }); });
         [["course", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
-        map.setPaintProperty("bg", "background-pattern", "tex-ground");
       } catch { /* plain colors remain */ }
       try {
         // Flag icon follows the 3D flagstick's screen position; once the real flagstick is big

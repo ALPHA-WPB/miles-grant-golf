@@ -176,71 +176,127 @@ function palmTrunkGeo() {
   return g;
 }
 
-// ── Houses: walls from the footprint, hip roof on its best-fit rectangle ──────────────────
+// ── Buildings: real roof shapes from the LiDAR ─────────────────────────────────────────────
+// Each building carries its roof outline, its wall line (inside the eaves) and a 1 m grid of roof
+// heights laid out in the building's own direction. The roof is that height field cut to the
+// outline; the walls drop from the roof to the ground along the wall line.
 const WALLS = ["#f4efe4", "#efe6d6", "#f7f3ec", "#e9dfcf", "#f1ead9"];
-const ROOFS = ["#9d5a45", "#8a8580", "#b07a5a", "#6f6a66", "#c9b8a2"];
-function housesGeometry(buildings, toLocal, exaggeration) {
-  const pos = [], col = [];
-  let lift = 0;   // ground height under the current house
-  const tri = (a, b, c, hex) => {
-    pos.push(a[0], a[1] + lift, a[2], b[0], b[1] + lift, b[2], c[0], c[1] + lift, c[2]);
-    const k = color(hex);
-    for (let i = 0; i < 3; i++) col.push(k.r, k.g, k.b);
+const b64bytes = s => { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
+function insidePoly(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+// Sutherland–Hodgman: the part of a polygon inside an axis-aligned cell
+function clipToCell(poly, x0, y0, x1, y1) {
+  const pass = (pts, ax, lim, keepGreater) => {
+    const out = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const ia = keepGreater ? a[ax] >= lim : a[ax] <= lim, ib = keepGreater ? b[ax] >= lim : b[ax] <= lim;
+      if (ia) out.push(a);
+      if (ia !== ib) { const t = (lim - a[ax]) / (b[ax] - a[ax]), q = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]; q[ax] = lim; out.push(q); }
+    }
+    return out;
   };
+  let out = pass(poly, 0, x0, true);
+  if (out.length) out = pass(out, 0, x1, false);
+  if (out.length) out = pass(out, 1, y0, true);
+  if (out.length) out = pass(out, 1, y1, false);
+  return out.filter((q, i) => { const r = out[(i + 1) % out.length]; return Math.abs(q[0] - r[0]) > 1e-6 || Math.abs(q[1] - r[1]) > 1e-6; });
+}
+function buildingsGeometry(buildings, toLocal, exaggeration) {
+  const pos = [], col = [];
+  const tri = (a, b, c, k) => { pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); for (let i = 0; i < 3; i++) col.push(k.r, k.g, k.b); };
   buildings.forEach(f => {
-    const ring = f.geometry.coordinates[0].map(([lng, lat]) => toLocal(lng, lat));
-    if (ring.length < 4) return;
-    const tall = f.properties.h > 7, wallH = tall ? 6 : 3.1, base = (f.properties.z || 0) * exaggeration;
-    lift = base;
-    const wall = WALLS[f.properties.c % WALLS.length];
-    const roof = f.properties.roof || ROOFS[(f.properties.c * 7 + ring.length) % ROOFS.length];
-    // walls (shaded a touch darker than the roof color would suggest at the base)
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [x1, z1] = ring[i], [x2, z2] = ring[i + 1];
-      tri([x1, 0, z1], [x2, 0, z2], [x2, wallH, z2], wall);
-      tri([x1, 0, z1], [x2, wallH, z2], [x1, wallH, z1], wall);
+    const g = f.properties.g;
+    if (!g) return;
+    const [ax, az] = toLocal(g.lng, g.lat), ct = Math.cos(g.th), st = Math.sin(g.th), W = g.w, H = g.h, step = g.step;
+    const bytes = b64bytes(g.d), base = (f.properties.z || 0) * exaggeration;
+    const hNode = (i, j) => g.min + g.sc * bytes[Math.min(H - 1, Math.max(0, j)) * W + Math.min(W - 1, Math.max(0, i))];
+    const hAt = (u, v) => {                                 // roof height above the ground at grid position (u, v)
+      const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+      return (hNode(i, j) * (1 - fu) + hNode(i + 1, j) * fu) * (1 - fv) + (hNode(i, j + 1) * (1 - fu) + hNode(i + 1, j + 1) * fu) * fv;
+    };
+    const toGrid = ([lng, lat]) => { const [x, z] = toLocal(lng, lat), e = x - ax, n = -(z - az); return [(e * ct + n * st) / step, (-e * st + n * ct) / step]; };
+    const world = (u, v, y) => { const e = (u * ct - v * st) * step, n = (u * st + v * ct) * step; return [ax + e, base + y, az - n]; };
+    const roofC = new THREE.Color(f.properties.roof || "#9a8f86");
+    const wallC = new THREE.Color(WALLS[f.properties.c % WALLS.length]);
+    const ring = f.geometry.coordinates[0].slice(0, -1).map(toGrid);
+    // roof
+    const inside = new Uint8Array(W * H);
+    for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) inside[j * W + i] = insidePoly(i, j, ring) ? 1 : 0;
+    const hasVertex = new Set(ring.map(([u, v]) => Math.floor(v) * W + Math.floor(u)));
+    const P = (u, v) => world(u, v, hAt(u, v));
+    for (let j = 0; j < H - 1; j++) for (let i = 0; i < W - 1; i++) {
+      const n = inside[j * W + i] + inside[j * W + i + 1] + inside[(j + 1) * W + i] + inside[(j + 1) * W + i + 1];
+      const cut = hasVertex.has(j * W + i);
+      if (n === 0 && !cut) continue;
+      if (n === 4 && !cut) {
+        const a = P(i, j), b = P(i + 1, j), c = P(i + 1, j + 1), d = P(i, j + 1);
+        // split along the diagonal that bends least, so hips and valleys stay sharp
+        if (Math.abs(a[1] - c[1]) <= Math.abs(b[1] - d[1])) { tri(a, b, c, roofC); tri(a, c, d, roofC); } else { tri(a, b, d, roofC); tri(b, c, d, roofC); }
+        continue;
+      }
+      const piece = clipToCell(ring, i, j, i + 1, j + 1);
+      if (piece.length < 3) continue;
+      const pts = piece.map(([u, v]) => new THREE.Vector2(u, v));
+      THREE.ShapeUtils.triangulateShape(pts, []).forEach(([a, b, c]) => tri(P(pts[a].x, pts[a].y), P(pts[b].x, pts[b].y), P(pts[c].x, pts[c].y), roofC));
     }
-    // best-fit (minimum-area) rectangle
-    let best = null;
-    for (let i = 0; i < ring.length - 1; i++) {
-      const ang = Math.atan2(ring[i + 1][1] - ring[i][1], ring[i + 1][0] - ring[i][0]);
-      const ca = Math.cos(ang), sa = Math.sin(ang);
-      let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
-      ring.forEach(([x, z]) => { const u = x * ca + z * sa, v = -x * sa + z * ca; minU = Math.min(minU, u); maxU = Math.max(maxU, u); minV = Math.min(minV, v); maxV = Math.max(maxV, v); });
-      const area = (maxU - minU) * (maxV - minV);
-      if (!best || area < best.area) best = { area, ca, sa, minU, maxU, minV, maxV };
-    }
-    let fpArea = 0;
-    for (let i = 0; i < ring.length - 1; i++) fpArea += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
-    fpArea = Math.abs(fpArea) / 2;
-    const { ca, sa } = best, o = 0.45;
-    const minU = best.minU - o, maxU = best.maxU + o, minV = best.minV - o, maxV = best.maxV + o;
-    const back = (u, v, y) => [u * ca - v * sa, y, u * sa + v * ca];
-    if (fpArea / best.area > 0.72) {
-      let L = maxU - minU, W = maxV - minV, swap = false;
-      if (W > L) { swap = true; [L, W] = [W, L]; }
-      const rise = W * 0.24, y0 = wallH, y1 = wallH + rise;
-      const cu = (minU + maxU) / 2, cv = (minV + maxV) / 2, ridge = (L - W) / 2;
-      // corners and ridge ends in (along, across) of the long axis
-      const P = (a, b, y) => swap ? back(cu + b, cv + a, y) : back(cu + a, cv + b, y);
-      const A = P(-L / 2, -W / 2, y0), B = P(L / 2, -W / 2, y0), C = P(L / 2, W / 2, y0), D = P(-L / 2, W / 2, y0);
-      const R1 = P(-ridge, 0, y1), R2 = P(ridge, 0, y1);
-      const shadeA = new THREE.Color(roof).multiplyScalar(0.92).getHexString(), shadeB = new THREE.Color(roof).multiplyScalar(0.8).getHexString();
-      tri(A, B, R2, roof); tri(A, R2, R1, roof);
-      tri(C, D, R1, `#${shadeA}`); tri(C, R1, R2, `#${shadeA}`);
-      tri(B, C, R2, `#${shadeB}`); tri(D, A, R1, `#${shadeB}`);
-    } else {
-      // irregular footprint: low flat roof slab with the roof color
-      const shape = ring.slice(0, -1).map(([x, z]) => new THREE.Vector2(x, z));
-      THREE.ShapeUtils.triangulateShape(shape, []).forEach(([a, b, c]) =>
-        tri([shape[a].x, wallH + 0.4, shape[a].y], [shape[b].x, wallH + 0.4, shape[b].y], [shape[c].x, wallH + 0.4, shape[c].y], roof));
+    // walls, from just below the ground up to the underside of the roof
+    const wr = (f.properties.wr || f.geometry.coordinates[0]).map(toGrid);
+    const shade = wallC.clone().multiplyScalar(0.9);
+    for (let i = 0; i < wr.length - 1; i++) {
+      const [u1, v1] = wr[i], [u2, v2] = wr[i + 1], len = Math.hypot(u2 - u1, v2 - v1) * step, parts = Math.max(1, Math.ceil(len));
+      const k = Math.abs(u2 - u1) > Math.abs(v2 - v1) ? wallC : shade;
+      for (let q = 0; q < parts; q++) {
+        const ua = u1 + (u2 - u1) * q / parts, va = v1 + (v2 - v1) * q / parts, ub = u1 + (u2 - u1) * (q + 1) / parts, vb = v1 + (v2 - v1) * (q + 1) / parts;
+        const a0 = world(ua, va, -1), b0 = world(ub, vb, -1), a1 = world(ua, va, hAt(ua, va) - 0.03), b1 = world(ub, vb, hAt(ub, vb) - 0.03);
+        tri(a0, b0, b1, k); tri(a0, b1, a1, k);
+      }
     }
   });
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
-  g.computeVertexNormals();
-  return g;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// Cart bridges: a plank deck with rails, at the deck height the LiDAR measured
+function bridgesGeometry(bridges, toLocal, exaggeration) {
+  const geos = [];
+  bridges.forEach(f => {
+    const r = f.geometry.coordinates[0].slice(0, 4).map(([lng, lat]) => toLocal(lng, lat)), y = (f.properties.z || 0) * exaggeration;
+    const d01 = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]), d12 = Math.hypot(r[2][0] - r[1][0], r[2][1] - r[1][1]);
+    const long = d01 >= d12, L = Math.max(d01, d12) + 3, Wd = Math.max(2.6, Math.min(d01, d12));
+    const cx = (r[0][0] + r[2][0]) / 2, cz = (r[0][1] + r[2][1]) / 2;
+    const a = long ? Math.atan2(r[1][1] - r[0][1], r[1][0] - r[0][0]) : Math.atan2(r[2][1] - r[1][1], r[2][0] - r[1][0]);
+    const box = (w, h, d, ox, oy, oz, hex) => {
+      const b = new THREE.BoxGeometry(w, h, d).toNonIndexed(); b.translate(ox, oy, oz); b.rotateY(-a); b.translate(cx, y, cz);
+      const k = color(hex), c = new Float32Array(b.attributes.position.count * 3);
+      for (let i = 0; i < c.length; i += 3) { c[i] = k.r; c[i + 1] = k.g; c[i + 2] = k.b; }
+      b.setAttribute("color", new THREE.BufferAttribute(c, 3)); b.deleteAttribute("uv");
+      geos.push(b);
+    };
+    box(L, 0.3, Wd, 0, -0.15, 0, "#9a7b55");                                     // deck
+    for (const side of [-1, 1]) {
+      box(L, 0.1, 0.12, 0, 1.0, side * (Wd / 2 - 0.06), "#7d6242");              // top rail
+      box(L, 0.07, 0.08, 0, 0.55, side * (Wd / 2 - 0.06), "#7d6242");            // mid rail
+      for (let q = 0; q <= Math.round(L / 2); q++) box(0.12, 1.5, 0.12, -L / 2 + q * L / Math.round(L / 2), 0.3, side * (Wd / 2 - 0.06), "#6d5538");
+    }
+  });
+  if (!geos.length) return null;
+  const pos = [], col = [], nor = [];
+  geos.forEach(b => { pos.push(...b.attributes.position.array); col.push(...b.attributes.color.array); nor.push(...b.attributes.normal.array); });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  return geo;
 }
 
 export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d") {
@@ -399,10 +455,16 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       }
 
       // Houses
-      const houses = new THREE.Mesh(housesGeometry(buildings, toLocal, exaggeration), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide }));
+      const houses = new THREE.Mesh(buildingsGeometry(buildings, toLocal, exaggeration), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, side: THREE.DoubleSide }));
       houses.castShadow = houses.receiveShadow = true;
       houses.frustumCulled = false;
       scene.add(houses);
+      const bridgeGeo = bridgesGeometry(course.features.filter(f => f.properties.kind === "bridge"), toLocal, exaggeration);
+      if (bridgeGeo) {
+        const bridges = new THREE.Mesh(bridgeGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
+        bridges.castShadow = bridges.receiveShadow = true; bridges.frustumCulled = false;
+        scene.add(bridges);
+      }
 
       // Shadow area: everything we placed (ground shadows are drawn by the map, draped on the terrain)
       const box = new THREE.Box3().setFromObject(houses);
