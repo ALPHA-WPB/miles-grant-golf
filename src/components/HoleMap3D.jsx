@@ -219,7 +219,6 @@ function buildStyle(course) {
         paint: { "line-color": "#3c4a2c", "line-opacity": 0.55, "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.5, 19, 12, 21, 44], "line-blur": ["interpolate", ["exponential", 2], ["zoom"], 15, 1, 19, 7, 21, 26] } },
       fill("water", "water", "#2c5a66"),
       { id: "water-edge", type: "line", source: "ground", filter: kind("water"), paint: { "line-color": "#9fc4c4", "line-opacity": 0.45, "line-width": 1 } },
-      fill("pool", "pool", "#6fcbee"),
       fill("bridge", "bridge", "#9a7b55"),
       // Perimeter road (Miles Grant Road): black asphalt at its true width, a worn grey shoulder line
       // and a yellow dashed centre line (3 m dashes, 9 m gaps)
@@ -238,7 +237,7 @@ function buildStyle(course) {
       fill("tee", "tee", "#8bd862"),
       // Service driveways / yards, rock gardens, condo lanes and parking lots (asphalt with a concrete
       // curb) and walks, traced on the photo; painted parking-stall lines on top
-      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#3a3c3f", "walk", "#d3cec2", "#bdb9ae"]),
+      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#3a3c3f", "walk", "#d3cec2", "deck", "#dde4e7", "court", "#5b9b69", "courtblue", "#3b6ea5", "sand", "#d8c6a0", "lane", "#6a9468", "putt", "#4f9a45", "#bdb9ae"]),
       { id: "paved-edge", type: "line", source: "ground", filter: kind("paved"), layout: { "line-join": "round" },
         paint: { "line-color": ["match", ["get", "s"], "rock", "#6f6d67", "asphalt", "#b9b4a8", "#a39f94"],
                  "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["match", ["get", "s"], "asphalt", 0.6, 1.2], 22, ["match", ["get", "s"], "asphalt", 14, 1.2]],
@@ -246,6 +245,7 @@ function buildStyle(course) {
       { id: "marks", type: "line", source: "ground", filter: kind("mark"), minzoom: 17, layout: { "line-cap": "butt" },
         paint: { "line-color": ["coalesce", ["get", "color"], "#ffffff"], "line-opacity": 0.9,
                  "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, ["*", ["coalesce", ["get", "w"], 0.1], M_PX13], 22, ["*", ["coalesce", ["get", "w"], 0.1], M_PX13 * 512]] } },
+      fill("pool", "pool", "#6fcbee"),   // above the paving so a pool deck never hides it
       fill("cartpath-edge", "cartedge", "#a49d8c"),
       fill("cartpath", "cartpath", "#dcd6c8"),
       { id: "house-shadow", type: "fill", source: "houseShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.22 } },

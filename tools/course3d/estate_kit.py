@@ -25,6 +25,7 @@ import ground_kit as g
 
 HERE, WORK = g.HERE, g.WORK
 SRC = os.path.join(HERE, 'grounds_px.json')
+TOPHAT, GRAYMIN = 45, 140        # stall-line brightness thresholds (faded paint needs lower values)
 M = 1 / g.MPP                     # course pixels per metre
 SKIP_NAMES = {'Miles Grant Road', 'Southeast Miles Grant Road'}   # the perimeter road and its divided entrance: drawn as roads already
 
@@ -141,7 +142,7 @@ def stall_lines(img, asph_m, ph):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY); hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     top = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
     inner = cv2.erode(asph_m, np.ones((5, 5), np.uint8))
-    m = ((top > 45) & (hsv[..., 1] < 70) & (gray > 140) & (inner > 0)).astype(np.uint8) * 255
+    m = ((top > TOPHAT) & (hsv[..., 1] < 70) & (gray > GRAYMIN) & (inner > 0)).astype(np.uint8) * 255
     n, lab, st, _ = cv2.connectedComponentsWithStats(m, 8)
     mpp = g.MPP / 2; det = []
     for i in range(1, n):
