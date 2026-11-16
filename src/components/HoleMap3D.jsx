@@ -237,7 +237,7 @@ function buildStyle(course) {
       fill("tee", "tee", "#8bd862"),
       // Service driveways / yards, rock gardens, condo lanes and parking lots (asphalt with a concrete
       // curb) and walks, traced on the photo; painted parking-stall lines on top
-      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#3a3c3f", "walk", "#d3cec2", "deck", "#dde4e7", "court", "#5b9b69", "courtblue", "#3b6ea5", "sand", "#d8c6a0", "lane", "#6a9468", "putt", "#4f9a45", "mat", "#2f7a5c", "mulch", "#b98d55", "#bdb9ae"]),
+      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#3a3c3f", "walk", "#d3cec2", "deck", "#dde4e7", "court", "#5b9b69", "courtblue", "#3b6ea5", "sand", "#d8c6a0", "lane", "#6a9468", "putt", "#4f9a45", "chip", "#5cab4d", "mat", "#2f7a5c", "mulch", "#b98d55", "#bdb9ae"]),
       { id: "paved-edge", type: "line", source: "ground", filter: kind("paved"), layout: { "line-join": "round" },
         paint: { "line-color": ["match", ["get", "s"], "rock", "#6f6d67", "asphalt", "#b9b4a8", "#a39f94"],
                  "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["match", ["get", "s"], "asphalt", 0.6, 1.2], 22, ["match", ["get", "s"], "asphalt", 14, 1.2]],
