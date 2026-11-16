@@ -263,6 +263,9 @@ function buildStyle(course) {
       { id: "shots", type: "line", source: "shots", layout: { "line-cap": "round" }, paint: { "line-color": "#16a34a", "line-width": 3.5, "line-opacity": 0.95 } },
       { id: "measure-solid", type: "line", source: "measure", filter: ["!", ["get", "dash"]], paint: { "line-color": "#fbbf24", "line-width": 2.5 } },
       { id: "measure-dash", type: "line", source: "measure", filter: ["get", "dash"], paint: { "line-color": "#fbbf24", "line-width": 2.5, "line-dasharray": [2, 2] } },
+      // Thin gold line roughly round each whole hole: fades in with the hole-number badges when zoomed out
+      { id: "hole-outline", type: "line", source: "ground", filter: kind("outline"), layout: { "line-join": "round" },
+        paint: { "line-color": "#e8c15a", "line-width": 1.2, "line-opacity": 0 } },
       { id: "buildings", type: "fill-extrusion", source: "ground", filter: kind("building"),
         paint: { "fill-extrusion-color": ["match", ["get", "c"], 0, "#f1ebde", 1, "#e9dcc3", 2, "#f6f3ec", "#ecd6c2"],
                  "fill-extrusion-height": ["get", "h"], "fill-extrusion-base": 0, "fill-extrusion-opacity": 0.96 } },
@@ -782,10 +785,12 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
     // once zoomed in on a hole or down in a low view, so they never clutter the hole being played
     // (they start to appear a little wider than this hole's own overview, whatever the screen size)
     const holeBadges = [];
-    let badgeZoom = BADGE_ZOOM;
+    let badgeZoom = BADGE_ZOOM, outlineOpacity = 0;
     const fadeBadges = () => {
       const o = map.getPitch() >= 78 ? 0 : Math.max(0, Math.min(1, (badgeZoom - map.getZoom()) / 0.4));
       holeBadges.forEach(b => { b.style.opacity = o; });
+      const lo = Math.round(o * 18) / 20;      // outline opacity, at most 0.9, in steps so it isn't reset on every frame
+      if (lo !== outlineOpacity && map.getLayer("hole-outline")) { outlineOpacity = lo; map.setPaintProperty("hole-outline", "line-opacity", lo); }
     };
     map.on("move", fadeBadges);
 

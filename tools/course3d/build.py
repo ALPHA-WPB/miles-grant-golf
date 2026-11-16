@@ -10,8 +10,8 @@ Downloads are cached in tools/course3d/.cache (git-ignored).
 """
 import json, math, os, re, urllib.parse, urllib.request
 import numpy as np, cv2
-from shapely.geometry import Polygon, LineString, Point, mapping
-from shapely.ops import unary_union
+from shapely.geometry import Polygon, LineString, Point, mapping, shape
+from shapely.ops import unary_union, nearest_points, transform as shp_transform
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 HERE = os.path.join(ROOT, 'tools', 'course3d')
@@ -387,6 +387,21 @@ for num, t in traced['holes'].items():
         tees_greens.append(b)
     for cp in t.get('cartPaths', []):
         add(LineString(cp), kind='cartpath', hole=int(num))
+
+# Rough outline round each whole hole (tees, fairway, green), drawn as a thin gold line in the app's
+# zoomed-out view so every hole can be picked out. Worked in local metres, padded ~10 m and smoothed.
+K_OUT = math.cos(math.radians(27.148))
+to_m = lambda x, y, z=None: (x * M_PER_DEG * K_OUT, y * M_PER_DEG)
+to_ll = lambda x, y, z=None: (x / (M_PER_DEG * K_OUT), y / M_PER_DEG)
+for num in traced_holes:
+    mine = lambda kinds: [shp_transform(to_m, shape(f['geometry'])) for f in feats
+                          if f['properties'].get('hole') == num and f['properties']['kind'] in kinds]
+    tees, play = mine(('tee',)), unary_union(mine(('collar', 'fairway')))    # the collar holds the green
+    links = [LineString([t.centroid, nearest_points(t.centroid, play)[1]]).buffer(6) for t in tees if not play.is_empty]
+    out = unary_union(tees + [play] + links).buffer(16, 24).buffer(-6, 24).simplify(1.5)
+    if out.geom_type == 'MultiPolygon':
+        out = max(out.geoms, key=lambda g: g.area)
+    add(shp_transform(to_ll, Polygon(out.exterior)), _prec=6, kind='outline', hole=num)
 
 # the perimeter road (Miles Grant Road loop): black asphalt with a yellow dashed centre line in the app
 for rd in traced.get('roads', []):
