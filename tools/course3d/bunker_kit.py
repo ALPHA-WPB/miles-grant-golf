@@ -6,6 +6,7 @@
         blocking that hides sand strips next to roads; each blob over A m^2 (default 12) is smoothed
         and written to traced.json bunkerEdits.add as {tag, ring}; writes .work/bk<N>_<tag>.jpg to check
   undo tag                                drop every bunkerEdits.add entry with that tag
+  rm N x,y,r [x,y,r ...]                  mark a detected 'bunker' as not sand (radius r metres)
 """
 import sys, json, cv2, numpy as np
 sys.path.insert(0, 'tools/course3d')
@@ -86,6 +87,19 @@ if __name__ == '__main__':
     if a[0] == 'overview': overview(int(a[1]), a[2])
     elif a[0] == 'undo':
         d = json.load(open(TJ)); d['bunkerEdits']['add'] = [x for x in d['bunkerEdits'].get('add', []) if x['tag'] != a[1]]
+        open(TJ, 'w').write(json.dumps(d, indent=1))
+    elif a[0] == 'list':        # list N x0 y0 x1 y1: bunkers inside the box -> a point inside each (px) and area
+        from shapely.geometry import Polygon
+        hi = tk.HoleImage(int(a[1])); x0, y0, x1, y1 = map(int, a[2:6])
+        for p in bunkers_px(hi):
+            q = Polygon(p).buffer(0); rp = q.representative_point()
+            if x0 <= rp.x <= x1 and y0 <= rp.y <= y1:
+                print('%d,%d  %.0f m2' % (rp.x, rp.y, q.area * hi.mpp ** 2))
+    elif a[0] == 'rm':          # rm N x,y,r_m [x,y,r_m ...]: not sand (worn grass, beds, paths) -> bunkerEdits.remove
+        hi = tk.HoleImage(int(a[1])); d = json.load(open(TJ))
+        for v in a[2:]:
+            x, y, rm = map(float, v.split(',')); lat, lng = hi.ll(x, y)
+            d['bunkerEdits']['remove'].append([round(lng, 7), round(lat, 7), rm])
         open(TJ, 'w').write(json.dumps(d, indent=1))
     elif a[0] == 'detect':
         dry = '--dry' in a; a = [x for x in a if x != '--dry']
