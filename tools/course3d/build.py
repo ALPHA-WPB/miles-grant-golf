@@ -379,6 +379,15 @@ for f in feats:
         break
 not_sand = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in traced.get('bunkerEdits', {}).get('remove', [])]
 detected = [([b for b in bs if not any(z.intersects(b) for z in not_sand)], ts) for bs, ts in detected]
+# bunkers the colour detector missed (e.g. sand strips beside a road, whose buffer blocks detection),
+# extracted on the photo with bunker_kit.py: bunkerEdits.add = [{tag, ring}]; a detected piece of the
+# same bunker is merged into it rather than drawn twice
+for bk in traced.get('bunkerEdits', {}).get('add', []):
+    nb = Polygon(bk['ring']).buffer(0)
+    for i, (bs, ts) in enumerate(detected):
+        hit = [b for b in bs if b.intersects(nb)]
+        if hit: nb = unary_union([nb] + hit); detected[i] = ([b for b in bs if not b.intersects(nb)], ts)
+    detected[0] = (detected[0][0] + [nb], detected[0][1])
 all_bunkers = [b for bs, _ in detected for b in bs]
 traced_holes = sorted(int(k) for k in traced['holes'])
 playing = []   # fairways, greens and tees: kept clear of trees
