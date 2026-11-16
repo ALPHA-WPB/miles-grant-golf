@@ -77,6 +77,21 @@ broken.
 - [x] 25. (2d1b8e8) HOLE OUTLINES (owner, 2026-11-16): when fully zoomed out (where the hole-number badges show), a thin gold line roughly around each whole hole so you can see where each one is.
 - [x] 24. (d966eaf) COVE ROAD (owner, 2026-11-15): the public road along the south side, drawn the same way as the perimeter road.
 
+### Perimeter scope (owner, 2026-11-16)
+The owner wants EVERYTHING inside the perimeter road (Miles Grant Road loop = traced.json `clubPerimeter`, plus
+`clubExtra`) built out and rechecked in 3D, not only the playing surfaces. Items 17 and 18 are the per-hole tree and
+bunker rechecks; P1 is the per-hole shape recheck. Work these after 17–21, top to bottom, one commit each (per hole for P1).
+Building footprints come from the LiDAR (`lidar/buildings.json`), OSM or a photo trace, at modest true heights; never
+invent detail the photo doesn't show.
+- [ ] P1. Shape recheck, holes 1–18: `trace_kit.py check N`, compare greens, collars, tees, fairway and cart paths with the photo and fix any drift (one commit per hole that needs a fix; log the holes that were already right).
+- [ ] P2. Clubhouse grounds: parking lot, pool and deck, tennis/pickleball courts, practice green and range, drawn as `grounds` from the photo. A started `ground_kit.py` + `grounds_px.json` (clubhouse lot only) was left uncommitted in the 2026-11-15 clone; finish and commit it with this item.
+- [ ] P3. Maintenance yard (sheds, paved yard, equipment area) using `ground_kit.py`.
+- [ ] P4. Inner condo lanes and condo parking lots inside the loop (paved, dark grey, no centre line), from OSM where it matches the photo, otherwise traced.
+- [ ] P5. Cart paths between holes, course-wide: connecting paths, crossings and bridges approaches seen on the photo (per-hole paths already exist on some holes).
+- [ ] P6. Small water: ponds the LiDAR lake finder missed (Landing Way ponds, anything under ~2 acres inside the loop) via `water_kit.py`; decide the two doubtful dark patches noted in the item 22 log (near hole 5, among the east condos) and log the decision.
+- [ ] P7. Building coverage: overlay `lidar/buildings.json` on the whole-course photo and add any roof inside the loop that is missing (pool house, cabanas, sheds, clubhouse wings); remove any outside it.
+- [ ] P8. Final walk-round: whole-course overview plus a 3D preview of every hole; anything still wrong becomes a new item here. When this finds nothing, the build-out is done.
+
 ## Log
 - 2026-11-16 (hourly run): item 25 (2d1b8e8), owner's request made during the run — a thin gold line roughly round each whole hole in the zoomed-out view. build.py adds an `outline` feature per hole (that hole's tees + fairway + collar/green, each tee joined to the play area, padded 16 m then shrunk 6 m and simplified 1.5 m, so ~10 m outside the playing surfaces and following doglegs); +12 KB course.json, nothing else changed. HoleMap3D: `hole-outline` line layer (#e8c15a, 1.2 px, max opacity 0.9) faded with the hole-number badges, so it never shows on the hole being played up close. Checked on the whole-course photo (all 18 sensible; neighbouring holes overlap a little where they run side by side) and in the local preview on hole 9 (visible from zoom ~16 out; at the fullest zoom-out it is very thin on a laptop screen — owner may want it bolder). Live.
 - 2026-11-16 (hourly run): item 17 part — hole 9 tree audit (413a6ad, tag h9-trees): 6 palms moved from their shadow to the trunk base (incl. the one on the cart path right of the green), 2 shadow 'trees' removed (a palm's crown shadow by the oak right of the fairway, the shadow edge of the oak south of the three-palm row), 4 missing palms added (right rough short of the green, north edge of the fairway ~x1273, two in the bed behind the right side of the green — the smaller of those two, 6.5 m, is the least certain). Data diff: −8/+10 trees only. Live. Left alone: the two tall trees beside the fairway (kept as real, as at tracing), small trees typed as palms in the right rough (1548/1547) and trees in shadow masses south of the tee. The stale run.lock (20:39) was taken over; two untracked files from another session (tools/course3d/ground_kit.py, grounds_px.json — clubhouse-grounds tracing) were left in the clone, not committed. Owner asked mid-run for gold hole outlines → new item 25.
