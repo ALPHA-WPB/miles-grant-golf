@@ -179,7 +179,6 @@ function buildStyle(course) {
   const trees = buildTrees(course.features.filter(f => f.properties.kind === "tree"));
   const kind = k => ["==", ["get", "kind"], k];
   const fill = (id, k, color, extra = {}) => ({ id, type: "fill", source: "ground", filter: kind(k), paint: { "fill-color": color, "fill-antialias": true, ...extra } });
-  const roadW = ["coalesce", ["get", "w"], 6.2];     // paved width in metres
   const M_PX13 = 1 / (78271.517 * Math.cos(27.148 * Math.PI / 180) / 2 ** 13);   // screen px per metre at zoom 13
   const houseShadows = { type: "FeatureCollection", features: course.features.filter(f => f.properties.kind === "building").map(f => {
     const ring = f.geometry.coordinates[0], lat = ring[0][1], k = Math.cos(lat * Math.PI / 180);
@@ -224,13 +223,10 @@ function buildStyle(course) {
       fill("bridge", "bridge", "#9a7b55"),
       // Perimeter road (Miles Grant Road): black asphalt at its true width, a worn grey shoulder line
       // and a yellow dashed centre line (3 m dashes, 9 m gaps)
-      { id: "road-case", type: "line", source: "ground", filter: kind("road"), layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#55554f", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, ["*", roadW, M_PX13 * 1.12], 22, ["*", roadW, M_PX13 * 512 * 1.12]] } },
-      { id: "road", type: "line", source: "ground", filter: kind("road"), layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#1b1c1f", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, ["*", roadW, M_PX13], 22, ["*", roadW, M_PX13 * 512]] } },
-      { id: "road-line", type: "line", source: "ground", filter: ["all", kind("road"), ["==", ["get", "line"], 1]], minzoom: 15.5, layout: { "line-cap": "butt", "line-join": "round" },
-        paint: { "line-color": "#f2c81e", "line-dasharray": [10, 30],
-                 "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, 0.3 * M_PX13, 22, 0.3 * M_PX13 * 512] } },
+      // (true-width polygons from build.py: line widths are in screen pixels and pulse on 3D terrain)
+      fill("road-case", "roadcase", "#55554f"),
+      fill("road", "road", "#1b1c1f"),
+      { ...fill("road-line", "roadline", "#f2c81e"), minzoom: 15.5 },
       fill("fairway", "fairway", "#79c552"),
       fill("stripe", "stripe", "#86d05e"),
       { id: "fairway-edge", type: "line", source: "ground", filter: kind("fairway"), paint: { "line-color": "#4f9a45", "line-width": 6, "line-blur": 5, "line-opacity": 0.75 } },
@@ -250,10 +246,8 @@ function buildStyle(course) {
       { id: "marks", type: "line", source: "ground", filter: kind("mark"), minzoom: 17, layout: { "line-cap": "butt" },
         paint: { "line-color": ["coalesce", ["get", "color"], "#ffffff"], "line-opacity": 0.9,
                  "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, ["*", ["coalesce", ["get", "w"], 0.1], M_PX13], 22, ["*", ["coalesce", ["get", "w"], 0.1], M_PX13 * 512]] } },
-      { id: "cartpath-edge", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#a49d8c", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.5, 22, 190] } },
-      { id: "cartpath", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#dcd6c8", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.2, 22, 155] } },
+      fill("cartpath-edge", "cartedge", "#a49d8c"),
+      fill("cartpath", "cartpath", "#dcd6c8"),
       { id: "house-shadow", type: "fill", source: "houseShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.22 } },
       { id: "tree-shadow", type: "fill", source: "treeShadows", paint: { "fill-color": "#0f2a12", "fill-opacity": 0.24 } },
       // Bunkers: a soft, darker grass lip (only its outer half shows, the sand covers the rest), warm

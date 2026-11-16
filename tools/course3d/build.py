@@ -248,6 +248,11 @@ def detect(region):
 
 # ── Assemble ─────────────────────────────────────────────────────────────
 feats = []
+def cart_ribbon(line, w):
+    kk = math.cos(math.radians(27.148))
+    m = LineString([(x * 111320 * kk, y * 111320) for x, y in line]).buffer(w / 2, 6, join_style=1)
+    return shp_transform(lambda x, y, z=None: (x / (111320 * kk), y / 111320), m)
+
 def add(geom, _prec=7, **props):
     if geom.is_empty: return
     g = mapping(geom)
@@ -417,8 +422,9 @@ for num, t in traced['holes'].items():
         add(b, kind='tee', hole=int(num))
         playing.append(b)
         tees_greens.append(b)
-    for cp in t.get('cartPaths', []):
-        add(LineString(cp), kind='cartpath', hole=int(num))
+    for cp in t.get('cartPaths', []):     # 2.6 m of paving on a 3.2 m edge, as true-width polygons (see the roads note)
+        add(cart_ribbon(cp, 3.2), _prec=6, kind='cartedge', hole=int(num))
+        add(cart_ribbon(cp, 2.6), _prec=6, kind='cartpath', hole=int(num))
 
 # Rough outline round each whole hole (tees, fairway, green), drawn as a thin gold line in the app's
 # zoomed-out view so every hole can be picked out. Worked in local metres, padded ~10 m and smoothed.
@@ -436,8 +442,26 @@ for num in traced_holes:
     add(shp_transform(to_ll, Polygon(out.exterior)), _prec=6, kind='outline', hole=num)
 
 # the perimeter road (Miles Grant Road loop): black asphalt with a yellow dashed centre line in the app
+# Roads and cart paths are shipped as true-width POLYGONS, not lines: a line's width is set in screen
+# pixels, and on the 3D terrain the map redraws it per terrain tile, so a line road swelled and
+# shrank (and spilled onto the course) as the camera flew along it.
+K_RD = math.cos(math.radians(27.148))
+def ribbon(line, w, cap=1):
+    """lng/lat centre line -> polygon w metres wide"""
+    m = LineString([(x * M_PER_DEG * K_RD, y * M_PER_DEG) for x, y in line]).buffer(w / 2, 6, cap_style=cap, join_style=1)
+    return shp_transform(lambda x, y, z=None: (x / (M_PER_DEG * K_RD), y / M_PER_DEG), m)
+def dashes(line, w=0.3, on=3.0, gap=9.0):
+    from shapely.ops import substring
+    m = LineString([(x * M_PER_DEG * K_RD, y * M_PER_DEG) for x, y in line])
+    parts = [substring(m, d, min(d + on, m.length)).buffer(w / 2, 1, cap_style=2, join_style=2) for d in np.arange(0, m.length, on + gap)]
+    return shp_transform(lambda x, y, z=None: (x / (M_PER_DEG * K_RD), y / M_PER_DEG), unary_union(parts))
+shoulders = unary_union([ribbon(rd['line'], rd.get('w', 6.2) * 1.12) for rd in traced.get('roads', [])])
+asphalt = unary_union([ribbon(rd['line'], rd.get('w', 6.2)) for rd in traced.get('roads', [])])
+add(shoulders, _prec=6, kind='roadcase')
+add(asphalt, _prec=6, kind='road')
 for rd in traced.get('roads', []):
-    add(LineString(rd['line']), kind='road', w=rd.get('w', 6.2), line=1 if rd.get('centerLine') else 0)
+    if rd.get('centerLine'):
+        add(dashes(rd['line']), kind='roadline')
 
 # paved or rock ground traced on the photo (service driveways, yards, rock gardens): either a polygon
 # (ring) or a centre line with a width in metres; s = 'drive' (grey paving) or 'rock'
