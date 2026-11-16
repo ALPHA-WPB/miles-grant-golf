@@ -471,6 +471,7 @@ for c, ps in by_c.items():
     if c == 'lot': asphalt_u = u
 if GR.get('lawns'):
     lawn = unary_union([Polygon(l['ring']) for l in GR['lawns']]).intersection(club).difference(course).difference(lakes_u)
+    lawn = lawn.difference(unary_union([Polygon(r) for l in GR['lawns'] for r in l.get('cut', [])] + [Polygon(pa['ring']) for pa in traced.get('photoAreas', [])]))
     add(lawn.simplify(0.3 / M_PER_DEG), _prec=6, kind='lawn')
 for pl in GR.get('pools', []):          # pools missing from OpenStreetMap, traced on the photo
     add(Polygon(pl['ring']), _prec=7, kind='pool')

@@ -271,7 +271,8 @@ def add():
     for sh in src.get('lawns', []):                                       # mowed lawn between buildings (build.py clips it to the
         x0, y0, x1, y1 = sh['box'] if 'box' in sh else (None,) * 4        # club, minus the course turf and water)
         g.setdefault('lawns', []).append({'tag': sh.get('tag', ''),
-                                          'ring': L([[x0, y0], [x1, y0], [x1, y1], [x0, y1]] if 'box' in sh else ring_of(sh))})
+                                          'ring': L([[x0, y0], [x1, y0], [x1, y1], [x0, y1]] if 'box' in sh else ring_of(sh)),
+                                          **({'cut': [L(r) for r in sh['cut']]} if sh.get('cut') else {})})
     d['grounds'] = {k: v for k, v in g.items() if v}
     if 'noTrees' in src: d['grounds']['noTrees'] = [L(ring_of(sh)) for sh in src['noTrees']]
     json.dump(d, open(TR, 'w'), indent=1)
