@@ -273,6 +273,7 @@ def add():
         g.setdefault('lawns', []).append({'tag': sh.get('tag', ''),
                                           'ring': L([[x0, y0], [x1, y0], [x1, y1], [x0, y1]] if 'box' in sh else ring_of(sh)),
                                           **({'cut': [L(r) for r in sh['cut']]} if sh.get('cut') else {})})
+    g['nets'] = [{'tag': n.get('tag', ''), 'h': n.get('h', 9.0), 'line': L(n['line'])} for n in src.get('nets', [])]   # practice-range nets
     d['grounds'] = {k: v for k, v in g.items() if v}
     if 'noTrees' in src: d['grounds']['noTrees'] = [L(ring_of(sh)) for sh in src['noTrees']]
     json.dump(d, open(TR, 'w'), indent=1)

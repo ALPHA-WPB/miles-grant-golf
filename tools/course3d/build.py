@@ -508,6 +508,8 @@ if GR.get('lawns'):
     add(lawn.simplify(0.3 / M_PER_DEG), _prec=6, kind='lawn')
 for pl in GR.get('pools', []):          # pools missing from OpenStreetMap, traced on the photo
     add(Polygon(pl['ring']), _prec=7, kind='pool')
+for nt in GR.get('nets', []):          # practice-range nets: poles and netting, drawn in 3D by realScene
+    add(LineString(nt['line']), _prec=7, kind='net', h=nt.get('h', 9.0))
 for ln in GR.get('lines', []):
     add(MultiLineString(ln['lines']), _prec=7, kind='mark', w=ln['w'], color=ln['color'], **({'minzoom': ln['minzoom']} if ln.get('minzoom') else {}))
 for bunkers, trees in detected:
@@ -648,7 +650,7 @@ for f in feats:
         pr['z'] = round(pr.pop('gnd') - base, 2)          # the ground level its roof heights were measured from
     elif pr['kind'] == 'bridge':
         pr['z'] = round(pr.pop('deck') - base, 2)         # deck height
-    elif pr['kind'] == 'hedge':
+    elif pr['kind'] in ('hedge', 'net'):
         pr['zs'] = [round(elev(lng, lat), 2) for lng, lat in f['geometry']['coordinates']]
 terrain_meta = {'tiles': '/course3d/dem/{z}/{x}/{y}.png', 'minzoom': 13, 'maxzoom': 17,
                 'bounds': [TW, TS, TE, TN], 'exaggeration': EXAGGERATION}

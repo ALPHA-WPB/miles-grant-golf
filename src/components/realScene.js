@@ -415,6 +415,34 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         scene.add(hedgeMesh);
       }
 
+      // Practice-range nets: tall poles every ~12 m and a dark, see-through netting between them
+      const nets = course.features.filter(f => f.properties.kind === "net");
+      if (nets.length) {
+        const poleG = new THREE.CylinderGeometry(0.11, 0.14, 1, 6), poleM = new THREE.MeshStandardMaterial({ color: 0x23201c, roughness: 0.8 });
+        const netPos = [], poles = [];
+        nets.forEach(f => {
+          const cs = f.geometry.coordinates.map(c => toLocal(...c)), zs = f.properties.zs || [], h = f.properties.h;
+          for (let j = 0; j < cs.length - 1; j++) {
+            const [ax, az] = cs[j], [bx, bz] = cs[j + 1], ya = (zs[j] || 0) * exaggeration, yb = (zs[j + 1] || 0) * exaggeration;
+            const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 12));
+            for (let q = 0; q <= n; q++) {
+              const t = q / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = ya + (yb - ya) * t;
+              if (q < n || j === cs.length - 2) poles.push({ x, y, z, h });
+              if (q < n) {
+                const t2 = (q + 1) / n, x2 = ax + (bx - ax) * t2, z2 = az + (bz - az) * t2, y2 = ya + (yb - ya) * t2;
+                netPos.push(x, y, z, x2, y2, z2, x2, y2 + h, z2, x, y, z, x2, y2 + h, z2, x, y + h, z);
+              }
+            }
+          }
+        });
+        const ng = new THREE.BufferGeometry(); ng.setAttribute("position", new THREE.Float32BufferAttribute(netPos, 3)); ng.computeVertexNormals();
+        const netMesh = new THREE.Mesh(ng, new THREE.MeshBasicMaterial({ color: 0x1c2a22, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false }));
+        netMesh.frustumCulled = false; scene.add(netMesh);
+        const poleMesh = new THREE.InstancedMesh(poleG, poleM, poles.length);
+        poles.forEach(({ x, y, z, h }, i) => { dummy.position.set(x, y + h / 2, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, h, 1); dummy.updateMatrix(); poleMesh.setMatrixAt(i, dummy.matrix); });
+        poleMesh.castShadow = true; poleMesh.frustumCulled = false; scene.add(poleMesh);
+      }
+
       // Flagstick on the green, at the green's measured height (2.1 m white pole, red flag,
       // white cup liner), so it stands on the surface in every view
       if (pin) {
