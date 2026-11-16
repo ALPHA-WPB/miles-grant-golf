@@ -39,3 +39,11 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   add them here as new sections.
 
 ## Log
+- 2026-11-16: section 1 (TURF) NOT done — blocked. The unattended run could not start either local
+  preview server ("miles-grant-golf (dev)" / "(preview)" in the Browser pane were declined at the
+  permission prompt), so no before/after screenshots were possible. Per the rules no visual change was
+  pushed blind. Planned approach for the next run: replace the blade-stroke strokes in `turf()`
+  (realScene.js) with fine per-pixel grain + 2–3 octaves of soft tileable noise (no lines), lower
+  saturation a touch, rough darker/coarser than fairway; the large-scale drift beyond one 256 px pattern
+  tile will need a separate low-opacity noise overlay layer. OWNER: to let the daily run work unattended,
+  allow the Browser-pane preview server "miles-grant-golf (dev)" (always allow) in the Claude app.
