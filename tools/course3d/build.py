@@ -10,7 +10,7 @@ Downloads are cached in tools/course3d/.cache (git-ignored).
 """
 import json, math, os, re, urllib.parse, urllib.request
 import numpy as np, cv2
-from shapely.geometry import Polygon, LineString, Point, mapping, shape
+from shapely.geometry import Polygon, LineString, MultiLineString, Point, mapping, shape
 from shapely.ops import unary_union, nearest_points, transform as shp_transform
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -456,6 +456,26 @@ for hg in traced.get('hedges', []):
 
 roofs_u = unary_union([Polygon(b['ring']) for b in LIDAR_B])        # no detected 'trees' on roofs or in the lakes
 lakes_u = unary_union([Polygon(f['geometry']['coordinates'][0]) for f in feats if f['properties']['kind'] == 'water'] or [Polygon()])
+
+# Hand-traced built-up ground (ground_kit.py add -> traced.json grounds): asphalt lanes and parking
+# lots (c 'lot') or concrete walks (c 'walk'), mowed lawns between the condos (clipped to Miles Grant,
+# minus the course turf and the lakes), and painted lines such as parking stalls
+GR = traced.get('grounds', {})
+by_c = {}
+for pv in GR.get('paved', []):
+    by_c.setdefault(pv.get('c', 'lot'), []).append(Polygon(pv['rings'][0], pv['rings'][1:]).buffer(0))
+asphalt_u = Polygon()
+for c, ps in by_c.items():
+    u = unary_union(ps)
+    add(u, _prec=6, kind='paved', s='asphalt' if c == 'lot' else c)
+    if c == 'lot': asphalt_u = u
+if GR.get('lawns'):
+    lawn = unary_union([Polygon(l['ring']) for l in GR['lawns']]).intersection(club).difference(course).difference(lakes_u)
+    add(lawn.simplify(0.3 / M_PER_DEG), _prec=6, kind='lawn')
+for pl in GR.get('pools', []):          # pools missing from OpenStreetMap, traced on the photo
+    add(Polygon(pl['ring']), _prec=7, kind='pool')
+for ln in GR.get('lines', []):
+    add(MultiLineString(ln['lines']), _prec=7, kind='mark', w=ln['w'], color=ln['color'], **({'minzoom': ln['minzoom']} if ln.get('minzoom') else {}))
 for bunkers, trees in detected:
     for b in bunkers:
         add(b, kind='bunker')
@@ -475,7 +495,7 @@ for bunkers, trees in detected:
         pt = Point(tr['lng'], tr['lat'])
         overhangs = tg.distance(pt) < 0.6 * tr['r'] / M_PER_DEG    # canopy would hang over a tee or green
         if not tr.get('manual') and (not near.contains(pt) or clear.contains(pt) or overhangs or any(z.contains(pt) for z in gone)
-                                     or roofs_u.contains(pt) or lakes_u.contains(pt)):
+                                     or roofs_u.contains(pt) or lakes_u.contains(pt) or asphalt_u.contains(pt)):
             continue
         feats.append({'type': 'Feature', 'properties': {'kind': 'tree', 'r': tr['r'], 'h': tr['h'], 'type': tr['type']},
                       'geometry': {'type': 'Point', 'coordinates': [tr['lng'], tr['lat']]}})

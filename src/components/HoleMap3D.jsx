@@ -214,6 +214,7 @@ function buildStyle(course) {
       // graded a little brighter and greener so it sits next to the drawn turf
       { id: "photo", type: "raster", source: "photo", paint: { "raster-saturation": 0.12, "raster-contrast": 0.05, "raster-brightness-min": 0.04, "raster-fade-duration": 0 } },
       fill("course", "course", "#4d9a45"),
+      fill("lawn", "lawn", "#56a04a"),       // mowed lawns between the condos
       // Lakes: dark, still water with a wet bank line and a thin bright edge
       { id: "water-bank", type: "line", source: "ground", filter: kind("water"), layout: { "line-join": "round" },
         paint: { "line-color": "#3c4a2c", "line-opacity": 0.55, "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.5, 19, 12, 21, 44], "line-blur": ["interpolate", ["exponential", 2], ["zoom"], 15, 1, 19, 7, 21, 26] } },
@@ -239,9 +240,16 @@ function buildStyle(course) {
       fill("green", "green", "#a3e672"),
       { id: "green-edge", type: "line", source: "ground", filter: kind("green"), paint: { "line-color": "#6cba4d", "line-width": 3, "line-blur": 3, "line-opacity": 0.8 } },
       fill("tee", "tee", "#8bd862"),
-      // Service driveways / yards and rock gardens traced on the photo
-      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "#bdb9ae"]),
-      { id: "paved-edge", type: "line", source: "ground", filter: kind("paved"), paint: { "line-color": ["match", ["get", "s"], "rock", "#6f6d67", "#a39f94"], "line-width": 1.2, "line-opacity": 0.7 } },
+      // Service driveways / yards, rock gardens, condo lanes and parking lots (asphalt with a concrete
+      // curb) and walks, traced on the photo; painted parking-stall lines on top
+      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#3a3c3f", "walk", "#d3cec2", "#bdb9ae"]),
+      { id: "paved-edge", type: "line", source: "ground", filter: kind("paved"), layout: { "line-join": "round" },
+        paint: { "line-color": ["match", ["get", "s"], "rock", "#6f6d67", "asphalt", "#b9b4a8", "#a39f94"],
+                 "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["match", ["get", "s"], "asphalt", 0.6, 1.2], 22, ["match", ["get", "s"], "asphalt", 14, 1.2]],
+                 "line-opacity": ["match", ["get", "s"], "asphalt", 0.9, 0.7] } },
+      { id: "marks", type: "line", source: "ground", filter: kind("mark"), minzoom: 17, layout: { "line-cap": "butt" },
+        paint: { "line-color": ["coalesce", ["get", "color"], "#ffffff"], "line-opacity": 0.9,
+                 "line-width": ["interpolate", ["exponential", 2], ["zoom"], 13, ["*", ["coalesce", ["get", "w"], 0.1], M_PX13], 22, ["*", ["coalesce", ["get", "w"], 0.1], M_PX13 * 512]] } },
       { id: "cartpath-edge", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#a49d8c", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.5, 22, 190] } },
       { id: "cartpath", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
@@ -831,7 +839,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       // the simple block ones (which stay as a fallback if the 3D layer can't start)
       try {
         Object.entries(GROUND_TEXTURES).forEach(([id, make]) => { if (!map.hasImage(id)) map.addImage(id, make(), { pixelRatio: 2 }); });
-        [["course", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
+        [["course", "tex-rough"], ["lawn", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
       } catch { /* plain colors remain */ }
       try {
