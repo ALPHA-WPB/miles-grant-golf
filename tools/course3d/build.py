@@ -272,9 +272,40 @@ for e in osm:
 # its measured height and a 1 m roof height grid the app turns into the real roof shape. This
 # replaces OpenStreetMap's partial buildings and the photo-traced condo boxes (traced.json houses).
 LIDAR_B = json.load(open(os.path.join(HERE, 'lidar', 'buildings.json')))['buildings']
+
+def shed_building(s):
+    """A small building the laser missed (hidden under tree canopy), traced on the photo as a
+    rectangle (traced.json sheds: ring of 4 corners, eave/ridge heights above the ground, ground
+    level in m). Returns it in the LiDAR buildings format with a plain gable roof along its long side."""
+    import base64
+    MPD_ = 111320.0
+    ring = [tuple(p) for p in s['ring'][:4]]
+    alng = sum(p[0] for p in ring) / 4; alat = sum(p[1] for p in ring) / 4
+    kk = math.cos(math.radians(alat))
+    en = [((lng - alng) * MPD_ * kk, (lat - alat) * MPD_) for lng, lat in ring]
+    d01, d12 = math.dist(en[0], en[1]), math.dist(en[1], en[2])
+    a, b = (en[0], en[1]) if d01 >= d12 else (en[1], en[2])
+    th = math.atan2(b[1] - a[1], b[0] - a[0]); ct, st_ = math.cos(th), math.sin(th)
+    uv = [(e * ct + n * st_, -e * st_ + n * ct) for e, n in en]
+    umin, umax = min(p[0] for p in uv), max(p[0] for p in uv); vmin, vmax = min(p[1] for p in uv), max(p[1] for p in uv)
+    u0, v0 = umin - 0.3, vmin - 0.3
+    gw = int(math.ceil((umax + 0.3 - u0))) + 1; gh = int(math.ceil((vmax + 0.3 - v0))) + 1
+    half = (vmax - vmin) / 2; vc = (vmin + vmax) / 2
+    nodes = np.array([[s['eave'] + (s['ridge'] - s['eave']) * max(0.0, 1 - abs(v0 + j - vc) / half) for i in range(gw)] for j in range(gh)])
+    hmin = math.floor(float(nodes.min()) * 10) / 10; sc = max((float(nodes.max()) - hmin) / 255, 0.01)
+    q = np.clip(np.round((nodes - hmin) / sc), 0, 255).astype(np.uint8)
+    ll = lambda u, v: [round(alng + (u * ct - v * st_) / (MPD_ * kk), 7), round(alat + (u * st_ + v * ct) / MPD_, 7)]
+    box = lambda m: [ll(umin + m, vmin + m), ll(umax - m, vmin + m), ll(umax - m, vmax - m), ll(umin + m, vmax - m), ll(umin + m, vmin + m)]
+    o = ll(u0, v0)
+    return {'ring': box(0), 'walls': box(0.4), 'ground': s['ground'], 'top': s['ridge'], 'roof': s.get('roof'), 'rt': s.get('rt'),
+            'grid': {'lng': o[0], 'lat': o[1], 'th': round(th, 4), 'step': 1.0, 'w': gw, 'h': gh, 'min': hmin, 'sc': round(sc, 4),
+                     'd': base64.b64encode(q.tobytes()).decode()}}
+
+LIDAR_B = LIDAR_B + [shed_building(s) for s in traced.get('sheds', [])]
 for i, b in enumerate(LIDAR_B):
     if not club.intersects(Polygon(b['ring'])): continue
-    add(Polygon(b['ring']), kind='building', h=round(b['top'], 1), c=i % 5, g=b['grid'], wr=b['walls'], gnd=b['ground'])
+    extra = {k: b[k] for k in ('roof', 'rt') if b.get(k)}      # traced sheds carry their own roof colour
+    add(Polygon(b['ring']), kind='building', h=round(b['top'], 1), c=i % 5, g=b['grid'], wr=b['walls'], gnd=b['ground'], **extra)
 BRIDGES = json.load(open(os.path.join(HERE, 'lidar', 'bridges.json')))
 for b in BRIDGES:
     add(Polygon(b['ring']), kind='bridge', deck=b['deck'])
@@ -331,6 +362,7 @@ for f in feats:
     if f['properties']['kind'] != 'building':
         continue
     ring_ll = f['geometry']['coordinates'][0]
+    if f['properties'].get('roof'): continue
     for rg in roof_regions:
         pts = np.array([rg.px(lng, lat) for lng, lat in ring_ll], np.int32)
         H, W = rg.img.shape[:2]
@@ -406,6 +438,17 @@ for num in traced_holes:
 # the perimeter road (Miles Grant Road loop): black asphalt with a yellow dashed centre line in the app
 for rd in traced.get('roads', []):
     add(LineString(rd['line']), kind='road', w=rd.get('w', 6.2), line=1 if rd.get('centerLine') else 0)
+
+# paved or rock ground traced on the photo (service driveways, yards, rock gardens): either a polygon
+# (ring) or a centre line with a width in metres; s = 'drive' (grey paving) or 'rock'
+for pv in traced.get('paved', []):
+    if 'ring' in pv:
+        g = Polygon(pv['ring'])
+    else:
+        kk = math.cos(math.radians(pv['line'][0][1]))
+        g = shp_transform(lambda x, y, z=None: (x / (M_PER_DEG * kk), y / M_PER_DEG),
+                          LineString([(x * M_PER_DEG * kk, y * M_PER_DEG) for x, y in pv['line']]).buffer(pv['w'] / 2, 8, cap_style=2))
+    add(g, _prec=6, kind='paved', s=pv.get('s', 'drive'))
 
 # hand-traced hedge lines (thick shrub rows, e.g. along back yards): drawn as a solid leafy wall
 for hg in traced.get('hedges', []):

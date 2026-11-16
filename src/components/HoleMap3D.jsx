@@ -239,6 +239,9 @@ function buildStyle(course) {
       fill("green", "green", "#a3e672"),
       { id: "green-edge", type: "line", source: "ground", filter: kind("green"), paint: { "line-color": "#6cba4d", "line-width": 3, "line-blur": 3, "line-opacity": 0.8 } },
       fill("tee", "tee", "#8bd862"),
+      // Service driveways / yards and rock gardens traced on the photo
+      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "#bdb9ae"]),
+      { id: "paved-edge", type: "line", source: "ground", filter: kind("paved"), paint: { "line-color": ["match", ["get", "s"], "rock", "#6f6d67", "#a39f94"], "line-width": 1.2, "line-opacity": 0.7 } },
       { id: "cartpath-edge", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#a49d8c", "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 1.5, 22, 190] } },
       { id: "cartpath", type: "line", source: "ground", filter: kind("cartpath"), layout: { "line-cap": "round", "line-join": "round" },
