@@ -382,6 +382,13 @@ for f in feats:
         # roof type from its colour: t = clay tile (orange/red/brown), m = white or metal, s = shingle
         f['properties']['rt'] = 'm' if min(r, g, b) > 150 and max(r, g, b) - min(r, g, b) < 40 else 't' if r > b + 28 and r >= g else 's'
         break
+# the clubhouse's clay-tile roofs: the median photo colour is washed out by the pale flat deck, so they are drawn
+# terracotta (realScene tiles the sloped parts and keeps the flat deck pale)
+_pa = unary_union([Polygon(p_['ring']) for p_ in traced.get('photoAreas', [])]).buffer(0)
+for f in feats:
+    if f['properties']['kind'] == 'building' and f['properties'].get('rt') == 't' and _pa.contains(Polygon(f['geometry']['coordinates'][0]).representative_point()):
+        f['properties']['tile'] = 1
+        f['properties']['roof'] = '#b45a3c'
 not_sand = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in traced.get('bunkerEdits', {}).get('remove', [])]
 detected = [([b for b in bs if not any(z.intersects(b) for z in not_sand)], ts) for bs, ts in detected]
 # bunkers the colour detector missed (e.g. sand strips beside a road, whose buffer blocks detection),

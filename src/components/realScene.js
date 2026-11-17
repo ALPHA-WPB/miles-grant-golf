@@ -208,6 +208,7 @@ function clipToCell(poly, x0, y0, x1, y1) {
   if (out.length) out = pass(out, 1, y1, false);
   return out.filter((q, i) => { const r = out[(i + 1) % out.length]; return Math.abs(q[0] - r[0]) > 1e-6 || Math.abs(q[1] - r[1]) > 1e-6; });
 }
+const TILE_ROOF = [new THREE.Color("#a9533a"), new THREE.Color("#bd6446")], FLAT_ROOF = new THREE.Color("#cfc9bd");
 function buildingsGeometry(buildings, toLocal, exaggeration) {
   const pos = [], col = [];
   const tri = (a, b, c, k) => { pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); for (let i = 0; i < 3; i++) col.push(k.r, k.g, k.b); };
@@ -231,20 +232,34 @@ function buildingsGeometry(buildings, toLocal, exaggeration) {
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) inside[j * W + i] = insidePoly(i, j, ring) ? 1 : 0;
     const hasVertex = new Set(ring.map(([u, v]) => Math.floor(v) * W + Math.floor(u)));
     const P = (u, v) => world(u, v, hAt(u, v));
+    // clay-tile roofs (clubhouse): terracotta on the sloped parts, in courses running across the slope;
+    // the low-slope parts (flat deck with its air-handlers) stay a pale membrane
+    const tiled = !!f.properties.tile;
+    const roofAt = (i, j) => {
+      if (!tiled) return roofC;
+      const sl = (a, b) => Math.max(Math.abs(hNode(a + 1, b) - hNode(a, b)), Math.abs(hNode(a, b + 1) - hNode(a, b)));
+      let flat = true;                                       // flat only where the whole neighbourhood is: ridges and hips are not
+      for (let dj2 = -2; dj2 <= 2 && flat; dj2++) for (let di2 = -2; di2 <= 2; di2++) if (sl(i + di2, j + dj2) > 0.12 * step) { flat = false; break; }
+      if (flat) return FLAT_ROOF;
+      const di = hNode(i + 1, j) - hNode(i, j), dj = hNode(i, j + 1) - hNode(i, j);
+      const k = ((Math.abs(di) > Math.abs(dj) ? i : j) & 1) ? 0.96 : 1.03;
+      return TILE_ROOF[k > 1 ? 1 : 0];
+    };
     for (let j = 0; j < H - 1; j++) for (let i = 0; i < W - 1; i++) {
+      const roofK = roofAt(i, j);
       const n = inside[j * W + i] + inside[j * W + i + 1] + inside[(j + 1) * W + i] + inside[(j + 1) * W + i + 1];
       const cut = hasVertex.has(j * W + i);
       if (n === 0 && !cut) continue;
       if (n === 4 && !cut) {
         const a = P(i, j), b = P(i + 1, j), c = P(i + 1, j + 1), d = P(i, j + 1);
         // split along the diagonal that bends least, so hips and valleys stay sharp
-        if (Math.abs(a[1] - c[1]) <= Math.abs(b[1] - d[1])) { tri(a, b, c, roofC); tri(a, c, d, roofC); } else { tri(a, b, d, roofC); tri(b, c, d, roofC); }
+        if (Math.abs(a[1] - c[1]) <= Math.abs(b[1] - d[1])) { tri(a, b, c, roofK); tri(a, c, d, roofK); } else { tri(a, b, d, roofK); tri(b, c, d, roofK); }
         continue;
       }
       const piece = clipToCell(ring, i, j, i + 1, j + 1);
       if (piece.length < 3) continue;
       const pts = piece.map(([u, v]) => new THREE.Vector2(u, v));
-      THREE.ShapeUtils.triangulateShape(pts, []).forEach(([a, b, c]) => tri(P(pts[a].x, pts[a].y), P(pts[b].x, pts[b].y), P(pts[c].x, pts[c].y), roofC));
+      THREE.ShapeUtils.triangulateShape(pts, []).forEach(([a, b, c]) => tri(P(pts[a].x, pts[a].y), P(pts[b].x, pts[b].y), P(pts[c].x, pts[c].y), roofK));
     }
     // walls, from just below the ground up to the underside of the roof
     const wr = (f.properties.wr || f.geometry.coordinates[0]).map(toGrid);
