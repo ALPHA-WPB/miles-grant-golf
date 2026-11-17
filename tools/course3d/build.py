@@ -502,6 +502,8 @@ for c, ps in by_c.items():
     u = unary_union(ps)
     add(u, _prec=6, kind='paved', s='asphalt' if c == 'lot' else c)
     if c == 'lot': asphalt_u = u
+for pa in traced.get('photoAreas', []):     # the aerial photo shows through here, with its baked tree shadows and blur: lay flat lawn under it
+    add(Polygon(pa['ring']).buffer(0).difference(lakes_u).simplify(0.3 / M_PER_DEG), _prec=6, kind='lawn')
 if GR.get('lawns'):
     lawn = unary_union([Polygon(l['ring']) for l in GR['lawns']]).intersection(club).difference(course).difference(lakes_u)
     lawn = lawn.difference(unary_union([Polygon(r) for l in GR['lawns'] for r in l.get('cut', [])] + [Polygon(pa['ring']) for pa in traced.get('photoAreas', [])]))
