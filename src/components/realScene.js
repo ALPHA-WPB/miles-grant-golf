@@ -434,27 +434,34 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       const nets = course.features.filter(f => f.properties.kind === "net");
       if (nets.length) {
         const poleG = new THREE.CylinderGeometry(0.11, 0.14, 1, 6), poleM = new THREE.MeshStandardMaterial({ color: 0x23201c, roughness: 0.8 });
-        const netPos = [], poles = [];
+        const sheets = new Map(), poles = [];                 // netting per colour/opacity (range nets dark, tennis nets white, fences green)
         nets.forEach(f => {
-          const cs = f.geometry.coordinates.map(c => toLocal(...c)), zs = f.properties.zs || [], h = f.properties.h;
+          const p = f.properties, key = `${p.color || "#1c2a22"}|${p.op ?? 0.38}`;
+          if (!sheets.has(key)) sheets.set(key, []);
+          const netPos = sheets.get(key), sp = p.sp || 12;
+          const cs = f.geometry.coordinates.map(c => toLocal(...c)), zs = p.zs || [], h = p.h, tall = h > 2;
           for (let j = 0; j < cs.length - 1; j++) {
             const [ax, az] = cs[j], [bx, bz] = cs[j + 1], ya = (zs[j] || 0) * exaggeration, yb = (zs[j + 1] || 0) * exaggeration;
-            const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / 12));
+            const n = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / sp));
             for (let q = 0; q <= n; q++) {
               const t = q / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, y = ya + (yb - ya) * t;
-              if (q < n || j === cs.length - 2) poles.push({ x, y, z, h });
+              if (q < n || j === cs.length - 2) poles.push({ x, y, z, h: h + (tall ? 0 : 0.1) });
               if (q < n) {
                 const t2 = (q + 1) / n, x2 = ax + (bx - ax) * t2, z2 = az + (bz - az) * t2, y2 = ya + (yb - ya) * t2;
-                netPos.push(x, y, z, x2, y2, z2, x2, y2 + h, z2, x, y, z, x2, y2 + h, z2, x, y + h, z);
+                const y0 = tall && h < 4 ? 0 : 0;               // fences and nets stand on the ground
+                netPos.push(x, y + y0, z, x2, y2 + y0, z2, x2, y2 + h, z2, x, y + y0, z, x2, y2 + h, z2, x, y + h, z);
               }
             }
           }
         });
-        const ng = new THREE.BufferGeometry(); ng.setAttribute("position", new THREE.Float32BufferAttribute(netPos, 3)); ng.computeVertexNormals();
-        const netMesh = new THREE.Mesh(ng, new THREE.MeshBasicMaterial({ color: 0x1c2a22, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false }));
-        netMesh.frustumCulled = false; scene.add(netMesh);
+        sheets.forEach((pos, key) => {
+          const [col, op] = key.split("|"), ng = new THREE.BufferGeometry();
+          ng.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); ng.computeVertexNormals();
+          const m = new THREE.Mesh(ng, new THREE.MeshBasicMaterial({ color: new THREE.Color(col), transparent: true, opacity: +op, side: THREE.DoubleSide, depthWrite: false }));
+          m.frustumCulled = false; scene.add(m);
+        });
         const poleMesh = new THREE.InstancedMesh(poleG, poleM, poles.length);
-        poles.forEach(({ x, y, z, h }, i) => { dummy.position.set(x, y + h / 2, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(1, h, 1); dummy.updateMatrix(); poleMesh.setMatrixAt(i, dummy.matrix); });
+        poles.forEach(({ x, y, z, h }, i) => { dummy.position.set(x, y + h / 2, z); dummy.rotation.set(0, 0, 0); dummy.scale.set(h < 1.5 ? 0.45 : 1, h, h < 1.5 ? 0.45 : 1); dummy.updateMatrix(); poleMesh.setMatrixAt(i, dummy.matrix); });
         poleMesh.castShadow = true; poleMesh.frustumCulled = false; scene.add(poleMesh);
       }
 

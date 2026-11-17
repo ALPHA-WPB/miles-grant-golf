@@ -518,7 +518,7 @@ if GR.get('lawns'):
 for pl in GR.get('pools', []):          # pools missing from OpenStreetMap, traced on the photo
     add(Polygon(pl['ring']), _prec=7, kind='pool')
 for nt in GR.get('nets', []):          # practice-range nets: poles and netting, drawn in 3D by realScene
-    add(LineString(nt['line']), _prec=7, kind='net', h=nt.get('h', 9.0))
+    add(LineString(nt['line']), _prec=7, kind='net', h=nt.get('h', 9.0), **{k: nt[k] for k in ('sp', 'color', 'op') if k in nt})
 for ln in GR.get('lines', []):
     add(MultiLineString(ln['lines']), _prec=7, kind='mark', w=ln['w'], color=ln['color'], **({'minzoom': ln['minzoom']} if ln.get('minzoom') else {}))
 for bunkers, trees in detected:
