@@ -331,12 +331,13 @@ const ICON_LOOK_UP = <svg {...iconProps}><path d="M1.8 11c2-2.8 4.4-4.2 7.2-4.2s
 const ICON_LOOK_DOWN = <svg {...iconProps}><path d="M1.8 7c2-2.8 4.4-4.2 7.2-4.2s5.2 1.4 7.2 4.2c-2 2.8-4.4 4.2-7.2 4.2S3.8 9.8 1.8 7z" /><circle cx="9" cy="7" r="1.9" fill="currentColor" /><path d="M6.5 14.2 9 16.4l2.5-2.2" /></svg>;
 
 export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, recenterTick, approachMode, radarOn,
-  onMapTap, onMapMove, onMapMoveEnd, formatShort, playerColor }) {
+  onMapTap, onMapMove, onMapMoveEnd, formatShort, playerColor, wind }) {
   const boxRef = useRef(null);
   const mapRef = useRef(null);
   const readyRef = useRef(false);
   const queueRef = useRef([]);
   const gpsRef = useRef(gps);
+  const windRef = useRef(wind);
   const padRef = useRef(pad);
   const gpsMarkerRef = useRef(null);
   const shotMarkersRef = useRef([]);
@@ -359,6 +360,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
   const [overlayHost, setOverlayHost] = useState(null);
   const rootRef = useCallback(node => setOverlayHost(node?.closest(".play-stage") ?? null), []);
   useEffect(() => { gpsRef.current = gps; }, [gps]);
+  useEffect(() => { windRef.current = wind; }, [wind]);
   useEffect(() => { padRef.current = pad; });
 
   const t = teeOf(hole, tee);
@@ -940,12 +942,21 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       const origin = onHole ? g : t;
       const fromYds = Math.round(haversineYards(origin.lat, origin.lng, pt.lat, pt.lng));
       const pinYds = Math.round(haversineYards(pt.lat, pt.lng, hole.green.lat, hole.green.lng));
+      // Wind-adjusted "plays like" for the shot from the pressed point to the pin (same rule as the 2D To Pin box)
+      let plays = "";
+      const w = windRef.current;
+      if (pinYds > 30 && w?.speed) {
+        const rel = ((w.dir - bearingOf(pt, hole.green)) + 540) % 360 - 180; // 0 = dead into the wind
+        const headMph = Math.cos(rel * Math.PI / 180) * w.speed;
+        const v = Math.round(pinYds + pinYds * (headMph >= 0 ? 0.010 : 0.005) * headMph);
+        if (Math.abs(v - pinYds) >= 2) plays = ` <span style="color:#c8d8cc;font-weight:600">· plays <span style="color:#fbbf24">${v}</span></span>`;
+      }
       map.getSource("measure").setData({ type: "FeatureCollection", features: [
         { type: "Feature", properties: { dash: false }, geometry: { type: "LineString", coordinates: [[origin.lng, origin.lat], [pt.lng, pt.lat]] } },
         { type: "Feature", properties: { dash: true }, geometry: { type: "LineString", coordinates: [[pt.lng, pt.lat], [hole.green.lng, hole.green.lat]] } },
       ] });
       const dot = el(dotHtml("#fbbf24"));
-      const label = el(`<div style="display:flex;align-items:center;gap:7px;background:rgba(8,26,16,0.92);border:1px solid #fbbf24;color:#f0ead6;font:700 11px Inter,sans-serif;padding:3px 4px 3px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.6)"><span><span style="color:#fbbf24">${fromYds}</span> ${onHole ? "here" : "from tee"} · <span style="color:#4ade80">${pinYds}</span> to pin</span><button data-view type="button" style="font:800 11px Inter,sans-serif;color:#0b1a10;background:#c9a84c;border:0;border-radius:5px;padding:4px 8px;cursor:pointer">👁 View</button></div>`);
+      const label = el(`<div style="display:flex;align-items:center;gap:7px;background:rgba(8,26,16,0.92);border:1px solid #fbbf24;color:#f0ead6;font:700 11px Inter,sans-serif;padding:3px 4px 3px 7px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.6)"><span><span style="color:#fbbf24">${fromYds}</span> ${onHole ? "here" : "from tee"} · <span style="color:#4ade80">${pinYds}</span> to pin${plays}</span><button data-view type="button" style="font:800 11px Inter,sans-serif;color:#0b1a10;background:#c9a84c;border:0;border-radius:5px;padding:4px 8px;cursor:pointer">👁 View</button></div>`);
       dot.addEventListener("click", e => { e.stopPropagation(); lastMeasure = Date.now(); clearMeasure(); });
       label.addEventListener("click", e => {
         e.stopPropagation();

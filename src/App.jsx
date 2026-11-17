@@ -1801,7 +1801,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             };
             return mapMode === '3d' && course3d?.holes?.includes(hole.number)
               ? <Suspense key={'3d' + hole.number + '-' + pinsV} fallback={<div style={{ position: 'absolute', inset: 0, background: '#0b2215' }}><HoleLoader hole={hole} tee={playerTee} progress={0.06} label="Loading the 3D course…" /></div>}>
-                  <HoleMap3D {...mapProps} course={course3d} formatShort={fmtShort} playerColor={PLAYER_COLOR} />
+                  <HoleMap3D {...mapProps} wind={wind} course={course3d} formatShort={fmtShort} playerColor={PLAYER_COLOR} />
                 </Suspense>
               : <HoleMap {...mapProps} key={hole.number + '-' + pinsV} />;
           })()}
