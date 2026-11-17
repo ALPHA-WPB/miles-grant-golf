@@ -70,7 +70,7 @@ broken.
   `tools/course3d/lidar/`, `~/Downloads`, `~/Desktop` for a recent .md about LiDAR/elevation for
   Miles Grant / Martin County / NOAA). Only then: read it, fetch the best source it lists, rebuild
   terrain at TRUE scale, compare against the current USGS 3DEP data, keep fairways flat.
-- [ ] 20. Plays-like distance (wind) on the 3D press-and-hold yardage label, like the 2D To Pin box.
+- [x] 20. (fa81ab0) Plays-like distance (wind) on the 3D press-and-hold yardage label, like the 2D To Pin box.
 - [ ] 21. Graphics detail setting (Low/High) in Me/profile or the MAP box, Low = fewer leaves/no shadows.
 - [x] 22. (ec294a9) WATER: the lakes along hole 17 (and the one between holes 17/18 and the clubhouse ponds) are not in the OSM water data build.py uses (only one lake, lng −80.1725…−80.1709, is), so in 3D they render as grass. Trace the lake outlines from the photo (add a `water` list to traced.json + build.py support) and check every hole for missing water.
 - [x] 23. (80bde8b) PERIMETER ROAD (owner, 2026-11-15): Miles Grant Road around the whole community drawn black with a yellow dashed centre line (`roads` in traced.json → `road` features → road / road-line layers in HoleMap3D).
@@ -153,3 +153,4 @@ invent detail the photo doesn't show.
 - 2026-11-17 Main clubhouse ground: the aerial photo that showed through the clubhouse cut-out was blurry with baked tree/building shadows (muddy grey blotches). build.py now lays flat lawn under the whole photoArea (minus lakes) and grounds_px has a solid 'clubhouse plaza' walk (c walk) around the buildings. Roofs are still the LiDAR shapes (blocky, pale tan); roof colour/shape detail is still open.
 - 2026-11-17 Clubhouse roofs: the four clay-tile buildings inside the photo cut-out (build.py sets roof #b45a3c + `tile`) are now terracotta with tile courses across the slope; realScene keeps the flat deck (whole 5x5 neighbourhood below 0.12 slope) a pale membrane. Still LiDAR-blocky at 1 m; no per-tile 3D or gutters/ridge caps.
 - 2026-11-17 Court nets and fences: grounds_px `nets` now carry sp (pole spacing), color, op; realScene draws them per style. Added the 3 m court-enclosure fence round the pad, the tennis net, two pickleball nets and the divider screen between the pickleball courts (positions read off the photo; nets 0.95/0.88 m, fence 3.0 m, divider 2.4 m guessed). No gate gap in the fence, no bocce/shuffleboard fences yet.
+- 2026-11-17 Item 20: press-and-hold label in 3D now appends '· plays N' (same wind rule as the 2D To Pin box, uses live Open-Meteo wind, hidden if <2 yd difference or <30 yd). Deployed; visual check of the label skipped this run (no browser session), logic is a copy of the 2D formula measured from the pressed point to the pin.
