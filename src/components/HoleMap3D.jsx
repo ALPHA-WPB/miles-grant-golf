@@ -331,7 +331,7 @@ const ICON_LOOK_UP = <svg {...iconProps}><path d="M1.8 11c2-2.8 4.4-4.2 7.2-4.2s
 const ICON_LOOK_DOWN = <svg {...iconProps}><path d="M1.8 7c2-2.8 4.4-4.2 7.2-4.2s5.2 1.4 7.2 4.2c-2 2.8-4.4 4.2-7.2 4.2S3.8 9.8 1.8 7z" /><circle cx="9" cy="7" r="1.9" fill="currentColor" /><path d="M6.5 14.2 9 16.4l2.5-2.2" /></svg>;
 
 export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, recenterTick, approachMode, radarOn,
-  onMapTap, onMapMove, onMapMoveEnd, formatShort, playerColor, wind }) {
+  onMapTap, onMapMove, onMapMoveEnd, formatShort, playerColor, wind, lowGfx }) {
   const boxRef = useRef(null);
   const mapRef = useRef(null);
   const readyRef = useRef(false);
@@ -851,7 +851,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
             const show = p && p.height > 0 && p.height < 16;
             flagEl.style.display = show ? "block" : "none";
             if (show) flagEl.style.transform = `translate(${(p.x - 1).toFixed(1)}px, ${(p.y - 44).toFixed(1)}px)`;
-          }));
+          }, "real3d", !!lowGfx));
         flagMarker?.remove();
         flagMarker = null;
         ["trees", "buildings"].forEach(id => map.setLayoutProperty(id, "visibility", "none"));

@@ -941,6 +941,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   // Rain radar overlay: manual toggle, plus one automatic switch-on when rain is close
   const [radarOn, setRadarOn] = useState(false);
   // Map style: the illustrated 3D course by default; a switch to satellite is remembered per device
+  const [lowGfx, setLowGfx] = useState(() => { try { return localStorage.getItem('mgg_gfx') === 'low'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem('mgg_gfx', lowGfx ? 'low' : 'high'); } catch { /* private mode */ } }, [lowGfx]);
   const [mapMode, setMapMode] = useState(() => { try { return localStorage.getItem('mgg_map_style') === '2d' ? '2d' : '3d'; } catch { return '3d'; } });
   const [course3d, setCourse3d] = useState(null);
   useEffect(() => {
@@ -1800,8 +1802,8 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               pad: { top: topH + 16, bottom: dockH + 20, left: 24, right: 24 },
             };
             return mapMode === '3d' && course3d?.holes?.includes(hole.number)
-              ? <Suspense key={'3d' + hole.number + '-' + pinsV} fallback={<div style={{ position: 'absolute', inset: 0, background: '#0b2215' }}><HoleLoader hole={hole} tee={playerTee} progress={0.06} label="Loading the 3D course…" /></div>}>
-                  <HoleMap3D {...mapProps} wind={wind} course={course3d} formatShort={fmtShort} playerColor={PLAYER_COLOR} />
+              ? <Suspense key={'3d' + hole.number + '-' + pinsV + (lowGfx ? 'L' : 'H')} fallback={<div style={{ position: 'absolute', inset: 0, background: '#0b2215' }}><HoleLoader hole={hole} tee={playerTee} progress={0.06} label="Loading the 3D course…" /></div>}>
+                  <HoleMap3D {...mapProps} wind={wind} lowGfx={lowGfx} course={course3d} formatShort={fmtShort} playerColor={PLAYER_COLOR} />
                 </Suspense>
               : <HoleMap {...mapProps} key={hole.number + '-' + pinsV} />;
           })()}
@@ -1985,6 +1987,13 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                   <span style={{ fontSize: 15, lineHeight: 1 }}>⛳</span>
                   <span style={{ font: '800 9px Inter, sans-serif', letterSpacing: 0.3 }}>3D</span>
                 </button>
+                {showing3d && (
+                  <button onClick={() => setLowGfx(v => !v)} aria-label={`3D graphics detail: ${lowGfx ? 'Low' : 'High'}. Tap to change`}
+                    style={{ ...seg(false), padding: '3px 0', marginTop: 2 }}>
+                    <span style={{ font: '800 8px Inter, sans-serif', letterSpacing: 0.3, color: '#c9a84c' }}>GFX</span>
+                    <span style={{ font: '800 9px Inter, sans-serif', letterSpacing: 0.3 }}>{lowGfx ? 'LOW' : 'HIGH'}</span>
+                  </button>
+                )}
                 {mapMode === '3d' && !has3d && <p style={{ fontSize: 8, margin: 0, color: '#c9a84c', textAlign: 'center' }}>3D soon</p>}
               </div>
             );

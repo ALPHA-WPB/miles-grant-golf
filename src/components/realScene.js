@@ -22,7 +22,7 @@ const color = hex => new THREE.Color(hex);
 // ── Broadleaf trees: real branching trunks with bark textures and photographic leaf cards ──
 // (ez-tree). A few shapes are generated once and reused for every oak, each scaled to its
 // measured canopy. Leaf and branch counts are trimmed so hundreds of trees run on a phone.
-function oakVariants() {
+function oakVariants(low = false) {
   return ["Oak Medium", "Oak Medium", "Oak Small", "Oak Medium"].map((name, i) => {
     const tree = new Tree();
     tree.loadPreset(name);
@@ -33,8 +33,8 @@ function oakVariants() {
     o.branch.angle[1] = Math.min(80, (o.branch.angle[1] || 50) + 14);
     o.branch.angle[2] = Math.min(75, (o.branch.angle[2] || 50) + 8);
     o.branch.length[1] *= 1.15;
-    o.leaves.count = Math.max(7, Math.round(o.leaves.count * 0.7));
-    o.leaves.size *= 2.3;
+    o.leaves.count = Math.max(7, Math.round(o.leaves.count * (low ? 0.35 : 0.7)));   // Low graphics: half the leaf cards, bigger so the canopy still fills
+    o.leaves.size *= low ? 3.1 : 2.3;
     o.leaves.billboard = "single";
     o.branch.children[2] = Math.max(2, (o.branch.children[2] || 3) - 1);
     for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.6));
@@ -314,7 +314,7 @@ function bridgesGeometry(bridges, toLocal, exaggeration) {
   return geo;
 }
 
-export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d") {
+export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d", low = false) {
   const trees = course.features.filter(f => f.properties.kind === "tree");
   const buildings = course.features.filter(f => f.properties.kind === "building");
   const allPts = trees.map(f => f.geometry.coordinates);
@@ -347,7 +347,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       const oaks = trees.filter(f => f.properties.type !== "palm"), palms = trees.filter(f => f.properties.type === "palm");
 
       // Oaks: ez-tree shapes, instanced; each scaled to the tree's measured canopy
-      const variants = oakVariants();
+      const variants = oakVariants(low);
       const leafMat = new THREE.MeshStandardMaterial({ map: getLeafTexture("oak"), color: 0xc4d4a8, alphaTest: 0.5,
         side: THREE.DoubleSide, roughness: 0.92 });
       variants.forEach((V, v) => {
@@ -530,11 +530,11 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       sun.shadow.bias = -0.0004;
       sun.shadow.normalBias = 0.4;
       sun.shadow.radius = 3;
-      sun.castShadow = true;
+      sun.castShadow = !low;   // Low graphics: no shadows
 
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
       renderer.autoClear = false;
-      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.enabled = !low;
       renderer.shadowMap.type = THREE.PCFShadowMap;      // cheaper than PCFSoft on phones; shadow.radius keeps edges soft
       renderer.shadowMap.autoUpdate = false;   // the scene and sun never move: draw shadows once
       renderer.shadowMap.needsUpdate = true;
