@@ -95,16 +95,21 @@ KCOL = {'green': (0, 0, 255), 'fringe': (0, 0, 160), 'tee': (255, 0, 255), 'fair
 
 
 def draw_course(c, P, cj, labels=True, kinds=None, thick=1):
-    R = lambda ring: np.array([P(*px(lng, lat)) for lng, lat in ring], np.int32)
+    R = lambda ring: np.array([P(*px(c[0], c[1])) for c in ring], np.int32)
     H, W = c.shape[:2]
     for i, f in enumerate(cj['features']):
         k = f['properties']['kind']; g = f['geometry']
         if kinds and k not in kinds: continue
+        if g['type'] not in ('Polygon', 'MultiPolygon', 'LineString', 'MultiLineString', 'Point'): continue
+        if k in KCOL and g['type'] == 'LineString': g = {'type': 'Polygon', 'coordinates': [g['coordinates']]}
         if k in KCOL:
             for poly in ([g['coordinates']] if g['type'] == 'Polygon' else g['coordinates']):
                 for ring in poly: cv2.polylines(c, [R(ring)], True, KCOL[k], thick + (k in ('green', 'bunker')))
-        elif k in ('cartpath', 'road', 'hedge', 'fence'):
-            cv2.polylines(c, [R(g['coordinates'])], False, {'cartpath': (200, 200, 255), 'road': (40, 40, 40), 'hedge': (0, 90, 0), 'fence': (0, 0, 0)}[k], 2)
+        elif k in ('cartpath', 'road', 'roadcase', 'cartedge', 'hedge', 'fence', 'net') and g['type'] != 'LineString':
+            for poly in ([g['coordinates']] if g['type'] == 'Polygon' else g['coordinates']):
+                for ring in poly: cv2.polylines(c, [R(ring)], True, (40, 40, 220), 1)
+        elif k in ('cartpath', 'road', 'hedge', 'fence', 'net'):
+            cv2.polylines(c, [R(g['coordinates'])], False, {'cartpath': (200, 200, 255), 'road': (40, 40, 40), 'hedge': (0, 90, 0), 'fence': (0, 0, 0), 'net': (0, 0, 0)}[k], 2)
         elif k == 'mark':
             for ln in g['coordinates']: cv2.polylines(c, [R(ln)], False, (0, 255, 255), 1)
         elif k == 'tree':
@@ -193,11 +198,41 @@ def pave():
         m = ((lit | shade) * 255).astype(np.uint8)
         m = cv2.morphologyEx(m, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
         m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+        if pv.get('propagate'):
+            # Tree canopies and their shadows are neither pavement nor clearly lawn, and they bite chunks out of the outline
+            # (the 3D trees are drawn on top anyway). Pixels that are neither sunlit lawn nor pavement take the class of the
+            # nearest sure pixel, so a canopy over a curb splits at its middle instead of following the leaves.
+            grass = (hsv[..., 0] > 30) & (hsv[..., 0] < 90) & (s >= 60) & (v > 95) & (m == 0)
+            grass = cv2.morphologyEx(grass.astype(np.uint8) * 255, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)) > 0
+            sure = (m > 0) | grass
+            unk = (~sure).astype(np.uint8)
+            _, lab = cv2.distanceTransformWithLabels(unk, cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+            ys, xs = np.nonzero(~sure)
+            # label -> source pixel: DIST_LABEL_PIXEL labels each zero pixel with an id in scan order
+            zy, zx = np.nonzero(sure)
+            tab = np.zeros(lab.max() + 1, np.int64); tab[lab[zy, zx]] = np.arange(len(zy))
+            src = tab[lab[ys, xs]]
+            fill = m.copy(); fill[ys, xs] = np.where(m[zy[src], zx[src]] > 0, 255, 0)
+            m = fill
         keep = np.zeros(m.shape, np.uint8); cv2.fillPoly(keep, [Q(pv['roi'])], 255)
         m &= keep
         for ring in pv.get('add', []): cv2.fillPoly(m, [Q(ring_of({'ring': ring}) if isinstance(ring, list) else ring_of(ring))], 255)
         for ring in pv.get('cut', []): cv2.fillPoly(m, [Q(ring_of({'ring': ring}) if isinstance(ring, list) else ring_of(ring))], 0)
         m &= keep
+        if pv.get('islands') is not None:
+            # 'solid': the grass medians and planting beds are traced by hand (clean curbs); everything else inside the outline is paving
+            cs0, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            m[:] = 0; cv2.fillPoly(m, cs0, 255)
+            for isl in pv['islands']:
+                if 'line' in isl:
+                    pts = np.array([ph.at(x, y) for x, y in isl['line']], np.int32); wpx = int(round(isl['w'] * 2))
+                    cv2.polylines(m, [pts], False, 0, wpx, cv2.LINE_AA)
+                    for q in pts: cv2.circle(m, tuple(int(v) for v in q), wpx // 2, 0, -1)
+                else:
+                    cv2.fillPoly(m, [Q(oval(*isl['oval'], ex=isl.get('ex', 2.5)) if 'oval' in isl else isl['ring'])], 0)
+            for ring in pv.get('cut', []): cv2.fillPoly(m, [Q(ring)], 0)         # (cuts again: the hole fill above closed the ones inside)
+            for ring in pv.get('add2', []): cv2.fillPoly(m, [Q(ring)], 255)      # hand-traced paving that goes in after the cuts
+            m &= keep
         px_m2 = (MPP / 2) ** 2
         # cars, dark roofs of cars and small shadow gaps are holes in the pavement: fill the small ones
         n, lab, st, _ = cv2.connectedComponentsWithStats(255 - m, 4)
@@ -206,9 +241,19 @@ def pave():
         n, lab, st, _ = cv2.connectedComponentsWithStats(m, 4)
         for i in range(1, n):
             if st[i, cv2.CC_STAT_AREA] * px_m2 < pv.get('minArea', 20): m[lab == i] = 0
-        k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        kk = pv.get('k', 7); k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kk, kk))
         m = cv2.morphologyEx(cv2.morphologyEx(m, cv2.MORPH_OPEN, k), cv2.MORPH_CLOSE, k)
-        m = cv2.GaussianBlur(m, (0, 0), 2.0); m = ((m > 127) * 255).astype(np.uint8)      # round off pixel steps
+        if pv.get('hull'):          # grass medians: tree canopies and shadows bite their edges; a convex hull is what the curb really is
+            cs0, h0 = cv2.findContours(m, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            depth = lambda i: 0 if h0[0][i][3] == -1 else 1 + depth(h0[0][i][3])
+            for i, c in enumerate(cs0):
+                if depth(i) % 2 == 1 and cv2.contourArea(c) * px_m2 >= pv.get('minIsland', 3):
+                    t = np.zeros(m.shape, np.uint8); cv2.fillPoly(t, [cv2.convexHull(c)], 255)
+                    j = h0[0][i][2]                                       # pavement inside the median's hull (a stall block) stays
+                    while j != -1:
+                        cv2.fillPoly(t, [cs0[j]], 0); j = h0[0][j][0]
+                    m[t > 0] = 0
+        m = cv2.GaussianBlur(m, (0, 0), pv.get('smooth', 2.0)); m = ((m > 127) * 255).astype(np.uint8)      # round off pixel steps
         cs, hier = cv2.findContours(m, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
         polys = []
         for i, c in enumerate(cs):
@@ -240,6 +285,14 @@ def add():
             g['paved'].append({'tag': pv['tag'], 'c': pv.get('c', 'lot'), 'rings': [L(r) for r in poly]})
     for sh in src.get('paved', []):                                       # hand-traced pavement (c: lot / walk / brick ...)
         g['paved'].append({'tag': sh.get('tag', ''), 'c': sh.get('c', 'lot'), 'rings': [L(ring_of(sh))] + [L(h) for h in sh.get('holes', [])]})
+    for pv in src.get('pave', []):              # hand-traced grass medians: drawn as flat lawn over the photo (no baked tree shadows)
+        for isl in pv.get('islands', []):
+            if 'line' in isl:
+                from shapely.geometry import LineString
+                ring = [list(c) for c in LineString(isl['line']).buffer(isl['w'] / 2, resolution=8).exterior.coords]
+            else:
+                ring = oval(*isl['oval'], ex=isl.get('ex', 2.5)) if 'oval' in isl else isl['ring']
+            g['paved'].append({'tag': 'median', 'c': 'grass', 'rings': [L(ring)]})
     lines = {}
     def add_lines(tag, color, w, segs, minzoom=None):
         e = lines.setdefault((tag, color, w), {'tag': tag, 'color': color, 'w': w, 'lines': []})

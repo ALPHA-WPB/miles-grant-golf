@@ -223,8 +223,8 @@ function buildStyle(course) {
       // Perimeter road (Miles Grant Road): black asphalt at its true width, a worn grey shoulder line
       // and a yellow dashed centre line (3 m dashes, 9 m gaps)
       // (true-width polygons from build.py: line widths are in screen pixels and pulse on 3D terrain)
-      fill("road-case", "roadcase", "#55554f"),
-      fill("road", "road", "#1b1c1f"),
+      fill("road-case", "roadcase", "#a9a79f"),
+      fill("road", "road", "#8a8b8d"),
       { ...fill("road-line", "roadline", "#f2c81e"), minzoom: 15.5 },
       fill("fairway", "fairway", "#79c552"),
       fill("stripe", "stripe", "#86d05e"),
@@ -237,7 +237,7 @@ function buildStyle(course) {
       fill("tee", "tee", "#8bd862"),
       // Service driveways / yards, rock gardens, condo lanes and parking lots (asphalt with a concrete
       // curb) and walks, traced on the photo; painted parking-stall lines on top
-      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#3a3c3f", "walk", "#d3cec2", "deck", "#dde4e7", "court", "#5b9b69", "courtblue", "#3b6ea5", "sand", "#d8c6a0", "lane", "#6a9468", "putt", "#4f9a45", "chip", "#5cab4d", "mat", "#2f7a5c", "mulch", "#b98d55", "#bdb9ae"]),
+      fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#a9a8a4", "walk", "#d3cec2", "grass", "#58a048", "deck", "#dde4e7", "court", "#5b9b69", "courtblue", "#3b6ea5", "sand", "#d8c6a0", "lane", "#6a9468", "putt", "#4f9a45", "chip", "#5cab4d", "mat", "#2f7a5c", "mulch", "#b98d55", "#bdb9ae"]),
       { id: "paved-edge", type: "line", source: "ground", filter: kind("paved"), layout: { "line-join": "round" },
         paint: { "line-color": ["match", ["get", "s"], "rock", "#6f6d67", "asphalt", "#b9b4a8", "#a39f94"],
                  "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, ["match", ["get", "s"], "asphalt", 0.6, 1.2], 22, ["match", ["get", "s"], "asphalt", 14, 1.2]],
