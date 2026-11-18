@@ -397,7 +397,11 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       // the ground up, so only the roofs of the houses behind them show
       const hedges = course.features.filter(f => f.properties.kind === "hedge");
       if (hedges.length) {
-        const geo = new THREE.IcosahedronGeometry(1, 3), p = geo.attributes.position, nrm = geo.attributes.normal, col = [];
+        // long runs (the perimeter border is ~2 km): coarser blobs, wider spacing, to keep the triangle count down
+        const hedgeLen = hedges.reduce((a, f) => { const c = f.geometry.coordinates; let l = 0; for (let j = 0; j < c.length - 1; j++) l += Math.hypot((c[j + 1][0] - c[j][0]) * 99500, (c[j + 1][1] - c[j][1]) * 111320); return a + l; }, 0);
+        const longRun = hedges.length && hedgeLen > 600;
+        const spacing = longRun ? 2.4 : 1.3;
+        const geo = new THREE.IcosahedronGeometry(1, longRun ? 2 : 3), p = geo.attributes.position, nrm = geo.attributes.normal, col = [];
         for (let i = 0; i < p.count; i++) {
           const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 0.88 + hash3(x * 4.3, y * 4.3, z * 4.3) * 0.24;
           p.setXYZ(i, x * n, y * n, z * n);
@@ -410,7 +414,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         hedges.forEach(f => {
           const cs = f.geometry.coordinates.map(c => toLocal(...c)), zs = f.properties.zs || [], { h, w } = f.properties;
           for (let j = 0; j < cs.length - 1; j++) {
-            const [ax, az] = cs[j], [bx, bz] = cs[j + 1], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 1.3));
+            const [ax, az] = cs[j], [bx, bz] = cs[j + 1], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / spacing));
             for (let s = 0; s < n; s++) {
               const t = s / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t;
               pts.push({ x, z, y0: ((zs[j] || 0) * (1 - t) + (zs[j + 1] || 0) * t) * exaggeration, h, w });
