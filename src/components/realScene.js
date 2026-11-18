@@ -630,13 +630,15 @@ function turf(size, { base, light, dark, bladeLen, blades, angle, seed }) {
     // blades of grass in several shades, mostly upright with some lean
     const r = rng(seed * 977);
     x.lineCap = "round";
-    for (let b = 0; b < blades; b++) {
-      const px = r() * n, py = r() * n, len = bladeLen * (0.6 + r() * 0.8);
+    // finer, softer blades (2x count, ~60% length, thin hairline strokes) so the turf reads as soft grain, not scratchy noise
+    const fineBlades = Math.round(blades * 2);
+    for (let b = 0; b < fineBlades; b++) {
+      const px = r() * n, py = r() * n, len = bladeLen * 0.6 * (0.6 + r() * 0.8);
       const a = angle + (r() - 0.5) * 0.9, dx = Math.sin(a) * len, dy = -Math.cos(a) * len;
       const t = r();
-      x.strokeStyle = t < 0.45 ? `rgba(${light[0]},${light[1]},${light[2]},${0.35 + r() * 0.4})`
-        : t < 0.9 ? `rgba(${dark[0]},${dark[1]},${dark[2]},${0.3 + r() * 0.4})` : `rgba(214,206,120,${0.25 + r() * 0.3})`;
-      x.lineWidth = 0.7 + r() * 0.7;
+      x.strokeStyle = t < 0.45 ? `rgba(${light[0]},${light[1]},${light[2]},${0.2 + r() * 0.25})`
+        : t < 0.9 ? `rgba(${dark[0]},${dark[1]},${dark[2]},${0.18 + r() * 0.25})` : `rgba(214,206,120,${0.12 + r() * 0.18})`;
+      x.lineWidth = 0.45 + r() * 0.4;
       wrapDraw(n, px, py, len + 2, (X, Y) => { x.beginPath(); x.moveTo(X, Y); x.quadraticCurveTo(X + dx * 0.4, Y + dy * 0.6, X + dx, Y + dy); x.stroke(); });
     }
   });
