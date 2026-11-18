@@ -53,3 +53,9 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   Build + eslint clean. Section 1 (TURF) still open: ground textures are already 512 px at pixelRatio 2,
   blade strokes still read as noise. Still fake: bark has no normal map, oak leaf cards, flat turf lighting.
   OWNER: please verify trunks on a phone; allow the preview server so runs can compare before/after.
+- 2026-11-18 (hi-res run 2): preview server declined a third time, so NO screenshots; low-risk change only.
+  Section 1 (TURF) partly done (left unticked until verified visually): `turf()` blades now 2x count, ~60%
+  length, hairline 0.45–0.85 px strokes, alpha roughly halved, so grass reads as fine soft grain, not
+  scratchy noise (5558ffa). Build + eslint clean, deployed. Still to do: separate low-opacity large-scale
+  drift overlay beyond the 512 px tile, rough coarser/darker than fairway, mowing stripes (section 2).
+  OWNER: please look at fairways on a phone; if the grass looks too washed out, revert 5558ffa.
