@@ -618,12 +618,12 @@ const wrapDraw = (size, px, py, pad, fn) => {
   }
 };
 
-function turf(size, { base, light, dark, bladeLen, blades, angle, seed }) {
+function turf(size, { base, light, dark, bladeLen, blades, angle, seed, drift = 1 }) {
   return canvasPattern(size, (x, n) => {
     // base with large and small scale color variation
     const img = x.createImageData(n, n), d = img.data;
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
-      const v = fbm(i, j, n, seed) - 0.5, k = (j * n + i) * 4, grain = (hash3(i, j, seed) - 0.5) * 10;
+      const v = (fbm(i, j, n, seed) - 0.5) * drift, k = (j * n + i) * 4, grain = (hash3(i, j, seed) - 0.5) * 10;
       d[k] = base[0] + v * 34 + grain; d[k + 1] = base[1] + v * 40 + grain * 1.2; d[k + 2] = base[2] + v * 22 + grain * 0.6; d[k + 3] = 255;
     }
     x.putImageData(img, 0, 0);
@@ -682,7 +682,7 @@ function plain(size, base, seed) {
 }
 
 export const GROUND_TEXTURES = {
-  "tex-rough": () => turf(512, { base: [70, 132, 52], light: [126, 182, 82], dark: [38, 84, 30], bladeLen: 7, blades: 9000, angle: 0.15, seed: 3 }),
+  "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5 }),
   "tex-fairway": () => turf(512, { base: [104, 170, 70], light: [150, 206, 104], dark: [70, 128, 48], bladeLen: 4, blades: 9000, angle: 0, seed: 5 }),
   "tex-stripe": () => turf(512, { base: [118, 184, 82], light: [164, 216, 116], dark: [82, 140, 58], bladeLen: 4, blades: 9000, angle: 3.14, seed: 7 }),
   "tex-collar": () => turf(256, { base: [100, 168, 68], light: [146, 204, 102], dark: [66, 122, 46], bladeLen: 3.5, blades: 4000, angle: 1.57, seed: 21 }),
