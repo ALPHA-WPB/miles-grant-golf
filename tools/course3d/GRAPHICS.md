@@ -59,3 +59,7 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   scratchy noise (5558ffa). Build + eslint clean, deployed. Still to do: separate low-opacity large-scale
   drift overlay beyond the 512 px tile, rough coarser/darker than fairway, mowing stripes (section 2).
   OWNER: please look at fairways on a phone; if the grass looks too washed out, revert 5558ffa.
+- 2026-11-18 (hi-res run 3): preview server declined a fourth time, so NO screenshots; low-risk change only.
+  Section 1 (TURF) still unticked: `tex-rough` now darker, longer blades, large-scale colour drift x1.5
+  via new `drift` param on `turf()` (4f689cb). Build + eslint clean; live index hash changed (deploy ok).
+  Still to do: drift beyond the 512 px tile, mowing stripes (section 2). OWNER: allow the preview server.
