@@ -63,3 +63,7 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   Section 1 (TURF) still unticked: `tex-rough` now darker, longer blades, large-scale colour drift x1.5
   via new `drift` param on `turf()` (4f689cb). Build + eslint clean; live index hash changed (deploy ok).
   Still to do: drift beyond the 512 px tile, mowing stripes (section 2). OWNER: allow the preview server.
+- 2026-11-18 (hi-res run 4): preview server declined a fifth time, so NO screenshots; low-risk change only.
+  Palm leaflet texture 32x256 -> 64x512 (drawn 2x, fine slanted side veins), anisotropy 4 -> 8, so fronds stay crisp
+  at a slant. Build + eslint clean. Section 1 (TURF) still unticked (drift beyond the tile, stripes = section 2).
+  Still fake: oak leaf cards, bark has no normal map, flat turf lighting. OWNER: allow the preview server.
