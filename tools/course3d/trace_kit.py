@@ -152,8 +152,8 @@ def check(num):
         if k in colors:
             polys = [g['coordinates']] if g['type'] == 'Polygon' else g['coordinates']
             for p in polys: cv2.polylines(out, [P(p[0])], True, colors[k], 2)
-        elif k == 'cartpath':
-            cv2.polylines(out, [P(g['coordinates'])], False, (200, 200, 255), 3)
+        elif k in ('cartpath', 'spine'):
+            cv2.polylines(out, [P(g['coordinates'][0] if g['type'] == 'Polygon' else g['coordinates'])], g['type'] == 'Polygon', (200, 200, 255), 2)
         elif k == 'tree':
             trees.append((i, f))
     for i, f in trees:
