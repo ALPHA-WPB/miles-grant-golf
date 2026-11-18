@@ -47,3 +47,9 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   saturation a touch, rough darker/coarser than fairway; the large-scale drift beyond one 256 px pattern
   tile will need a separate low-opacity noise overlay layer. OWNER: to let the daily run work unattended,
   allow the Browser-pane preview server "miles-grant-golf (dev)" (always allow) in the Claude app.
+- 2026-11-18 (hi-res run): preview server declined again, so NO screenshots; made only a low-risk change.
+  Trunk bark texture 64x512 -> 128x1024, generated in code: tileable stretched-noise ridges, dark
+  fissures, growth bands, fine grain, same base colour as before; anisotropy 8 (mipmaps via CanvasTexture).
+  Build + eslint clean. Section 1 (TURF) still open: ground textures are already 512 px at pixelRatio 2,
+  blade strokes still read as noise. Still fake: bark has no normal map, oak leaf cards, flat turf lighting.
+  OWNER: please verify trunks on a phone; allow the preview server so runs can compare before/after.

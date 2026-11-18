@@ -74,21 +74,34 @@ function leafletTexture() {
 }
 
 function trunkTexture() {
+  // 128x1024 (was 64x512): vertical bark fissures from stretched noise + fine grain, with mipmaps and anisotropy
+  const W = 128, H = 1024;
   const cv = document.createElement("canvas");
-  cv.width = 64; cv.height = 512;
+  cv.width = W; cv.height = H;
   const x = cv.getContext("2d");
-  x.fillStyle = "#8c8273"; x.fillRect(0, 0, 64, 512);
-  for (let y = 0; y < 512; y += 9 + (y % 5)) {
-    x.fillStyle = `rgba(60,52,42,${0.35 + (y % 7) * 0.04})`; x.fillRect(0, y, 64, 2.5);
-    x.fillStyle = "rgba(190,180,160,0.35)"; x.fillRect(0, y + 3, 64, 1.5);
+  const img = x.createImageData(W, H), d = img.data;
+  // value noise with separate periods in x and y, so it tiles and can be stretched along the trunk
+  const vn = (u, v, px, py, sd) => {
+    const xi = Math.floor(u), yi = Math.floor(v), fx = u - xi, fy = v - yi;
+    const h = (a, b) => hash3(((a % px) + px) % px, ((b % py) + py) % py, sd);
+    const sm = t => t * t * (3 - 2 * t), ux = sm(fx), uy = sm(fy);
+    return (h(xi, yi) * (1 - ux) + h(xi + 1, yi) * ux) * (1 - uy) + (h(xi, yi + 1) * (1 - ux) + h(xi + 1, yi + 1) * ux) * uy;
+  };
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const k = (j * W + i) * 4;
+    // ridges: tall thin noise (period wraps horizontally and vertically)
+    const ridge = vn(i / W * 16, j / H * 4, 16, 4, 41) * 0.6 + vn(i / W * 32, j / H * 12, 32, 12, 43) * 0.4;
+    const fis = Math.abs(ridge - 0.5) < 0.05 ? -1 : 0;                     // dark cracks along the ridge crossings
+    const band = Math.sin(j / H * Math.PI * 2 * 38 + ridge * 5) * 0.5;      // soft growth rings
+    const g = (hash3(i, j, 47) - 0.5) * 16;
+    const v = (ridge - 0.5) * 46 + band * 10 + fis * 40 + g;
+    d[k] = 140 + v; d[k + 1] = 130 + v * 0.95; d[k + 2] = 115 + v * 0.85; d[k + 3] = 255;
   }
-  for (let i = 0; i < 900; i++) {
-    const px = (i * 37) % 64, py = (i * 101) % 512;
-    x.fillStyle = `rgba(${i % 2 ? 50 : 170},${i % 2 ? 45 : 160},${i % 2 ? 38 : 140},0.25)`; x.fillRect(px, py, 2, 1);
-  }
+  x.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
   return tex;
 }
 
