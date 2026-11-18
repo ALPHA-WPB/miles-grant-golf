@@ -52,9 +52,11 @@ function oakVariants(low = false) {
 // ── Palms: every frond is a curved stem with individual leaflets (unit height = 1) ─────────
 // Leaflet texture: one slender leaf with a midrib, light-to-dark along its length
 function leafletTexture() {
+  // 64x512 (was 32x256), drawn at 2x scale; anisotropy 8 keeps the slender leaflets crisp at a slant
   const cv = document.createElement("canvas");
-  cv.width = 32; cv.height = 256;
+  cv.width = 64; cv.height = 512;
   const x = cv.getContext("2d");
+  x.scale(2, 2);
   const g = x.createLinearGradient(0, 0, 0, 256);
   g.addColorStop(0, "#5b7f2c"); g.addColorStop(0.5, "#4f7a27"); g.addColorStop(1, "#7f9a3a");
   x.fillStyle = g;
@@ -67,9 +69,15 @@ function leafletTexture() {
   x.beginPath(); x.moveTo(16, 0); x.lineTo(16, 256); x.stroke();
   x.strokeStyle = "rgba(20,40,10,0.35)"; x.lineWidth = 0.8;
   for (const dx of [-4, 4]) { x.beginPath(); x.moveTo(16 + dx * 0.4, 20); x.quadraticCurveTo(16 + dx, 128, 16 + dx * 0.3, 240); x.stroke(); }
+  // fine side veins slanting toward the tip
+  x.strokeStyle = "rgba(30,55,15,0.18)"; x.lineWidth = 0.5;
+  for (let y = 14; y < 246; y += 7) for (const sd of [-1, 1]) {
+    const hw = 9 * Math.sin(Math.PI * Math.min(1, y / 256));
+    x.beginPath(); x.moveTo(16, y); x.lineTo(16 + sd * hw, y - 7); x.stroke();
+  }
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   return tex;
 }
 
