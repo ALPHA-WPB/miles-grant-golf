@@ -692,9 +692,9 @@ function plain(size, base, seed) {
 }
 
 // Per-texture pixelRatio (default 2); res-2 textures draw 2x the texels over the same ground area
-export const GROUND_PIXEL_RATIO = { "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4 };
+export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4 };
 export const GROUND_TEXTURES = {
-  "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5 }),
+  "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5, res: 2 }),
   "tex-fairway": () => turf(512, { base: [104, 170, 70], light: [150, 206, 104], dark: [70, 128, 48], bladeLen: 4, blades: 9000, angle: 0, seed: 5, res: 2 }),
   "tex-stripe": () => turf(512, { base: [118, 184, 82], light: [164, 216, 116], dark: [82, 140, 58], bladeLen: 4, blades: 9000, angle: 3.14, seed: 7, res: 2 }),
   "tex-collar": () => turf(256, { base: [100, 168, 68], light: [146, 204, 102], dark: [66, 122, 46], bladeLen: 3.5, blades: 4000, angle: 1.57, seed: 21, res: 2 }),
