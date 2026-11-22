@@ -76,3 +76,8 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   `GROUND_PIXEL_RATIO` in realScene.js): same ground footprint and blade proportions, 2x texels per metre, so
   close-up greens are crisper. Build + eslint clean. Section 1 still unticked. Still fake: rough/fairway tiles
   still 512@2x, no drift beyond the tile, oak leaf cards, bark has no normal map. OWNER: allow the preview server.
+- 2026-11-21 (hi-res run 6): preview server declined an eighth time, so NO screenshots; low-risk change only.
+  Fairway and mowing-stripe turf textures now 2x texels over the same ground footprint (`res: 2`, pixelRatio 4,
+  bf356a0): 1024 px tiles, same blade proportions, so fairways are crisper close up. Build + eslint clean; live
+  index hash changed (deploy ok). Section 1 still unticked. Still fake: rough still 512@2x, no drift beyond the
+  tile, oak leaf cards, bark has no normal map. OWNER: allow the preview server; check fairway sharpness/phone speed.
