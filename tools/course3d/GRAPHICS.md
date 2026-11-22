@@ -67,3 +67,7 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   Palm leaflet texture 32x256 -> 64x512 (drawn 2x, fine slanted side veins), anisotropy 4 -> 8, so fronds stay crisp
   at a slant. Build + eslint clean. Section 1 (TURF) still unticked (drift beyond the tile, stripes = section 2).
   Still fake: oak leaf cards, bark has no normal map, flat turf lighting. OWNER: allow the preview server.
+- 2026-11-21 (daily run): preview server "miles-grant-golf (dev)" declined a sixth time, so NO screenshots.
+  Pushed no visual change (rules: keep a change only if verified more lifelike). Section 1 (TURF) still unticked;
+  earlier blind tweaks (5558ffa, 4f689cb) remain unverified. OWNER DECISION: either set "always allow" for the
+  Browser-pane preview server, or tell the run it may ship unverified visual changes.
