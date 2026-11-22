@@ -81,3 +81,7 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   bf356a0): 1024 px tiles, same blade proportions, so fairways are crisper close up. Build + eslint clean; live
   index hash changed (deploy ok). Section 1 still unticked. Still fake: rough still 512@2x, no drift beyond the
   tile, oak leaf cards, bark has no normal map. OWNER: allow the preview server; check fairway sharpness/phone speed.
+- 2026-11-22 (daily run): preview server "miles-grant-golf (dev)" declined a ninth time, so NO screenshots and NO code
+  change (rules: keep a visual change only if verified against before/after). Section 1 (TURF) still unticked; earlier
+  blind tweaks (5558ffa, 4f689cb, bf356a0 and the hi-res runs) remain unverified. OWNER DECISION: set "always allow" for the
+  Browser-pane server "miles-grant-golf (dev)", or tell the run it may ship unverified visual changes.
