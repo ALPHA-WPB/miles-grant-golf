@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import HoleLoader from "./HoleLoader";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { createRealisticLayer, GROUND_TEXTURES } from "./realScene";
+import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO } from "./realScene";
 import { COURSE_PLACES, placeBadgeHtml } from "../lib/places";
 
 // Illustrated, tilted 3D view of a hole: drawn fairways, greens, bunkers and water
@@ -834,7 +834,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       // Realistic look: textured turf and sand, and the three.js trees and houses in place of
       // the simple block ones (which stay as a fallback if the 3D layer can't start)
       try {
-        Object.entries(GROUND_TEXTURES).forEach(([id, make]) => { if (!map.hasImage(id)) map.addImage(id, make(), { pixelRatio: 2 }); });
+        Object.entries(GROUND_TEXTURES).forEach(([id, make]) => { if (!map.hasImage(id)) map.addImage(id, make(), { pixelRatio: GROUND_PIXEL_RATIO[id] || 2 }); });
         [["course", "tex-rough"], ["lawn", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
       } catch { /* plain colors remain */ }

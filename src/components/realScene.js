@@ -626,7 +626,9 @@ const wrapDraw = (size, px, py, pad, fn) => {
   }
 };
 
-function turf(size, { base, light, dark, bladeLen, blades, angle, seed, drift = 1 }) {
+function turf(size, { base, light, dark, bladeLen, blades, angle, seed, drift = 1, res = 1 }) {
+  // res: supersampling factor. Same footprint on the ground (pair with pixelRatio 2*res), res x more texels per metre.
+  size *= res; bladeLen *= res; blades *= res * res;
   return canvasPattern(size, (x, n) => {
     // base with large and small scale color variation
     const img = x.createImageData(n, n), d = img.data;
@@ -646,7 +648,7 @@ function turf(size, { base, light, dark, bladeLen, blades, angle, seed, drift = 
       const t = r();
       x.strokeStyle = t < 0.45 ? `rgba(${light[0]},${light[1]},${light[2]},${0.2 + r() * 0.25})`
         : t < 0.9 ? `rgba(${dark[0]},${dark[1]},${dark[2]},${0.18 + r() * 0.25})` : `rgba(214,206,120,${0.12 + r() * 0.18})`;
-      x.lineWidth = 0.45 + r() * 0.4;
+      x.lineWidth = (0.45 + r() * 0.4) * res;
       wrapDraw(n, px, py, len + 2, (X, Y) => { x.beginPath(); x.moveTo(X, Y); x.quadraticCurveTo(X + dx * 0.4, Y + dy * 0.6, X + dx, Y + dy); x.stroke(); });
     }
   });
@@ -689,14 +691,16 @@ function plain(size, base, seed) {
   });
 }
 
+// Per-texture pixelRatio (default 2); res-2 textures draw 2x the texels over the same ground area
+export const GROUND_PIXEL_RATIO = { "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4 };
 export const GROUND_TEXTURES = {
   "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5 }),
   "tex-fairway": () => turf(512, { base: [104, 170, 70], light: [150, 206, 104], dark: [70, 128, 48], bladeLen: 4, blades: 9000, angle: 0, seed: 5 }),
   "tex-stripe": () => turf(512, { base: [118, 184, 82], light: [164, 216, 116], dark: [82, 140, 58], bladeLen: 4, blades: 9000, angle: 3.14, seed: 7 }),
-  "tex-collar": () => turf(256, { base: [100, 168, 68], light: [146, 204, 102], dark: [66, 122, 46], bladeLen: 3.5, blades: 4000, angle: 1.57, seed: 21 }),
-  "tex-fringe": () => turf(256, { base: [88, 156, 62], light: [138, 196, 96], dark: [58, 112, 42], bladeLen: 3, blades: 3500, angle: 0.3, seed: 9 }),
-  "tex-green": () => turf(256, { base: [128, 196, 92], light: [168, 222, 124], dark: [100, 164, 72], bladeLen: 1.6, blades: 4500, angle: 0, seed: 11 }),
-  "tex-tee": () => turf(256, { base: [116, 186, 82], light: [160, 214, 114], dark: [84, 146, 58], bladeLen: 2.4, blades: 4000, angle: 0, seed: 13 }),
+  "tex-collar": () => turf(256, { base: [100, 168, 68], light: [146, 204, 102], dark: [66, 122, 46], bladeLen: 3.5, blades: 4000, angle: 1.57, seed: 21, res: 2 }),
+  "tex-fringe": () => turf(256, { base: [88, 156, 62], light: [138, 196, 96], dark: [58, 112, 42], bladeLen: 3, blades: 3500, angle: 0.3, seed: 9, res: 2 }),
+  "tex-green": () => turf(256, { base: [128, 196, 92], light: [168, 222, 124], dark: [100, 164, 72], bladeLen: 1.6, blades: 4500, angle: 0, seed: 11, res: 2 }),
+  "tex-tee": () => turf(256, { base: [116, 186, 82], light: [160, 214, 114], dark: [84, 146, 58], bladeLen: 2.4, blades: 4000, angle: 0, seed: 13, res: 2 }),
   "tex-sand": () => sand(512, 17),
   "tex-ground": () => plain(256, [203, 210, 190], 19),
 };
