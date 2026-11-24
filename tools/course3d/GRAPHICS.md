@@ -59,6 +59,11 @@ Step 1 progress 2026-11-24, run 17, HOLE 1 (WITH PREVIEW): fuller near oak crown
 each card 13% smaller. Hole 1: 3,367,999 -> 3,691,189 in the browser; all 18 holes 2.52-3.74 M on HIGH (counter). LOW unchanged (2.21-3.13 M).
 Left in step 1 for hole 1: GFX LOW is still over 2.5 M (3.13 M; needs lighter NEAR palms and oaks on LOW, judged in the preview); bark
 normal map (optional). Headroom left on HIGH, hole 1: about 0.8 M.
+Step 1 progress 2026-11-24, run 18, HOLE 1 (WITH PREVIEW): GFX LOW is inside its budget (103cef7): near palms on LOW are built light.
+Hole 1 LOW 3,096,705 -> 2,352,405 in the browser; all 18 holes 1.86-2.37 M on LOW (counter). HIGH unchanged (2.52-3.74 M).
+**HOLE 1, STEP 1 (TREES) DONE** (palm skirt and boot, palm variety, fuller oak crowns, far tiers, LOW in budget; the bark normal map was
+optional and is left out). Hole 1 steps: [x] 1 trees  [ ] 2 grass  [ ] 3 tees (re-traced e172b56; bank, crisp edge and markers open)
+[ ] 4 green  [ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 2 (grass).
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -307,3 +312,18 @@ Each run logs triangles before/after and what still looks fake.
   hole 1: the small oaks (r 2-3 m) are still thin and twiggy up close, leaf cards all face one way per card (flat when seen edge-on), bark
   has no normal map, palms are all feather palms, no drift beyond the turf tile. Next for hole 1: get GFX LOW under 2.5 M (lighter near
   palms: 3 crown styles at 3.7-4.8k triangles each are 0.9 M of LOW's 3.13 M), then step 2 (grass).
+- 2026-11-24 (hi-res run 18, HOLE 1, step 1 trees, WITH PREVIEW): starting the preview server was declined at the prompt again, but one
+  was still listening on 127.0.0.1:4173 (owner session), so a tab was opened on it without starting anything. 103cef7: on GFX LOW the
+  palms within 160 m of the hole's line keep their three crown shapes, sizes, lean and colours but are built light: each leaflet one
+  straight card instead of two bent ones, 18 leaflets a side instead of 24 (each 1.35x wider), 7 stem segments instead of 14, trunk 8
+  sides x 10 rings (160 triangles, was 480). Crowns 4840/3740/2420 -> 1892/1462/946 triangles. Triangles, hole 1, GFX LOW, browser:
+  3,096,705 -> 2,352,405 (limit 2.5 M); counter, all holes LOW 2.21-3.13 M -> 1.86-2.37 M, so LOW is inside its budget on every hole for
+  the first time. GFX HIGH geometry is untouched (counter 2.52-3.74 M, unchanged; HIGH was not re-opened in the browser this run).
+  Checked on LOW from `jumpTo({center:[-80.1762,27.14715], zoom:19.3, pitch:74, bearing:255})` (tee view: the palm row reads the same) and
+  `jumpTo({center:[-80.17612,27.14719], zoom:20.9, pitch:72, bearing:255})` (crown close-up: leaflets are a little broader and
+  straight, no longer bent at mid-length; only noticeable a few metres from a crown). Caveat as in run 17: the 'before' shots were taken
+  with the phone viewport scaled down in the pane, the 'after' at full size. Console: only the local 404s and the service-worker fetch
+  error. Build + eslint clean; live index D85XhqmF -> CJKaBLON (deploy ok). Hole 1's step 1 is closed. Still fake near hole 1: small
+  oaks (r 2-3 m) thin up close, leaf cards flat edge-on, bark has no normal map, palms are all feather palms, no drift beyond the turf
+  tile, tees have no bank or markers, green outline is a symmetric oval (the photo shows a pear shape). Next: hole 1 step 2 (grass):
+  fine blade layer near the camera, colour drift larger than one tile, rough coarser than fairway.
