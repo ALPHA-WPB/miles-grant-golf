@@ -255,3 +255,13 @@ Each run logs triangles before/after and what still looks fake.
   Still fake near hole 1: the palms are feather palms, most real ones here are probably cabbage palms with fan leaves (not checked);
   oak leaf cards; bark without a normal map; no drift beyond the turf tile. Step 1 left for hole 1: fuller oak crowns, and lighter near
   trees on LOW to get it under 2.5 M.
+- 2026-11-24 (owner request: "several variations of palm trees ... different sizes, the majority all look identical"; HOLE 1, WITH PREVIEW): 50ac9e0.
+  Cause: one crown shape in three near-identical copies, and 869 of the 1,070 palms carry a default height (7.0, 7.8 or 8.6 m, set when
+  the palm was found on the photo, never measured). Now: five crown shapes near the hole (`PALM_STYLES` in realScene.js: standard, big
+  full, young upright with no skirt, old drooping with a long skirt, compact; GFX LOW uses the first three), chosen per palm from its
+  position; per palm its own crown width (0.7-1.3x), trunk thickness, lean (0 to about 7 degrees) and shade of green. Heights: the
+  default-height palms are spread over 0.72-1.3x (about 5 to 11 m); palms whose height was read off the shadow keep it within 4%.
+  THIS IS A LOOKS CHOICE ON UNMEASURED HEIGHTS, made because the owner asked for different sizes; positions are untouched. Far palms keep
+  the plain crown but get the same size, lean and colour variation. Triangles, hole 1, GFX HIGH, browser: 3,430,735 -> 3,395,963; LOW
+  3.17 M -> 3.15 M (counter). Before/after from `jumpTo({center:[-80.1762,27.14715], zoom:19.3, pitch:74, bearing:255})`.
+  Still fake: all palms are feather palms (no fan-leaf cabbage palms), crowns read dark from above.
