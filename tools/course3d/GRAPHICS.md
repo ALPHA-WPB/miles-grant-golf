@@ -55,6 +55,10 @@ photo (e172b56). Still open in step 3 for hole 1: the flat cut top with a crisp 
 No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
 hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
+Step 1 progress 2026-11-24, run 17, HOLE 1 (WITH PREVIEW): fuller near oak crowns on HIGH (99bcaa4): leaf cards per near oak 1470 -> 2415,
+each card 13% smaller. Hole 1: 3,367,999 -> 3,691,189 in the browser; all 18 holes 2.52-3.74 M on HIGH (counter). LOW unchanged (2.21-3.13 M).
+Left in step 1 for hole 1: GFX LOW is still over 2.5 M (3.13 M; needs lighter NEAR palms and oaks on LOW, judged in the preview); bark
+normal map (optional). Headroom left on HIGH, hole 1: about 0.8 M.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -289,3 +293,17 @@ Each run logs triangles before/after and what still looks fake.
   re-faced toward the streets, 1 palm dropped (stood on a lane); terrain tiles identical. Checked top-down and tilted in the preview; no photo
   tile errors. Not done / least certain: driveways were detected by colour and not checked one by one; tree-covered yards are plain lawn with
   only the detected trees; the canal's docks are photo, not 3D; homes north of the street (outside the club outline) are untouched photo.
+- 2026-11-24 (hi-res run 17, HOLE 1, step 1 trees, WITH PREVIEW): the preview server was declined again at the prompt, but one was already
+  listening on 127.0.0.1:4173 (left by the owner session), so the tab was opened on it without starting anything. 99bcaa4: oaks within 160 m
+  of the hole's line on GFX HIGH carry about 1.6x the leaf cards (ez-tree leaves.count factor 0.7 -> 1.2; 1470 -> 2415 cards on the medium
+  oak), each card 13% smaller (size factor 2.3 -> 2.0). Before, the big oak right of the first landing area (r 11 m) was separate tufts
+  with limbs and sky showing through; after, it is one closed canopy with the limbs showing only underneath. Limbs, positions, sizes, far
+  oaks, palms and GFX LOW are unchanged. Triangles, hole 1, GFX HIGH, browser: 3,367,999 -> 3,691,189 (limit 4.5 M); counter, all holes
+  HIGH 2.52-3.74 M, LOW 2.21-3.13 M (unchanged, still over 2.5 M on holes 1, 4, 6, 9, 10, 14, 17, 18). Cameras (375x812, wait ~28 s after
+  the hole opens): `__mggMap.stop(); __mggMap.jumpTo({center:[-80.1755539,27.1476556], zoom:20.2, pitch:72, bearing:0})` (big oak) and
+  `jumpTo({center:[-80.1762,27.14715], zoom:19.3, pitch:74, bearing:255})` (tee view). Console: only the local 404s. Caveat: the
+  'before' shot was taken while the pane showed the phone viewport scaled down, the 'after' at full size, so the two are the same camera
+  but not pixel-for-pixel. Not paid for by a far-detail cut this run (headroom was 1.1 M; about 0.8 M is left on hole 1). Still fake near
+  hole 1: the small oaks (r 2-3 m) are still thin and twiggy up close, leaf cards all face one way per card (flat when seen edge-on), bark
+  has no normal map, palms are all feather palms, no drift beyond the turf tile. Next for hole 1: get GFX LOW under 2.5 M (lighter near
+  palms: 3 crown styles at 3.7-4.8k triangles each are 0.9 M of LOW's 3.13 M), then step 2 (grass).
