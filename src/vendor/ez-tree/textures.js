@@ -10,6 +10,7 @@ const textureLoader = new THREE.TextureLoader();
 const load = (url, srgb = true) => {
   const t = textureLoader.load(url);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8; // crisper leaves/bark at oblique angles (mipmaps are on by default)
   return t;
 };
 const oak = { ao: load(oakAo, false), color: load(oakColor), normal: load(oakNormal, false), roughness: load(oakRoughness, false) };
