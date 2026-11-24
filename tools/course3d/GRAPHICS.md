@@ -50,6 +50,8 @@ Step 1 progress 2026-11-24, run 15, HOLE 1 (preview blocked, cost-only): third t
 line use a 182-triangle crown and a 30-triangle trunk (0d61b9f). Hole 1: 3.48 M -> 3.38 M on HIGH, 3.27 M -> 3.17 M on LOW. All 18 holes now
 2.34-3.38 M on HIGH and 2.22-3.17 M on LOW (LOW is under 2.5 M on holes 2, 3, 5, 7, 8, 11, 12, 13, 15, 16). Headroom on HIGH for hole 1's
 near-tree upgrade: about 1.1 M. Hole 1's step 1 stays open: its visible half still needs the preview.
+Step 3 progress 2026-11-24, run 16, HOLE 1 (preview blocked, photo-overlay only): hole 1's three tee boxes re-traced on the zoom-20
+photo (e172b56). Still open in step 3 for hole 1: the flat cut top with a crisp edge and raised bank, and tee markers (visible, need the preview).
 No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
 hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
@@ -229,3 +231,13 @@ Each run logs triangles before/after and what still looks fake.
   both oaks and palms, so little cost-only work is left in trees; if the preview stays blocked, the next allowed job on hole 1 is re-tracing
   its tees and green at zoom 20 (`trace_kit.py check 1`). OWNER: allow the Browser-pane preview server so hole 1's visible tree upgrade (and
   the LOW fix) can be done.
+- 2026-11-24 (hi-res run 16, HOLE 1, step 3 tees): preview server "miles-grant-golf (preview)" declined (twenty-first time): preview blocked, so
+  the allowed photo-checked job: hole 1's tee boxes re-traced at zoom 20 (`ground_kit.py check 3969 2336 4256 2457 5`, 0.13 m per pixel; the old
+  trace was made at zoom 19). e172b56. The old ovals followed the outside of each tee's bank; the new ones follow the mown top. Back tee 11.2 x 7.4 m
+  -> 9.2 x 5.8 m; middle tee 12.7 x 9.1 m -> 10.8 x 7.3 m; forward tee 9.0 x 6.9 m -> 12.0 x 5.7 m, a rounded rectangle that runs 3 m further
+  east (the old oval stopped short of the worn end). Data diff: the 3 tee features and hole 1's gold outline only; trees (1978), bunkers and
+  terrain tiles identical. Triangles unchanged (tees are map fills): hole 1 3.38 M HIGH, 3.17 M LOW (LOW still over 2.5 M). Checked on the photo
+  overlay, NOT in 3D. Least certain: the forward tee's south-west corner (under a tree's shadow) and whether its worn east end is still teeing
+  ground. Seen but not changed: hole 1's green is pear-shaped on the zoom-20 photo (wider at the south end), the traced oval is close but
+  symmetric; that is step 4's job. Still fake near hole 1: oak leaf cards, palm crowns without a boot/skirt, bark without a normal map, no drift
+  beyond the turf tile, tees have no bank or markers. OWNER: allow the Browser-pane preview server so the visible steps can be done.
