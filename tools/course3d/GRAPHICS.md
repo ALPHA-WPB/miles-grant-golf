@@ -49,6 +49,13 @@ on LOW. The saving is small because the building triangles are mostly roofs (1 m
 No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
 hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
+**Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
+hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
+for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
+upgrades (steps 1-2 are shared models, so they help every hole) judged from that hole's tee, fairway and green cameras; its
+triangle count inside the budget. Do not start the next hole until the current one is ticked here.
+- [ ] Hole 1 (par 5)   - [ ] Hole 18 (par 5)   - [ ] par 4s: 4, 6, 9, 10, 14, 17   - [ ] par 3s
+
 Order of work (one step per run, each checked by before/after screenshot from the same camera, phone-size viewport):
 1. TREES near the hole: fuller oak crowns (more, smaller leaf cards), palm fronds with more leaflets and a boot/skirt
    under the crown, trunk bark normal map; pay for it by making far trees cheaper still (target far < 1.2 M).
