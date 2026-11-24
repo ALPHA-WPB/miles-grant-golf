@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import HoleLoader from "./HoleLoader";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO } from "./realScene";
+import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO, turfDrift } from "./realScene";
 import { COURSE_PLACES, placeBadgeHtml } from "../lib/places";
 
 // Illustrated, tilted 3D view of a hole: drawn fairways, greens, bunkers and water
@@ -838,6 +838,15 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         [["course", "tex-rough"], ["lawn", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
       } catch { /* plain colors remain */ }
+      try {
+        // Broad, soft light and dark patches over the rough and lawns, pinned to the ground, so the
+        // small repeating turf tile no longer reads as one flat green (sits under water, roads and fairways)
+        const dr = !map.getSource("turf-drift") && turfDrift(course.features);
+        if (dr) {
+          map.addSource("turf-drift", { type: "image", url: dr.url, coordinates: dr.coordinates });
+          map.addLayer({ id: "turf-drift", type: "raster", source: "turf-drift", paint: { "raster-fade-duration": 0, "raster-resampling": "linear" } }, "water-bank");
+        }
+      } catch { /* flat turf remains */ }
       try {
         // Flag icon follows the 3D flagstick's screen position; once the real flagstick is big
         // enough to see, the icon hides so there's only ever one flag

@@ -895,3 +895,48 @@ export const GROUND_TEXTURES = {
   "tex-sand": () => sand(512, 17, 2),
   "tex-ground": () => plain(512, [203, 210, 190], 19),
 };
+
+// ── Turf colour drift: one soft light/dark mottle laid over the whole rough and the lawns ──
+// The turf patterns above repeat every few metres, so from any distance the rough was one flat green.
+// This is a single small image pinned to the ground (not a repeating tile): broad patches a little
+// darker and a little more sun-bleached, 20-130 m across, clipped to the rough and lawn outlines.
+// Built once per page load; no geometry and no per-frame work.
+let driftCache = null;
+export function turfDrift(features) {
+  if (driftCache) return driftCache;
+  const polys = [];
+  for (const f of features) {
+    const k = f.properties.kind;
+    if (k !== "course" && k !== "lawn") continue;
+    if (f.geometry.type === "Polygon") polys.push(f.geometry.coordinates); else polys.push(...f.geometry.coordinates);
+  }
+  if (!polys.length) return null;
+  let w = Infinity, s = Infinity, e = -Infinity, nn = -Infinity;
+  for (const p of polys) for (const [x, y] of p[0]) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); nn = Math.max(nn, y); }
+  const N = 512, mx = (e - w) * 111320 * Math.cos((s + nn) / 2 * Math.PI / 180), my = (nn - s) * 110574;   // box size in metres
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = N;
+  const x = cv.getContext("2d"), img = x.createImageData(N, N), d = img.data;
+  // smooth value noise in metres (not tileable: the image is used once)
+  const vn = (px, py, cell, seed) => {
+    const gx = px / cell, gy = py / cell, xi = Math.floor(gx), yi = Math.floor(gy), sm = t => t * t * (3 - 2 * t), u = sm(gx - xi), v = sm(gy - yi);
+    return (hash3(xi, yi, seed) * (1 - u) + hash3(xi + 1, yi, seed) * u) * (1 - v) + (hash3(xi, yi + 1, seed) * (1 - u) + hash3(xi + 1, yi + 1, seed) * u) * v;
+  };
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const px = i / N * mx, py = j / N * my, k = (j * N + i) * 4;
+    const v = ((vn(px, py, 130, 41) - 0.5) * 1.0 + (vn(px, py, 55, 43) - 0.5) * 0.8 + (vn(px, py, 22, 47) - 0.5) * 0.55 + (vn(px, py, 9, 53) - 0.5) * 0.3) * 1.5;   // about -1..1
+    if (v < 0) { d[k] = 16; d[k + 1] = 50; d[k + 2] = 20; d[k + 3] = Math.min(0.23, -v * 0.34) * 255; }        // deeper, lusher patches
+    else { d[k] = 200; d[k + 1] = 208; d[k + 2] = 108; d[k + 3] = Math.min(0.24, v * 0.34) * 255; }           // thinner, sun-bleached patches
+  }
+  x.putImageData(img, 0, 0);
+  // keep it on the rough and lawns only (the photo, water and roads outside stay untouched)
+  x.globalCompositeOperation = "destination-in";
+  x.beginPath();
+  for (const p of polys) for (const ring of p) {
+    ring.forEach(([lx, ly], q) => { const X = (lx - w) / (e - w) * N, Y = (nn - ly) / (nn - s) * N; if (q) x.lineTo(X, Y); else x.moveTo(X, Y); });
+    x.closePath();
+  }
+  x.fill("evenodd");
+  driftCache = { url: cv.toDataURL("image/png"), coordinates: [[w, nn], [e, nn], [e, s], [w, s]] };
+  return driftCache;
+}
