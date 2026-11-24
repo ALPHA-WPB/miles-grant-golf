@@ -54,6 +54,8 @@ AREAS = {
                    'cut': [[[5755, 1680], [5830, 1680], [5830, 1770], [5755, 1770]], [[5215, 2115], [5305, 2115], [5305, 2185], [5215, 2185]]],   # tree shade
                    'lawnNear': 25,                                                      # lawn only round the buildings: not the river edge or mangroves
                    'lawnCut': [[[5800, 1320], [5900, 1310], [5975, 1400], [5975, 1560], [5880, 1560], [5810, 1450]]]},   # marsh pond
+    # homes north of hole 17, along the dead-end canal (owner, 2026-11-24); the river-point block east of x=4972 is hand-traced
+    'north-canal': {'box': [3180, -640, 4972, 1130], 'lane_w': 6.0, 'laneOnly': True, 'lawnNear': 22},
 }
 
 
@@ -203,7 +205,7 @@ def detect(name):
     A = AREAS[name]; x0, y0, x1, y1 = A['box']; bx = sbox(x0, y0, x1, y1)
     club, photo = club_px(); C = course_px()
     src = json.load(open(SRC))
-    hand = unary_union([Polygon(e['ring'], e.get('holes', [])).buffer(0) for e in src.get('paved', []) if not e.get('tag', '').startswith('auto:')] or [Polygon()])
+    hand = unary_union([Polygon(g.ring_of(e), e.get('holes', [])).buffer(0) for e in src.get('paved', []) if not e.get('tag', '').startswith('auto:')] or [Polygon()])
     area = bx.intersection(club).difference(photo).difference(C['water']).difference(hand)
     lanes = osm_lanes(club, photo, bx)
     extra = []
