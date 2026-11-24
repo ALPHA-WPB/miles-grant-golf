@@ -94,3 +94,7 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   `res` param in `sand()`, grains and pebbles scale with it): 2x texels per metre in bunkers (adb8c69). Build + eslint
   clean; live index hash changed (deploy ok). All ground textures are now 2x. Section 1 still unticked. Still fake:
   no drift beyond the tile, oak leaf cards, bark/sand have no normal map, flat turf lighting. OWNER: allow the preview server.
+- 2026-11-23 (hi-res run 8): preview server declined a twelfth time, so NO screenshots; low-risk change only.
+  Flag cloth texture 256x176 -> 512x352 (drawn via 2x scale, same layout), anisotropy 4 -> 8, so the hole number stays
+  sharp up close (92e32a8). Build + eslint clean. Shadow map is already 4096. Section 1 still unticked. Still fake: no drift
+  beyond the tile, oak leaf cards, bark/sand have no normal map, flat turf lighting. OWNER: allow the preview server.
