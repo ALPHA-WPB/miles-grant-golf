@@ -43,6 +43,9 @@ Step 1 progress 2026-11-24, run 13 (preview blocked, cost-only): third tree tier
 `isVeryFar` in realScene.js) use about 60% of the far leaf cards (76fb70d). All 18 holes now 2.51-3.50 M on HIGH and 2.41-3.29 M on LOW
 (LOW is under its 2.5 M limit on holes 2, 3, 5, 7 and 15 only). Far detail on a typical hole is now about 1.65 M; 'far < 1.2 M' still NOT met.
 Headroom on HIGH for the near-hole tree upgrade: about 1.0 M on the worst hole (1).
+Step 1 progress 2026-11-24, run 14 (preview blocked, cost-only): building walls drawn as one panel where the roof line above is
+straight, instead of one per metre (a1e817d): buildings 287k -> 268k triangles. All 18 holes now 2.49-3.48 M on HIGH and 2.39-3.27 M
+on LOW. The saving is small because the building triangles are mostly roofs (1 m height grid), not walls. Step 1 stays open.
 No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
 hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
@@ -188,3 +191,14 @@ Each run logs triangles before/after and what still looks fake.
   boot/skirt, bark without a normal map, no drift beyond the turf tile. Next cost-only candidates if the preview stays blocked: the same
   320 m tier for palms (far crowns are ~0.35 M), buildings (0.29 M, walls cut every metre). OWNER: allow the Browser-pane preview server
   so step 1's visible half (and the LOW fix) can be done.
+- 2026-11-24 (hi-res run 14): preview server "miles-grant-golf (preview)" declined (nineteenth time): preview blocked, so one cost
+  reduction only, chosen because it cannot change the picture, proved by count with `tools/course3d/tri_count/run.sh`. a1e817d: building
+  walls were cut into one panel per metre so the wall top could follow the roof; now consecutive metres are drawn as one panel wherever
+  the roof height along them is a straight line to within 1 cm (same flat wall, same colour, same top edge). Buildings 287,465 -> 268,095
+  triangles. Triangles, HIGH, worst hole (1): 3.50 M -> 3.48 M; hole 6: 3.10 M -> 3.08 M; lightest (7): 2.51 M -> 2.49 M. LOW: 2.41-3.29 M
+  -> 2.39-3.27 M (still over 2.5 M on 12 holes). Trees, hedges, tees, greens, windows and roofs untouched. Build + eslint clean. Smaller
+  than hoped (0.02 M): the walls were only about 30k of the buildings' triangles; the rest is the roofs' 1 m height grid, and merging
+  roof cells risks pinhole gaps where a long edge meets short ones, so that needs the preview. Still fake near the hole: oak leaf cards,
+  palm crowns without a boot/skirt, bark without a normal map, no drift beyond the turf tile. Next cost-only candidate if the preview
+  stays blocked: a 320 m tier for palms (far crowns are ~0.35 M). OWNER: allow the Browser-pane preview server so step 1's visible half
+  (and the LOW fix) can be done.
