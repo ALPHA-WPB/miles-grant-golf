@@ -201,7 +201,9 @@ function palmTrunkGeo() {
 // Each building carries its roof outline, its wall line (inside the eaves) and a 1 m grid of roof
 // heights laid out in the building's own direction. The roof is that height field cut to the
 // outline; the walls drop from the roof to the ground along the wall line.
-const WALLS = ["#f4efe4", "#efe6d6", "#f7f3ec", "#e9dfcf", "#f1ead9"];
+// stucco colours of the community (ochre/butter yellow, cream, tan, white), as in the listing photos
+const WALLS = ["#e8c877", "#f1ead9", "#dfc48f", "#f6f2e8", "#e6bf68"];
+const GLASS = new THREE.Color("#2b3d4b"), FRAME = new THREE.Color("#f3f1ea"), DOOR = new THREE.Color("#6a4a33"), RAIL = new THREE.Color("#f2f0e9"), SLAB = new THREE.Color("#cfc9ba"), TRIM = new THREE.Color("#ebe5d4");
 const b64bytes = s => { const b = atob(s), a = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; };
 function insidePoly(x, y, poly) {
   let inside = false;
@@ -231,7 +233,7 @@ function clipToCell(poly, x0, y0, x1, y1) {
 }
 const TILE_ROOF = [new THREE.Color("#a9533a"), new THREE.Color("#bd6446")], FLAT_ROOF = new THREE.Color("#cfc9bd");
 function buildingsGeometry(buildings, toLocal, exaggeration) {
-  const pos = [], col = [];
+  const pos = [], col = [], tmpGlass = new THREE.Color();
   const tri = (a, b, c, k) => { pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); for (let i = 0; i < 3; i++) col.push(k.r, k.g, k.b); };
   buildings.forEach(f => {
     const g = f.properties.g;
@@ -292,6 +294,62 @@ function buildingsGeometry(buildings, toLocal, exaggeration) {
         const ua = u1 + (u2 - u1) * q / parts, va = v1 + (v2 - v1) * q / parts, ub = u1 + (u2 - u1) * (q + 1) / parts, vb = v1 + (v2 - v1) * (q + 1) / parts;
         const a0 = world(ua, va, -1), b0 = world(ub, vb, -1), a1 = world(ua, va, hAt(ua, va) - 0.03), b1 = world(ub, vb, hAt(ub, vb) - 0.03);
         tri(a0, b0, b1, k); tri(a0, b1, a1, k);
+      }
+    }
+    // facade: two-storey stucco with windows. Walls facing the nearest road/lot get the front door and
+    // modest windows; the opposite walls (golf course / lawn side) get big sliding windows and an upper
+    // balcony rail; end walls get a few small windows.
+    const fd = f.properties.fd;
+    let area = 0;
+    for (let i = 0; i < wr.length - 1; i++) { const a = world(wr[i][0], wr[i][1], 0), b = world(wr[i + 1][0], wr[i + 1][1], 0); area += a[0] * b[2] - b[0] * a[2]; }
+    const sgn = area >= 0 ? 1 : -1;
+    for (let i = 0; i < wr.length - 1; i++) {
+      const [ua, va] = wr[i], [ub, vb] = wr[i + 1];
+      const a = world(ua, va, 0), b = world(ub, vb, 0), dx = b[0] - a[0], dz = b[2] - a[2], len = Math.hypot(dx, dz);
+      if (len < 2.6) continue;
+      const eave = Math.min(hAt(ua, va), hAt(ub, vb)) - 0.25;
+      if (eave < 1.3) continue;
+      const tx = dx / len, tz = dz / len, nx = sgn * tz, nz = -sgn * tx;
+      const dot = fd ? nx * fd[0] + (-nz) * fd[1] : 0;
+      const kind = !fd ? "side" : dot > 0.55 ? "front" : dot < -0.55 ? "back" : "side";
+      const floors = eave >= 5.2 ? 2 : 1, base = a[1];
+      // a flat rectangle on the wall: centre distance s along it, floor-relative heights y0..y1, pushed out by off
+      const rect = (s, y0, y1, w, k, off) => {
+        const cx = a[0] + tx * s + nx * off, cz = a[2] + tz * s + nz * off, h = w / 2;
+        const p0 = [cx - tx * h, base + y0, cz - tz * h], p1 = [cx + tx * h, base + y0, cz + tz * h], p2 = [cx + tx * h, base + y1, cz + tz * h], p3 = [cx - tx * h, base + y1, cz - tz * h];
+        tri(p0, p1, p2, k); tri(p0, p2, p3, k);
+      };
+      const win = (s, y0, w, h0, seed) => {
+        const top = floors === 2 && y0 < 3 ? 2.85 : eave - 0.2;       // keep it under the eave; low walls get proportionally smaller windows
+        let h = h0;
+        if (top - y0 < h0 + 0.1) { h = Math.min(h0, Math.max(0.4, (top - (floors === 2 && y0 > 3 ? 2.95 : 0)) * 0.55)); y0 = (floors === 2 && y0 > 3 ? 2.95 : 0) + (top - (floors === 2 && y0 > 3 ? 2.95 : 0) - h) * 0.45; }
+        if (h < 0.4) return;
+        rect(s, y0 - 0.1, y0 + h + 0.1, w + 0.2, FRAME, 0.13);
+        const j = 0.82 + 0.3 * hash3(s, y0, seed);
+        rect(s, y0, y0 + h, w, tmpGlass.copy(GLASS).multiplyScalar(j), 0.2);
+      };
+      const sp = kind === "front" ? 3.4 : kind === "back" ? 4.4 : 5.8, usable = len - 1.2, n = Math.max(1, Math.floor(usable / sp));
+      const door = kind === "front" ? Math.floor(n / 2) : -1;
+      for (let k = 0; k < n; k++) {
+        const s = 0.6 + (k + 0.5) * usable / n;
+        for (let fl = 0; fl < floors; fl++) {
+          const fy = fl === 0 ? 0 : 2.95;
+          if (kind === "front") {
+            if (fl === 0 && k === door) { rect(s, 0, 2.2, 1.35, FRAME, 0.13); rect(s, 0, 2.1, 1.1, DOOR, 0.2); continue; }
+            win(s, fy + 0.95, 1.15, 1.25, k * 3 + fl);
+          } else if (kind === "back") win(s, fy + 0.15, 2.1, 1.95, k * 5 + fl);
+          else win(s, fy + 1.0, 0.95, 1.2, k * 7 + fl);
+        }
+      }
+      if (floors === 2) {
+        rect(len / 2, 2.8, 3.1, len - 0.2, TRIM, 0.1);                        // floor band
+        if (kind === "back") {                                                 // balcony: slab + rail along the upper floor
+          const L = len - 1.0, m0 = [a[0] + tx * (len - L) / 2, base + 3.0, a[2] + tz * (len - L) / 2], m1 = [m0[0] + tx * L, m0[1], m0[2] + tz * L];
+          const o0 = [m0[0] + nx * 0.55, m0[1], m0[2] + nz * 0.55], o1 = [m1[0] + nx * 0.55, m1[1], m1[2] + nz * 0.55];
+          tri(m0, m1, o1, SLAB); tri(m0, o1, o0, SLAB);
+          const r0 = [o0[0], o0[1] + 0.95, o0[2]], r1 = [o1[0], o1[1] + 0.95, o1[2]];
+          tri(o0, o1, r1, RAIL); tri(o0, r1, r0, RAIL);
+        }
       }
     }
   });

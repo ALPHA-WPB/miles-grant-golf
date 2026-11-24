@@ -509,6 +509,18 @@ for c, ps in by_c.items():
     u = unary_union(ps)
     add(u, _prec=6, kind='paved', s='asphalt' if c == 'lot' else c)
     if c == 'lot': asphalt_u = u
+# Which way each building faces: unit vector (east, north) from its centre to the nearest road or parking lot
+# within 80 m. realScene puts the front door and entrance-side windows on the walls that face it, and the big
+# windows and balconies on the opposite (golf course / lawn) side.
+from shapely.ops import nearest_points
+_drive = unary_union([g for g in (asphalt, asphalt_u) if not g.is_empty])
+for f in feats:
+    if f['properties']['kind'] != 'building' or _drive.is_empty: continue
+    _c = Polygon(f['geometry']['coordinates'][0]).centroid
+    _p = nearest_points(_c, _drive)[1]
+    _dx, _dy = (_p.x - _c.x) * M_PER_DEG * math.cos(math.radians(_c.y)), (_p.y - _c.y) * M_PER_DEG
+    _d = math.hypot(_dx, _dy)
+    if 1 < _d < 80: f['properties']['fd'] = [round(_dx / _d, 3), round(_dy / _d, 3)]
 for pa in traced.get('photoAreas', []):     # the aerial photo shows through here, with its baked tree shadows and blur: lay flat lawn under it
     add(Polygon(pa['ring']).buffer(0).difference(lakes_u).simplify(0.3 / M_PER_DEG), _prec=6, kind='lawn')
 if GR.get('lawns'):
