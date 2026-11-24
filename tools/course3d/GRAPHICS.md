@@ -279,3 +279,13 @@ Each run logs triangles before/after and what still looks fake.
   +1 pool, lawn and paving changed, 5 buildings re-faced toward the new paving, 1 oak dropped (it stood on the garage court); terrain tiles
   identical. Not done: the boathouse roof on the second dock (flat photo), the screen-caged pool, the kayak rack, the homes further west
   along the canal (still photo ground, the lawn stops at a straight line at course-pixel x=4972), mangroves along the shore are drawn as lawn.
+- 2026-11-24 (owner: "Yes, do those"; WITH PREVIEW): homes north of hole 17 along the dead-end canal (clubExtra ring 2 west of the river-point
+  block), 10397ea. New `estate_kit.py` area 'north-canal' (box 3180,-640..4972,1130, laneOnly, lawnNear 22): 9 OSM lanes as asphalt, 53 of 58
+  detected driveways/walks kept (dropped: four on the course, including hole 17's wavy bunker chain and a path, and one white roof the LiDAR
+  lacks), 9 pools, lawn within 22 m of buildings and paving. The lawn is cut 7 m back from the drawn canal water so the seawalls, docks and
+  moored boats stay photo. Entries are tagged 'north-canal homes' in grounds_px.json (NOT 'auto:': `estate_kit.py add` deletes every 'auto:'
+  entry whose .work/estate_*.json is missing, which is all of them in a fresh clone; do not run it without re-running detect for every area).
+  estate_kit.detect also fixed for hand-traced shapes without a plain ring. Data diff: +9 pools, lawn and paving changed, 41 buildings
+  re-faced toward the streets, 1 palm dropped (stood on a lane); terrain tiles identical. Checked top-down and tilted in the preview; no photo
+  tile errors. Not done / least certain: driveways were detected by colour and not checked one by one; tree-covered yards are plain lawn with
+  only the detected trees; the canal's docks are photo, not 3D; homes north of the street (outside the club outline) are untouched photo.
