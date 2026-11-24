@@ -37,8 +37,8 @@ function oakVariants(low = false, far = false) {
     o.branch.angle[1] = Math.min(80, (o.branch.angle[1] || 50) + 14);
     o.branch.angle[2] = Math.min(75, (o.branch.angle[2] || 50) + 8);
     o.branch.length[1] *= 1.15;
-    o.leaves.count = Math.max(far === 2 ? 2 : far ? 4 : 7, Math.round(o.leaves.count * (far === 2 ? 0.08 : far ? 0.16 : low ? 0.35 : 0.7)));   // Low graphics: half the leaf cards, bigger so the canopy still fills
-    o.leaves.size *= far === 2 ? 5.7 : far ? 4.4 : low ? 3.1 : 2.3;
+    o.leaves.count = Math.max(far === 2 ? 2 : far ? 4 : 7, Math.round(o.leaves.count * (far === 2 ? 0.08 : far ? 0.16 : low ? 0.35 : 1.2)));   // near the hole on HIGH: about 1.6x the leaf cards of before (0.7 -> 1.2), each a little smaller (2.3 -> 2.0), so the crown is a closed canopy, not tufts with sky between them. Low graphics: half the leaf cards, bigger so the canopy still fills
+    o.leaves.size *= far === 2 ? 5.7 : far ? 4.4 : low ? 3.1 : 2.0;
     o.leaves.billboard = "single";
     o.branch.children[2] = Math.max(2, (o.branch.children[2] || 3) - 1);
     for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * (far ? 0.4 : 0.6)));
