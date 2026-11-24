@@ -103,3 +103,8 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   (593dae0), so oak foliage and trunks stay sharp at oblique angles; no new downloads. Build + eslint clean; live index
   hash changed (deploy ok). Section 1 still unticked. Still fake: no drift beyond the tile, oak leaf cards, flat turf
   lighting, sand has no normal map. OWNER: allow the preview server.
+- 2026-11-24 (hi-res run 10): preview server declined a fourteenth time, so NO screenshots; low-risk change only.
+  Flagpole cylinder 10 -> 20 segments so its silhouette is round up close (26355d0). Build + eslint clean; live index hash
+  changed (BoV-Vrlc -> DZBUNrS2, deploy ok). Ground textures, shadow map (4096) and anisotropy already maxed out for the
+  safe range. Section 1 still unticked. Still fake: no drift beyond the tile, oak leaf cards, flat turf lighting, sand/bark
+  have no normal map. OWNER: allow the preview server so bigger changes can be verified.
