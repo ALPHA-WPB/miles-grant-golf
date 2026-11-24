@@ -169,6 +169,10 @@ function palmCrown(seed, far = false) {
         const tip = base.clone().addScaledVector(dir, len).add(V(0, -len * 0.3 * droop, 0));
         const across = new THREE.Vector3().crossVectors(dir, tan).normalize().multiplyScalar(w);
         const tint = c.setHSL(0.22 + (r() - 0.5) * 0.03, 0.42 + r() * 0.12, (0.3 + r() * 0.08) * shade).clone();
+        if (far) {   // far palms: one straight card per leaflet (the bend at mid-length cannot be seen from 160 m away); half the crown's triangles
+          quad(base.clone().addScaledVector(across, -0.7), base.clone().addScaledVector(across, 0.7), tip.clone().addScaledVector(across, 0.6), tip.clone().addScaledVector(across, -0.6), tint);
+          continue;
+        }
         quad(base.clone().sub(across.clone().multiplyScalar(0.4)), base.clone().add(across.clone().multiplyScalar(0.4)),
              mid.clone().add(across), mid.clone().sub(across), tint);
         quad(mid.clone().sub(across), mid.clone().add(across), tip.clone().addScaledVector(across, 0.15), tip.clone().addScaledVector(across, -0.15), tint);
