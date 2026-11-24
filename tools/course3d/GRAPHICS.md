@@ -35,6 +35,10 @@ far oak leaves ~0.5 M, far palms ~0.4 M, buildings 0.29 M), so the 'far < 1.2 M'
 (the visible half of step 1) still needs a run with a working preview. Step 1 stays open.
 **GFX LOW is over budget:** 3.0-3.8 M measured against the 2.5 M limit (LOW only halves near oak leaves and drops shadows; palms and
 limbs are the same as HIGH). Fixing it means lighter NEAR trees on LOW, a visible change, so it needs the preview too.
+Step 1 progress 2026-11-24, run 12 (preview blocked, cost-only): far oaks no longer draw their last level of twigs (b32f7e9), limbs
+1020/756 -> 354/348 triangles. All 18 holes now 2.67-3.64 M on HIGH and 2.57-3.43 M on LOW. Far detail is now about 1.8 M on a typical
+hole (far oak leaves ~0.5 M, far palms ~0.35 M, buildings 0.29 M, far oak limbs ~0.25 M, hedges 0.08 M); 'far < 1.2 M' still NOT met.
+LOW is still over its 2.5 M limit on every hole. Headroom on HIGH for the near-hole tree upgrade: about 0.85 M on the worst hole (1).
 No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
 hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
@@ -160,3 +164,13 @@ Each run logs triangles before/after and what still looks fake.
   FOUND: GFX LOW is 3.0-3.8 M, over its 2.5 M limit (see Resolution plan). Still fake near the hole: oak leaf cards, palm crowns
   without a boot/skirt, bark without a normal map, no drift beyond the turf tile. Not looked at on screen: far palms and far hedges
   after this change. OWNER: allow the Browser-pane preview server so step 1's visible half (and the LOW fix) can be done.
+- 2026-11-24 (hi-res run 12): preview server "miles-grant-golf (preview)" declined (seventeenth time): preview blocked, so one cost
+  reduction away from the hole only, proved by count with `tools/course3d/tri_count/run.sh`. b32f7e9: far oaks (more than 160 m from the
+  hole's line) still generate their last level of twigs, so the leaf cards grow in exactly the same places, but the twigs themselves are
+  not drawn (limb mesh 1020/756 -> 354/348 triangles per tree). Triangles, HIGH, worst hole (1): 4.02 M -> 3.64 M; hole 6: 3.63 M ->
+  3.25 M; lightest (7): 3.11 M -> 2.67 M. LOW: 3.0-3.8 M -> 2.57-3.43 M (still over 2.5 M). Near-hole trees, leaves, palms, hedges, tees
+  and greens untouched. Build + eslint clean; live index COcY6gZ2 -> BBkPFJ0O (deploy ok). Not looked at on screen: far oaks after this
+  change (risk: on a far oak seen against the sky, a leaf card may appear to float a little off its branch). Still fake near the hole: oak
+  leaf cards, palm crowns without a boot/skirt, bark without a normal map, no drift beyond the turf tile. Next cost-only candidates if the
+  preview stays blocked: far oak leaves (0.5 M), far palm crowns (0.3 M). OWNER: allow the Browser-pane preview server so step 1's
+  visible half (and the LOW fix) can be done.
