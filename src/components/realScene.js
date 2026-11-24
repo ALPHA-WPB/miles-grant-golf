@@ -137,7 +137,8 @@ function trunkTexture() {
 
 // Crown geometry in unit-height space: arching fronds (some young and upright, some old and
 // hanging), each with leaflets on both sides that droop from the stem
-function palmCrown(seed, far = false) {
+// far: 0 = near the hole (full detail), 1 = beyond NEAR, 2 = beyond FAR2 (a crown about a dozen pixels wide on a phone)
+function palmCrown(seed, far = 0) {
   const r = rng(seed);
   const pos = [], uv = [], col = [], idx = [];
   const c = new THREE.Color();
@@ -150,7 +151,7 @@ function palmCrown(seed, far = false) {
   };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const top = V(0.035, 1, 0);
-  const nF = far ? 10 : 17;      // far palms: fewer fronds and leaflets, each leaflet wider so the crown reads the same
+  const nF = far === 2 ? 7 : far ? 10 : 17;      // far palms: fewer fronds and leaflets, each leaflet wider so the crown reads the same
   for (let f = 0; f < nF; f++) {
     const az = (f / nF) * Math.PI * 2 + r() * 0.35;
     const tier = f % 3;                                   // 0 young/upright, 1 spreading, 2 old/hanging
@@ -159,7 +160,7 @@ function palmCrown(seed, far = false) {
     const dirH = V(Math.cos(az), 0, Math.sin(az));
     const start = top.clone().add(V(0, -0.015 * tier, 0));
     const pts = [], tans = [];
-    const N = far ? 5 : 14;
+    const N = far === 2 ? 3 : far ? 5 : 14;
     for (let j = 0; j <= N; j++) {
       const s = (j / N) * L;
       const rise = Math.sin(elev) * s - (tier === 2 ? 1.8 : 1.0) * s * s;
@@ -175,13 +176,13 @@ function palmCrown(seed, far = false) {
       quad(pts[j].clone().sub(side), pts[j].clone().add(side), pts[j + 1].clone().add(side), pts[j + 1].clone().sub(side), stemTint);
     }
     // leaflets
-    const nL = far ? 9 : 26;
+    const nL = far === 2 ? 7 : far ? 9 : 26;
     for (let k = 2; k < nL; k++) {
       const t = k / nL, j = Math.min(N - 1, Math.floor(t * N)), fr = t * N - j;
       const base = pts[j].clone().lerp(pts[j + 1], fr), tan = tans[j];
       const sideV = new THREE.Vector3().crossVectors(tan, V(0, 1, 0)).normalize();
       const len = 0.16 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.08)), 0.7) + 0.02;
-      const w = (0.0075 + 0.004 * (1 - t)) * (far ? 2.6 : 1);
+      const w = (0.0075 + 0.004 * (1 - t)) * (far === 2 ? 4 : far ? 2.6 : 1);
       for (const sd of [-1, 1]) {
         const droop = tier === 0 ? 0.25 : tier === 1 ? 0.55 : 0.85;
         const dir = sideV.clone().multiplyScalar(sd * 0.72).addScaledVector(tan, 0.42).add(V(0, -droop * (0.4 + t * 0.6), 0)).normalize();
@@ -208,8 +209,8 @@ function palmCrown(seed, far = false) {
   return g;
 }
 
-function palmTrunkGeo(far = false) {
-  const g = new THREE.CylinderGeometry(0.016, 0.03, 1, far ? 6 : 12, far ? 5 : 20, true);
+function palmTrunkGeo(far = 0) {
+  const g = new THREE.CylinderGeometry(0.016, 0.03, 1, far === 2 ? 5 : far ? 6 : 12, far === 2 ? 3 : far ? 5 : 20, true);
   g.translate(0, 0.5, 0);
   const p = g.attributes.position, uvA = g.attributes.uv;
   for (let k = 0; k < p.count; k++) {
@@ -529,8 +530,10 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         palmTrunks.castShadow = true; palmTrunks.frustumCulled = false;
         scene.add(palmTrunks);
       };
-      placePalms(palms.filter(isNear), false);
-      placePalms(palms.filter(f => !isNear(f)), true);
+      placePalms(palms.filter(isNear), 0);
+      placePalms(palms.filter(f => !isNear(f) && !isVeryFar(f)), 1);
+      // palms more than FAR2 from the hole's line: 7 fronds of 10 wide leaflets (182 triangles, was 380) on a 30-triangle trunk (was 60)
+      placePalms(palms.filter(isVeryFar), 2);
 
       // Hedges: thick shrub rows traced by hand (e.g. behind back yards), a solid leafy wall from
       // the ground up, so only the roofs of the houses behind them show
