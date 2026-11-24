@@ -89,3 +89,8 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   change (rules: keep a visual change only if verified against before/after). Section 1 (TURF) still unticked; earlier
   blind tweaks (5558ffa, 4f689cb, bf356a0 and the hi-res runs) remain unverified. OWNER DECISION: set "always allow" for the
   Browser-pane server "miles-grant-golf (dev)", or tell the run it may ship unverified visual changes.
+- 2026-11-23 (hi-res run 7): preview server declined an eleventh time, so NO screenshots; low-risk change only.
+  Sand (bunker) texture 512 -> 1024 px and ground texture 256 -> 512 px, same ground footprint (pixelRatio 4, new
+  `res` param in `sand()`, grains and pebbles scale with it): 2x texels per metre in bunkers (adb8c69). Build + eslint
+  clean; live index hash changed (deploy ok). All ground textures are now 2x. Section 1 still unticked. Still fake:
+  no drift beyond the tile, oak leaf cards, bark/sand have no normal map, flat turf lighting. OWNER: allow the preview server.
