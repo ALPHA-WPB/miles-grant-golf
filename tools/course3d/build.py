@@ -314,6 +314,12 @@ for i, b in enumerate(LIDAR_B):
 BRIDGES = json.load(open(os.path.join(HERE, 'lidar', 'bridges.json')))
 for b in BRIDGES:
     add(Polygon(b['ring']), kind='bridge', deck=b['deck'])
+for dk in traced.get('docks', []):      # private docks traced on the photo: a straight run -> a deck rectangle of its width
+    (lng1, lat1), (lng2, lat2) = dk['line']
+    ky = 111320.0; kx = ky * math.cos(math.radians(lat1))
+    dx, dy = (lng2 - lng1) * kx, (lat2 - lat1) * ky
+    n = math.hypot(dx, dy); ox, oy = -dy / n * dk['w'] / 2 / kx, dx / n * dk['w'] / 2 / ky
+    add(Polygon([(lng1 + ox, lat1 + oy), (lng2 + ox, lat2 + oy), (lng2 - ox, lat2 - oy), (lng1 - ox, lat1 - oy)]), kind='bridge', deck=dk['deck'], dock=1)
 # Lakes: shorelines from the hydro-flattened LiDAR terrain (lidar_water.py); the river is left to
 # the aerial photo
 lakes = []

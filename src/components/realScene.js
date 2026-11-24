@@ -428,7 +428,8 @@ function bridgesGeometry(bridges, toLocal, exaggeration) {
   bridges.forEach(f => {
     const r = f.geometry.coordinates[0].slice(0, 4).map(([lng, lat]) => toLocal(lng, lat)), y = (f.properties.z || 0) * exaggeration;
     const d01 = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]), d12 = Math.hypot(r[2][0] - r[1][0], r[2][1] - r[1][1]);
-    const long = d01 >= d12, L = Math.max(d01, d12) + 3, Wd = Math.max(2.6, Math.min(d01, d12));
+    const dock = !!f.properties.dock;     // private docks: the traced length and width, planks on piles, no rails
+    const long = d01 >= d12, L = Math.max(d01, d12) + (dock ? 0 : 3), Wd = dock ? Math.min(d01, d12) : Math.max(2.6, Math.min(d01, d12));
     const cx = (r[0][0] + r[2][0]) / 2, cz = (r[0][1] + r[2][1]) / 2;
     const a = long ? Math.atan2(r[1][1] - r[0][1], r[1][0] - r[0][0]) : Math.atan2(r[2][1] - r[1][1], r[2][0] - r[1][0]);
     const box = (w, h, d, ox, oy, oz, hex) => {
@@ -438,6 +439,12 @@ function bridgesGeometry(bridges, toLocal, exaggeration) {
       b.setAttribute("color", new THREE.BufferAttribute(c, 3)); b.deleteAttribute("uv");
       geos.push(b);
     };
+    if (dock) {
+      box(L, 0.16, Wd, 0, -0.08, 0, "#a08a6a");                                  // weathered plank deck
+      const n = Math.max(1, Math.round(L / 3.2));
+      for (const side of [-1, 1]) for (let q = 0; q <= n; q++) box(0.22, 4.1, 0.22, -L / 2 + q * L / n, -1.6, side * (Wd / 2 + 0.06), "#5f5140");   // piles: 0.45 m above the deck, down into the water
+      return;
+    }
     box(L, 0.3, Wd, 0, -0.15, 0, "#9a7b55");                                     // deck
     for (const side of [-1, 1]) {
       box(L, 0.1, 0.12, 0, 1.0, side * (Wd / 2 - 0.06), "#7d6242");              // top rail
