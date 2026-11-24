@@ -861,7 +861,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
         }
         for (const u of urls.slice(0, 450)) {
           if (!navigator.onLine) return;
-          await fetch(u, { mode: 'no-cors' }).catch(() => {});
+          await fetch(u, { mode: 'cors' }).catch(() => {});   // cors, so the saved copy is readable by the 3D map too (an opaque no-cors copy is not)
         }
       } catch { /* best effort */ }
     }, 10000);

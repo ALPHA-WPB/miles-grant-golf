@@ -25,9 +25,12 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       const cache = await caches.open(TILES);
       const hit = await cache.match(req);
-      if (hit) return hit;
+      // A tile saved from a no-cors request is "opaque": fine for a plain <img>, but the 3D map reads tiles with a
+      // CORS request and an opaque copy makes that request fail (the tile then stays blurry for good). So an opaque
+      // copy is only handed to no-cors requests; anything else fetches a readable copy and replaces it.
+      if (hit && (hit.type !== 'opaque' || req.mode === 'no-cors')) return hit;
       const res = await fetch(req);
-      if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+      if (res && (res.ok || (res.type === 'opaque' && !hit))) cache.put(req, res.clone());
       return res;
     })());
     return;
