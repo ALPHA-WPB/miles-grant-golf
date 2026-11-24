@@ -495,7 +495,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       if (pin) {
         const [px, pz] = toLocal(pin.lng, pin.lat), py = pin.z || 0;
         const white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.5 });
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 2.13, 10), white);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 2.13, 20), white);
         pole.position.set(px, py + 2.13 / 2, pz);
         // White flag with the hole number on both sides; its cloth ripples in the wind (render())
         const flagTex = (() => {
