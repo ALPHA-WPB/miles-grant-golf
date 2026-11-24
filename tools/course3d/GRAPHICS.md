@@ -241,3 +241,7 @@ Each run logs triangles before/after and what still looks fake.
   ground. Seen but not changed: hole 1's green is pear-shaped on the zoom-20 photo (wider at the south end), the traced oval is close but
   symmetric; that is step 4's job. Still fake near hole 1: oak leaf cards, palm crowns without a boot/skirt, bark without a normal map, no drift
   beyond the turf tile, tees have no bank or markers. OWNER: allow the Browser-pane preview server so the visible steps can be done.
+- 2026-11-24 (owner session, after run 16): the owner allowed the Browser-pane server "miles-grant-golf (preview)"; it started and the
+  3D view of hole 1 loaded on a 375x812 viewport. `window.__mggSceneStats.triangles` on hole 1, GFX HIGH: 3,339,875 (the no-browser
+  counter says 3.38 M). The re-traced tees (e172b56) draw correctly from the tee camera; no new console errors (only the expected local
+  404s). PREVIEW WORKS NOW: the next run should do hole 1's visible step 1 (near-hole trees) with before/after screenshots.
