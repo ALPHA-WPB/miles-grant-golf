@@ -46,6 +46,10 @@ Headroom on HIGH for the near-hole tree upgrade: about 1.0 M on the worst hole (
 Step 1 progress 2026-11-24, run 14 (preview blocked, cost-only): building walls drawn as one panel where the roof line above is
 straight, instead of one per metre (a1e817d): buildings 287k -> 268k triangles. All 18 holes now 2.49-3.48 M on HIGH and 2.39-3.27 M
 on LOW. The saving is small because the building triangles are mostly roofs (1 m height grid), not walls. Step 1 stays open.
+Step 1 progress 2026-11-24, run 15, HOLE 1 (preview blocked, cost-only): third tier for palms too. Palms more than 320 m from the hole's
+line use a 182-triangle crown and a 30-triangle trunk (0d61b9f). Hole 1: 3.48 M -> 3.38 M on HIGH, 3.27 M -> 3.17 M on LOW. All 18 holes now
+2.34-3.38 M on HIGH and 2.22-3.17 M on LOW (LOW is under 2.5 M on holes 2, 3, 5, 7, 8, 11, 12, 13, 15, 16). Headroom on HIGH for hole 1's
+near-tree upgrade: about 1.1 M. Hole 1's step 1 stays open: its visible half still needs the preview.
 No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
 hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
@@ -213,3 +217,15 @@ Each run logs triangles before/after and what still looks fake.
   check; build 1c4f3eb9), although `vite build` passes locally and the previous push (63980e7) built fine. This log line is pushed as a
   second attempt; if the live index-*.js is still BkJfsXFB afterwards, the cause is on the Cloudflare side (build quota or an outage),
   not the code. OWNER: open the Workers Builds page for miles-grant-golf and read the failed build.
+
+- 2026-11-24 (hi-res run 15, HOLE 1, step 1 trees): preview server "miles-grant-golf (preview)" declined (twentieth time): preview blocked, so
+  one cost reduction away from the hole only, proved by count with `tools/course3d/tri_count/run.sh`. 0d61b9f: palms more than 320 m from the
+  hole's tee-to-green line (`isVeryFar`) draw 7 fronds of 10 leaflets instead of 10 of 14 (crown 380 -> 182 triangles, leaflets 1.5x wider so
+  the crown covers about the same area) on a 5-sided, 3-ring trunk (60 -> 30 triangles). Palms within 320 m (near and far tiers) are exactly as
+  before. Triangles, HIGH, hole 1: 3.48 M -> 3.38 M; hole 18: 3.25 M -> 3.13 M; lightest (3): 2.50 M -> 2.34 M. LOW, hole 1: 3.27 M -> 3.17 M
+  (still over 2.5 M on holes 1, 4, 6, 9, 10, 14, 17, 18). Build + eslint clean; live index C8Qt94Lt -> BYtmigPu (deploy ok). Not looked at on
+  screen: palms beyond 320 m after this change (risk: thinner-looking crowns on the horizon; revert 0d61b9f if so). Still fake near hole 1: oak
+  leaf cards, palm crowns without a boot/skirt, bark without a normal map, no drift beyond the turf tile. Far trees are now three tiers for
+  both oaks and palms, so little cost-only work is left in trees; if the preview stays blocked, the next allowed job on hole 1 is re-tracing
+  its tees and green at zoom 20 (`trace_kit.py check 1`). OWNER: allow the Browser-pane preview server so hole 1's visible tree upgrade (and
+  the LOW fix) can be done.
