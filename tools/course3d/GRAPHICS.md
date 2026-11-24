@@ -16,6 +16,34 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
 - One section per run, one commit, pushed to main (auto-deploys). Log what changed below, with what
   still looks fake, so the next run can pick it up.
 
+## Resolution plan (owner, 2026-11-24): keep raising detail inside the perimeter road, the course first
+
+Measured 2026-11-24 (desktop preview, hole 6): the 3D layer drew **8.7 million triangles every frame**, because every
+tree on the property was drawn at full detail whatever hole was open (palm crowns 4.0 M, oak leaves 2.2 M, oak limbs
+1.5 M, palm trunks 0.5 M, buildings 0.3 M, hedges 0.2 M), and the page's JS heap sat at 0.7-1.5 GB. That is the likely
+cause of phones reloading the tab between holes. Blind texture doubling made it worse, not better.
+
+**Budget (hard rule for every run):** `window.__mggSceneStats.triangles` (set by realScene.js when a hole opens) stays
+**under 4.5 million on GFX HIGH** and under 2.5 million on GFX LOW. Detail may only be added where the player is: trees
+within `NEAR` (160 m) of the hole's tee-to-green line, the hole's own tees/fairway/green. Anything added near must be
+paid for by trimming far detail. No texture or shadow-map size increases without a measured before/after.
+
+Done 2026-11-24: near/far tree detail (`isNear` in realScene.js; far oaks and palms are light versions). 8.7 M -> 4.0 M.
+
+Order of work (one step per run, each checked by before/after screenshot from the same camera, phone-size viewport):
+1. TREES near the hole: fuller oak crowns (more, smaller leaf cards), palm fronds with more leaflets and a boot/skirt
+   under the crown, trunk bark normal map; pay for it by making far trees cheaper still (target far < 1.2 M).
+2. GRASS: fine blade detail only near the camera (a second, small-scale turf layer that fades out past ~60 m), soft
+   large-scale colour drift so the tile never repeats visibly, rough clearly coarser than fairway.
+3. TEE BOXES: re-trace every tee at photo zoom 20 (square corners, true size), flat cut top with a crisp edge and a
+   slightly raised bank, tee markers per tee colour.
+4. GREENS: re-trace edges at zoom 20, smooth the outline (no straight facets), collar and fringe as true-width rings,
+   cross-cut mowing pattern, hole cup and shadow.
+5. FAIRWAYS and BUNKERS: stripe direction per hole, feathered first cut; bunker lips with height and a raked floor.
+6. TERRAIN: finer height mesh under the hole being played (the LiDAR is 0.76 m; the app mesh is coarser).
+7. Then the grounds inside the perimeter road: buildings (per-building colours, roofs), lanes, water edges.
+Each run logs triangles before/after and what still looks fake.
+
 ## Sections
 - [ ] 1. TURF — "cleaner grass": the blade-stroke textures read as noise. Fine, soft turf with
   gentle large-scale colour drift; rough slightly darker and coarser than fairway; no visible tiling.
@@ -108,3 +136,4 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   changed (BoV-Vrlc -> DZBUNrS2, deploy ok). Ground textures, shadow map (4096) and anisotropy already maxed out for the
   safe range. Section 1 still unticked. Still fake: no drift beyond the tile, oak leaf cards, flat turf lighting, sand/bark
   have no normal map. OWNER: allow the preview server so bigger changes can be verified.
+- 2026-11-24 (owner session): hi-res job paused, measured, near/far tree LOD shipped (8.7 M -> 4.0 M triangles per frame, same look near the hole). `window.__mggSceneStats` added for the budget. See 'Resolution plan' above. JS heap baseline still ~1.2 GB in the preview: not yet explained (suspect per-frame garbage in the three.js render of the instanced trees, about 5 MB a frame).

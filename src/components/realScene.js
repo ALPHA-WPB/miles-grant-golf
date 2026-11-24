@@ -22,8 +22,10 @@ const color = hex => new THREE.Color(hex);
 // ── Broadleaf trees: real branching trunks with bark textures and photographic leaf cards ──
 // (ez-tree). A few shapes are generated once and reused for every oak, each scaled to its
 // measured canopy. Leaf and branch counts are trimmed so hundreds of trees run on a phone.
-function oakVariants(low = false) {
-  return ["Oak Medium", "Oak Medium", "Oak Small", "Oak Medium"].map((name, i) => {
+function oakVariants(low = false, far = false) {
+  // far: trees away from the hole being played. Same silhouettes, a fraction of the triangles (fewer, bigger leaf
+  // cards and coarser limbs), so the detail budget goes to the trees the player actually stands next to.
+  return (far ? ["Oak Medium", "Oak Small"] : ["Oak Medium", "Oak Medium", "Oak Small", "Oak Medium"]).map((name, i) => {
     const tree = new Tree();
     tree.loadPreset(name);
     const o = tree.options;
@@ -33,12 +35,12 @@ function oakVariants(low = false) {
     o.branch.angle[1] = Math.min(80, (o.branch.angle[1] || 50) + 14);
     o.branch.angle[2] = Math.min(75, (o.branch.angle[2] || 50) + 8);
     o.branch.length[1] *= 1.15;
-    o.leaves.count = Math.max(7, Math.round(o.leaves.count * (low ? 0.35 : 0.7)));   // Low graphics: half the leaf cards, bigger so the canopy still fills
-    o.leaves.size *= low ? 3.1 : 2.3;
+    o.leaves.count = Math.max(far ? 4 : 7, Math.round(o.leaves.count * (far ? 0.16 : low ? 0.35 : 0.7)));   // Low graphics: half the leaf cards, bigger so the canopy still fills
+    o.leaves.size *= far ? 4.4 : low ? 3.1 : 2.3;
     o.leaves.billboard = "single";
     o.branch.children[2] = Math.max(2, (o.branch.children[2] || 3) - 1);
-    for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.6));
-    for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(1, Math.round(o.branch.sections[k] * 0.6));
+    for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * (far ? 0.4 : 0.6)));
+    for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(1, Math.round(o.branch.sections[k] * (far ? 0.3 : 0.6)));
     tree.generate();
     const bGeo = tree.branchesMesh.geometry, lGeo = tree.leavesMesh.geometry;
     lGeo.computeBoundingBox(); bGeo.computeBoundingBox();
@@ -115,7 +117,7 @@ function trunkTexture() {
 
 // Crown geometry in unit-height space: arching fronds (some young and upright, some old and
 // hanging), each with leaflets on both sides that droop from the stem
-function palmCrown(seed) {
+function palmCrown(seed, far = false) {
   const r = rng(seed);
   const pos = [], uv = [], col = [], idx = [];
   const c = new THREE.Color();
@@ -128,7 +130,7 @@ function palmCrown(seed) {
   };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const top = V(0.035, 1, 0);
-  const nF = 17;
+  const nF = far ? 10 : 17;      // far palms: fewer fronds and leaflets, each leaflet wider so the crown reads the same
   for (let f = 0; f < nF; f++) {
     const az = (f / nF) * Math.PI * 2 + r() * 0.35;
     const tier = f % 3;                                   // 0 young/upright, 1 spreading, 2 old/hanging
@@ -137,7 +139,7 @@ function palmCrown(seed) {
     const dirH = V(Math.cos(az), 0, Math.sin(az));
     const start = top.clone().add(V(0, -0.015 * tier, 0));
     const pts = [], tans = [];
-    const N = 14;
+    const N = far ? 5 : 14;
     for (let j = 0; j <= N; j++) {
       const s = (j / N) * L;
       const rise = Math.sin(elev) * s - (tier === 2 ? 1.8 : 1.0) * s * s;
@@ -153,13 +155,13 @@ function palmCrown(seed) {
       quad(pts[j].clone().sub(side), pts[j].clone().add(side), pts[j + 1].clone().add(side), pts[j + 1].clone().sub(side), stemTint);
     }
     // leaflets
-    const nL = 26;
+    const nL = far ? 9 : 26;
     for (let k = 2; k < nL; k++) {
       const t = k / nL, j = Math.min(N - 1, Math.floor(t * N)), fr = t * N - j;
       const base = pts[j].clone().lerp(pts[j + 1], fr), tan = tans[j];
       const sideV = new THREE.Vector3().crossVectors(tan, V(0, 1, 0)).normalize();
       const len = 0.16 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.08)), 0.7) + 0.02;
-      const w = 0.0075 + 0.004 * (1 - t);
+      const w = (0.0075 + 0.004 * (1 - t)) * (far ? 2.6 : 1);
       for (const sd of [-1, 1]) {
         const droop = tier === 0 ? 0.25 : tier === 1 ? 0.55 : 0.85;
         const dir = sideV.clone().multiplyScalar(sd * 0.72).addScaledVector(tan, 0.42).add(V(0, -droop * (0.4 + t * 0.6), 0)).normalize();
@@ -182,8 +184,8 @@ function palmCrown(seed) {
   return g;
 }
 
-function palmTrunkGeo() {
-  const g = new THREE.CylinderGeometry(0.016, 0.03, 1, 12, 20, true);
+function palmTrunkGeo(far = false) {
+  const g = new THREE.CylinderGeometry(0.016, 0.03, 1, far ? 6 : 12, far ? 5 : 20, true);
   g.translate(0, 0.5, 0);
   const p = g.attributes.position, uvA = g.attributes.uv;
   for (let k = 0; k < p.count; k++) {
@@ -393,7 +395,7 @@ function bridgesGeometry(bridges, toLocal, exaggeration) {
   return geo;
 }
 
-export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d", low = false) {
+export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d", low = false, focus = null) {
   const trees = course.features.filter(f => f.properties.kind === "tree");
   const buildings = course.features.filter(f => f.properties.kind === "building");
   const allPts = trees.map(f => f.geometry.coordinates);
@@ -425,12 +427,23 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       const dummy = new THREE.Object3D(), tmpColor = new THREE.Color();
       const oaks = trees.filter(f => f.properties.type !== "palm"), palms = trees.filter(f => f.properties.type === "palm");
 
+      // Detail where the player is: trees within NEAR metres of this hole's tee-to-green line are drawn in full
+      // detail; the rest of the property (the same trees, seen from far away or not at all) in a light version.
+      // Drawing every tree on the property at full detail was ~8.7 million triangles a frame.
+      const NEAR = 160;
+      const fa = focus && toLocal(...focus[0]), fb = focus && toLocal(...focus[1]);
+      const isNear = f => {
+        if (!focus) return true;
+        const [x, z] = toLocal(...f.geometry.coordinates), dx = fb[0] - fa[0], dz = fb[1] - fa[1];
+        const t = Math.max(0, Math.min(1, ((x - fa[0]) * dx + (z - fa[1]) * dz) / (dx * dx + dz * dz || 1)));
+        return Math.hypot(x - fa[0] - t * dx, z - fa[1] - t * dz) <= NEAR;
+      };
+
       // Oaks: ez-tree shapes, instanced; each scaled to the tree's measured canopy
-      const variants = oakVariants(low);
       const leafMat = new THREE.MeshStandardMaterial({ map: getLeafTexture("oak"), color: 0xc4d4a8, alphaTest: 0.5,
         side: THREE.DoubleSide, roughness: 0.92 });
-      variants.forEach((V, v) => {
-        const mine = oaks.filter((_, i) => i % variants.length === v);
+      const placeOaks = (list, variants) => variants.forEach((V, v) => {
+        const mine = list.filter((_, i) => i % variants.length === v);
         if (!mine.length) return;
         const branches = new THREE.InstancedMesh(V.bGeo, V.barkMat, mine.length);
         const leaves = new THREE.InstancedMesh(V.lGeo, leafMat, mine.length);
@@ -449,28 +462,36 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         });
         for (const m of [branches, leaves]) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
       });
+      const nearOaks = oaks.filter(isNear), farOaks = oaks.filter(f => !isNear(f));
+      if (nearOaks.length) placeOaks(nearOaks, oakVariants(low));
+      if (farOaks.length) placeOaks(farOaks, oakVariants(low, true));
 
       // Palms: ringed trunk + crown of fronds with individual leaflets (scaled by height)
       const trunkMat = new THREE.MeshStandardMaterial({ map: trunkTexture(), roughness: 1 });
-      const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo(), trunkMat, palms.length);
       const leafletMat = new THREE.MeshStandardMaterial({ map: leafletTexture(), vertexColors: true, alphaTest: 0.4,
         side: THREE.DoubleSide, roughness: 0.75 });
-      const crownGeos = [0, 1, 2].map(v => palmCrown(11 + v * 29));
-      const crowns = crownGeos.map(g => new THREE.InstancedMesh(g, leafletMat, Math.ceil(palms.length / 3)));
-      const counts = [0, 0, 0];
-      palms.forEach((f, i) => {
-        const [x, z] = toLocal(...f.geometry.coordinates), h = f.properties.h, y0 = (f.properties.z || 0) * exaggeration;
-        dummy.position.set(x, y0 - 0.2, z);
-        dummy.rotation.set(0, hash3(x, z, 7) * Math.PI * 2, 0);
-        dummy.scale.set(h, h * (0.95 + hash3(z, x, 2) * 0.1), h);
-        dummy.updateMatrix();
-        palmTrunks.setMatrixAt(i, dummy.matrix);
-        const v = i % 3;
-        crowns[v].setMatrixAt(counts[v]++, dummy.matrix);
-      });
-      crowns.forEach((c, v) => { c.count = counts[v]; c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; scene.add(c); });
-      palmTrunks.castShadow = true; palmTrunks.frustumCulled = false;
-      scene.add(palmTrunks);
+      const placePalms = (list, far) => {
+        if (!list.length) return;
+        const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo(far), trunkMat, list.length);
+        const crownGeos = (far ? [0, 1] : [0, 1, 2]).map(v => palmCrown(11 + v * 29, far)), nv = crownGeos.length;
+        const crowns = crownGeos.map(g => new THREE.InstancedMesh(g, leafletMat, Math.ceil(list.length / nv)));
+        const counts = crownGeos.map(() => 0);
+        list.forEach((f, i) => {
+          const [x, z] = toLocal(...f.geometry.coordinates), h = f.properties.h, y0 = (f.properties.z || 0) * exaggeration;
+          dummy.position.set(x, y0 - 0.2, z);
+          dummy.rotation.set(0, hash3(x, z, 7) * Math.PI * 2, 0);
+          dummy.scale.set(h, h * (0.95 + hash3(z, x, 2) * 0.1), h);
+          dummy.updateMatrix();
+          palmTrunks.setMatrixAt(i, dummy.matrix);
+          const v = i % nv;
+          crowns[v].setMatrixAt(counts[v]++, dummy.matrix);
+        });
+        crowns.forEach((c, v) => { c.count = counts[v]; c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; scene.add(c); });
+        palmTrunks.castShadow = true; palmTrunks.frustumCulled = false;
+        scene.add(palmTrunks);
+      };
+      placePalms(palms.filter(isNear), false);
+      placePalms(palms.filter(f => !isNear(f)), true);
 
       // Hedges: thick shrub rows traced by hand (e.g. behind back yards), a solid leafy wall from
       // the ground up, so only the roofs of the houses behind them show
@@ -615,6 +636,8 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       sun.shadow.radius = 3;
       sun.castShadow = !low;   // Low graphics: no shadows
 
+      // Triangle budget check for the graphics runs (GRAPHICS.md): total and the heaviest meshes, computed once
+      { let tot = 0; const st = []; scene.traverse(o => { if (!o.isMesh) return; const g = o.geometry, n = (g.index ? g.index.count : g.attributes.position.count) / 3, inst = o.isInstancedMesh ? o.count : 1; tot += n * inst; st.push([Math.round(n * inst), Math.round(n), inst]); }); st.sort((x, y) => y[0] - x[0]); window.__mggSceneStats = { triangles: Math.round(tot), meshes: st.slice(0, 12) }; }
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
       renderer.autoClear = false;
       renderer.shadowMap.enabled = !low;
