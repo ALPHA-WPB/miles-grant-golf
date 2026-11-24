@@ -316,10 +316,21 @@ function buildingsGeometry(buildings, toLocal, exaggeration) {
     for (let i = 0; i < wr.length - 1; i++) {
       const [u1, v1] = wr[i], [u2, v2] = wr[i + 1], len = Math.hypot(u2 - u1, v2 - v1) * step, parts = Math.max(1, Math.ceil(len));
       const k = Math.abs(u2 - u1) > Math.abs(v2 - v1) ? wallC : shade;
-      for (let q = 0; q < parts; q++) {
-        const ua = u1 + (u2 - u1) * q / parts, va = v1 + (v2 - v1) * q / parts, ub = u1 + (u2 - u1) * (q + 1) / parts, vb = v1 + (v2 - v1) * (q + 1) / parts;
-        const a0 = world(ua, va, -1), b0 = world(ub, vb, -1), a1 = world(ua, va, hAt(ua, va) - 0.03), b1 = world(ub, vb, hAt(ub, vb) - 0.03);
+      // The wall top follows the roof, sampled every metre. Where the roof runs straight over several metres (to within
+      // 1 cm) those metres are drawn as ONE panel: the same flat wall, same colour, far fewer triangles.
+      const at = q => [u1 + (u2 - u1) * q / parts, v1 + (v2 - v1) * q / parts];
+      const top = [];
+      for (let q = 0; q <= parts; q++) { const [u, v] = at(q); top.push(hAt(u, v) - 0.03); }
+      for (let q = 0; q < parts;) {
+        let e = q + 1;
+        grow: while (e < parts) {
+          for (let m = q + 1; m <= e; m++) if (Math.abs(top[q] + (top[e + 1] - top[q]) * (m - q) / (e + 1 - q) - top[m]) > 0.01) break grow;
+          e++;
+        }
+        const [ua, va] = at(q), [ub, vb] = at(e);
+        const a0 = world(ua, va, -1), b0 = world(ub, vb, -1), a1 = world(ua, va, top[q]), b1 = world(ub, vb, top[e]);
         tri(a0, b0, b1, k); tri(a0, b1, a1, k);
+        q = e;
       }
     }
     // facade: two-storey stucco with windows. Walls facing the nearest road/lot get the front door and
