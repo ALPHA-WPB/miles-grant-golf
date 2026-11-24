@@ -138,7 +138,7 @@ function trunkTexture() {
 // Crown geometry in unit-height space: arching fronds (some young and upright, some old and
 // hanging), each with leaflets on both sides that droop from the stem
 // far: 0 = near the hole (full detail), 1 = beyond NEAR, 2 = beyond FAR2 (a crown about a dozen pixels wide on a phone)
-function palmCrown(seed, far = 0) {
+function palmCrown(seed, far = 0, low = false) {
   const r = rng(seed);
   const pos = [], uv = [], col = [], idx = [];
   const c = new THREE.Color();
@@ -152,15 +152,19 @@ function palmCrown(seed, far = 0) {
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const top = V(0.035, 1, 0);
   const nF = far === 2 ? 7 : far ? 10 : 17;      // far palms: fewer fronds and leaflets, each leaflet wider so the crown reads the same
-  for (let f = 0; f < nF; f++) {
-    const az = (f / nF) * Math.PI * 2 + r() * 0.35;
-    const tier = f % 3;                                   // 0 young/upright, 1 spreading, 2 old/hanging
-    const elev = tier === 0 ? 0.95 + r() * 0.3 : tier === 1 ? 0.35 + r() * 0.25 : -0.15 - r() * 0.3;
-    const L = 0.34 + r() * 0.08;
+  // near palms only: a skirt of dead, straw-brown fronds hanging against the trunk under the green crown (generated after
+  // the live fronds, so those are exactly as before)
+  const nDead = far || low ? 0 : 6;   // GFX LOW: no skirt or boot (LOW must not get heavier)
+  for (let f = 0; f < nF + nDead; f++) {
+    const dead = f >= nF;
+    const az = dead ? ((f - nF) / nDead) * Math.PI * 2 + r() * 0.6 : (f / nF) * Math.PI * 2 + r() * 0.35;
+    const tier = dead ? 2 : f % 3;                        // 0 young/upright, 1 spreading, 2 old/hanging
+    const elev = dead ? -0.9 - r() * 0.35 : tier === 0 ? 0.95 + r() * 0.3 : tier === 1 ? 0.35 + r() * 0.25 : -0.15 - r() * 0.3;
+    const L = dead ? 0.2 + r() * 0.07 : 0.34 + r() * 0.08;
     const dirH = V(Math.cos(az), 0, Math.sin(az));
-    const start = top.clone().add(V(0, -0.015 * tier, 0));
+    const start = top.clone().add(V(0, dead ? -0.04 : -0.015 * tier, 0));
     const pts = [], tans = [];
-    const N = far === 2 ? 3 : far ? 5 : 14;
+    const N = dead ? 5 : far === 2 ? 3 : far ? 5 : 14;
     for (let j = 0; j <= N; j++) {
       const s = (j / N) * L;
       const rise = Math.sin(elev) * s - (tier === 2 ? 1.8 : 1.0) * s * s;
@@ -169,28 +173,30 @@ function palmCrown(seed, far = 0) {
     }
     for (let j = 0; j <= N; j++) tans.push(pts[Math.min(N, j + 1)].clone().sub(pts[Math.max(0, j - 1)]).normalize());
     const shade = tier === 2 ? 0.78 : tier === 0 ? 1.08 : 0.95;
-    const stemTint = c.set("#7d7a3e").clone();
+    const stemTint = c.set(dead ? "#6e5c3c" : "#7d7a3e").clone();
     // stem (a thin ribbon facing up)
     for (let j = 0; j < N; j++) {
       const side = new THREE.Vector3().crossVectors(tans[j], V(0, 1, 0)).normalize().multiplyScalar(0.004 * (1 - j / N) + 0.0015);
       quad(pts[j].clone().sub(side), pts[j].clone().add(side), pts[j + 1].clone().add(side), pts[j + 1].clone().sub(side), stemTint);
     }
     // leaflets
-    const nL = far === 2 ? 7 : far ? 9 : 26;
+    const nL = dead ? 11 : far === 2 ? 7 : far ? 9 : 26;
     for (let k = 2; k < nL; k++) {
       const t = k / nL, j = Math.min(N - 1, Math.floor(t * N)), fr = t * N - j;
       const base = pts[j].clone().lerp(pts[j + 1], fr), tan = tans[j];
       const sideV = new THREE.Vector3().crossVectors(tan, V(0, 1, 0)).normalize();
-      const len = 0.16 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.08)), 0.7) + 0.02;
-      const w = (0.0075 + 0.004 * (1 - t)) * (far === 2 ? 4 : far ? 2.6 : 1);
+      const len = (0.16 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.08)), 0.7) + 0.02) * (dead ? 0.7 : 1);
+      const w = (0.0075 + 0.004 * (1 - t)) * (dead ? 1.7 : far === 2 ? 4 : far ? 2.6 : 1);
       for (const sd of [-1, 1]) {
-        const droop = tier === 0 ? 0.25 : tier === 1 ? 0.55 : 0.85;
+        const droop = dead ? 1.1 : tier === 0 ? 0.25 : tier === 1 ? 0.55 : 0.85;
         const dir = sideV.clone().multiplyScalar(sd * 0.72).addScaledVector(tan, 0.42).add(V(0, -droop * (0.4 + t * 0.6), 0)).normalize();
         const mid = base.clone().addScaledVector(dir, len * 0.55).add(V(0, -len * 0.12 * droop, 0));
         const tip = base.clone().addScaledVector(dir, len).add(V(0, -len * 0.3 * droop, 0));
         const across = new THREE.Vector3().crossVectors(dir, tan).normalize().multiplyScalar(w);
-        const tint = c.setHSL(0.22 + (r() - 0.5) * 0.03, 0.42 + r() * 0.12, (0.3 + r() * 0.08) * shade).clone();
-        if (far) {   // far palms: one straight card per leaflet (the bend at mid-length cannot be seen from 160 m away); half the crown's triangles
+        // dead leaflets: the tint multiplies the green leaflet texture, so red is pushed up to land on straw brown
+        const tint = dead ? c.setRGB(1.2 + r() * 0.3, 0.66 + r() * 0.12, 0.85 + r() * 0.2).clone()
+          : c.setHSL(0.22 + (r() - 0.5) * 0.03, 0.42 + r() * 0.12, (0.3 + r() * 0.08) * shade).clone();
+        if (far || dead) {   // far palms: one straight card per leaflet (the bend at mid-length cannot be seen from 160 m away); half the crown's triangles
           quad(base.clone().addScaledVector(across, -0.7), base.clone().addScaledVector(across, 0.7), tip.clone().addScaledVector(across, 0.6), tip.clone().addScaledVector(across, -0.6), tint);
           continue;
         }
@@ -199,6 +205,14 @@ function palmCrown(seed, far = 0) {
         quad(mid.clone().sub(across), mid.clone().add(across), tip.clone().addScaledVector(across, 0.15), tip.clone().addScaledVector(across, -0.15), tint);
       }
     }
+  }
+  // near palms only: the boot, two staggered rings of old leaf bases flaring up and out where the trunk meets the crown
+  if (!far && !low) for (let ring = 0; ring < 2; ring++) for (let b = 0; b < 8; b++) {
+    const az = (b + ring * 0.5) / 8 * Math.PI * 2 + r() * 0.2, y0 = 0.865 + ring * 0.05, y1 = y0 + 0.1 + r() * 0.02;
+    const dir = V(Math.cos(az), 0, Math.sin(az)), across = V(-Math.sin(az), 0, Math.cos(az)).multiplyScalar(0.011);
+    const base = V(0.035 * y0 * y0, y0, 0).addScaledVector(dir, 0.013), tip = V(0.035 * y1 * y1, y1, 0).addScaledVector(dir, 0.036 + r() * 0.008);
+    const k = 0.8 + r() * 0.35;
+    quad(base.clone().addScaledVector(across, -0.6), base.clone().addScaledVector(across, 0.6), tip.clone().add(across), tip.clone().sub(across), c.setRGB(1.15 * k, 0.7 * k, 0.9 * k).clone());
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -513,7 +527,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       const placePalms = (list, far) => {
         if (!list.length) return;
         const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo(far), trunkMat, list.length);
-        const crownGeos = (far ? [0, 1] : [0, 1, 2]).map(v => palmCrown(11 + v * 29, far)), nv = crownGeos.length;
+        const crownGeos = (far ? [0, 1] : [0, 1, 2]).map(v => palmCrown(11 + v * 29, far, low)), nv = crownGeos.length;
         const crowns = crownGeos.map(g => new THREE.InstancedMesh(g, leafletMat, Math.ceil(list.length / nv)));
         const counts = crownGeos.map(() => 0);
         list.forEach((f, i) => {
@@ -688,6 +702,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
 
       // Triangle budget check for the graphics runs (GRAPHICS.md): total and the heaviest meshes, computed once
       { let tot = 0; const st = []; scene.traverse(o => { if (!o.isMesh) return; const g = o.geometry, n = (g.index ? g.index.count : g.attributes.position.count) / 3, inst = o.isInstancedMesh ? o.count : 1; tot += n * inst; st.push([Math.round(n * inst), Math.round(n), inst]); }); st.sort((x, y) => y[0] - x[0]); window.__mggSceneStats = { triangles: Math.round(tot), meshes: st.slice(0, 12) }; }
+      window.__mggMap = map;   // same purpose: lets a graphics run put the camera in the same place before and after a change
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
       renderer.autoClear = false;
       renderer.shadowMap.enabled = !low;
