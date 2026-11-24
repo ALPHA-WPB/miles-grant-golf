@@ -265,3 +265,17 @@ Each run logs triangles before/after and what still looks fake.
   the plain crown but get the same size, lean and colour variation. Triangles, hole 1, GFX HIGH, browser: 3,430,735 -> 3,395,963; LOW
   3.17 M -> 3.15 M (counter). Before/after from `jumpTo({center:[-80.1762,27.14715], zoom:19.3, pitch:74, bearing:255})`.
   Still fake: all palms are feather palms (no fan-leaf cabbage palms), crowns read dark from above.
+- 2026-11-24 (owner request, WITH PREVIEW): (1) BLURRY PHOTO OUTSIDE THE COURSE, feec4e1. Cause found in the preview: App.jsx pre-downloads up to
+  450 satellite tiles for offline use with `mode: 'no-cors'`; the service worker cached those opaque copies and later handed them to the 3D
+  map, which reads tiles with CORS, so the request failed ("AJAXError: Failed to fetch"), the tile went to 'errored' and the map kept the
+  stretched parent tile. 432 of 535 cached tiles were opaque. Fix: pre-download with CORS; sw.js gives an opaque copy only to no-cors
+  requests and otherwise refetches and replaces it (so phones with a poisoned cache heal themselves). Checked: same view, same poisoned
+  cache, errored photo tiles 2 -> 0. sw.js is the page's service worker, not the Cloudflare worker.
+  (2) RIVER-POINT HOMES east of 17 green (the block between the road, the north canal and the river), 277e38f: `grounds_px.json` entries tagged
+  'river point homes' (lawn ring following the traced shore, 5 'walk'/'mulch' drives, the garage's asphalt court, the tile house's pool);
+  new `docks` list in traced.json (5 docks, one L-shaped = 6 runs; build.py makes each a `bridge` feature with dock=1, realScene draws planks
+  on piles, no rails; deck height 1.2 m NAVD is an estimate). The traced river strip (water ring 2 of 5) was REMOVED: it ended in a straight
+  line in mid-river and left photo halos round the docks; the river is the photo there as everywhere else. Data diff: -1 water, +6 bridge,
+  +1 pool, lawn and paving changed, 5 buildings re-faced toward the new paving, 1 oak dropped (it stood on the garage court); terrain tiles
+  identical. Not done: the boathouse roof on the second dock (flat photo), the screen-caged pool, the kayak rack, the homes further west
+  along the canal (still photo ground, the lawn stops at a straight line at course-pixel x=4972), mangroves along the shore are drawn as lawn.
