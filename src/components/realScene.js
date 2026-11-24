@@ -160,6 +160,9 @@ function palmCrown(seed, far = 0, low = false, style = PALM_STYLES[0]) {
   };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const top = V(0.035, 1, 0);
+  // GFX LOW near the hole: the same crown shapes, built light (half the stem segments, 18 leaflets a side instead of 24,
+  // each a single wider card). The three near crowns were 1.09 M of LOW's 3.1 M triangles on hole 1 (limit 2.5 M).
+  const lite = low && !far;
   const nF = far === 2 ? 7 : far ? 10 : style.nF;      // far palms: fewer fronds and leaflets, each leaflet wider so the crown reads the same
   // near palms only: a skirt of dead, straw-brown fronds hanging against the trunk under the green crown (generated after
   // the live fronds, so those are exactly as before)
@@ -173,7 +176,7 @@ function palmCrown(seed, far = 0, low = false, style = PALM_STYLES[0]) {
     const dirH = V(Math.cos(az), 0, Math.sin(az));
     const start = top.clone().add(V(0, dead ? -0.04 : -0.015 * tier, 0));
     const pts = [], tans = [];
-    const N = dead ? 5 : far === 2 ? 3 : far ? 5 : 14;
+    const N = dead ? 5 : far === 2 ? 3 : far ? 5 : lite ? 7 : 14;
     for (let j = 0; j <= N; j++) {
       const s = (j / N) * L;
       const rise = Math.sin(elev) * s - (tier === 2 ? 1.8 : 1.0) * s * s;
@@ -189,13 +192,13 @@ function palmCrown(seed, far = 0, low = false, style = PALM_STYLES[0]) {
       quad(pts[j].clone().sub(side), pts[j].clone().add(side), pts[j + 1].clone().add(side), pts[j + 1].clone().sub(side), stemTint);
     }
     // leaflets
-    const nL = dead ? 11 : far === 2 ? 7 : far ? 9 : 26;
+    const nL = dead ? 11 : far === 2 ? 7 : far ? 9 : lite ? 20 : 26;
     for (let k = 2; k < nL; k++) {
       const t = k / nL, j = Math.min(N - 1, Math.floor(t * N)), fr = t * N - j;
       const base = pts[j].clone().lerp(pts[j + 1], fr), tan = tans[j];
       const sideV = new THREE.Vector3().crossVectors(tan, V(0, 1, 0)).normalize();
       const len = (0.16 * Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.08)), 0.7) + 0.02) * (dead ? 0.7 : 1);
-      const w = (0.0075 + 0.004 * (1 - t)) * (dead ? 1.7 : far === 2 ? 4 : far ? 2.6 : 1);
+      const w = (0.0075 + 0.004 * (1 - t)) * (dead ? 1.7 : far === 2 ? 4 : far ? 2.6 : lite ? 1.35 : 1);
       for (const sd of [-1, 1]) {
         const droop = dead ? 1.1 : tier === 0 ? 0.25 : tier === 1 ? 0.55 : 0.85;
         const dir = sideV.clone().multiplyScalar(sd * 0.72).addScaledVector(tan, 0.42).add(V(0, -droop * (0.4 + t * 0.6), 0)).normalize();
@@ -205,7 +208,7 @@ function palmCrown(seed, far = 0, low = false, style = PALM_STYLES[0]) {
         // dead leaflets: the tint multiplies the green leaflet texture, so red is pushed up to land on straw brown
         const tint = dead ? c.setRGB(1.2 + r() * 0.3, 0.66 + r() * 0.12, 0.85 + r() * 0.2).clone()
           : c.setHSL((far ? 0.22 : style.hue) + (r() - 0.5) * 0.03, 0.42 + r() * 0.12, (0.3 + r() * 0.08) * shade * (far ? 1 : style.light)).clone();
-        if (far || dead) {   // far palms: one straight card per leaflet (the bend at mid-length cannot be seen from 160 m away); half the crown's triangles
+        if (far || dead || lite) {   // far palms (and near ones on GFX LOW): one straight card per leaflet (the bend at mid-length cannot be seen from 160 m away); half the crown's triangles
           quad(base.clone().addScaledVector(across, -0.7), base.clone().addScaledVector(across, 0.7), tip.clone().addScaledVector(across, 0.6), tip.clone().addScaledVector(across, -0.6), tint);
           continue;
         }
@@ -233,8 +236,9 @@ function palmCrown(seed, far = 0, low = false, style = PALM_STYLES[0]) {
   return g;
 }
 
-function palmTrunkGeo(far = 0) {
-  const g = new THREE.CylinderGeometry(0.016, 0.03, 1, far === 2 ? 5 : far ? 6 : 12, far === 2 ? 3 : far ? 5 : 20, true);
+function palmTrunkGeo(far = 0, low = false) {
+  // GFX LOW near the hole: 8 sides and 10 rings (160 triangles, was 480); the lean and the swollen base are the same
+  const g = new THREE.CylinderGeometry(0.016, 0.03, 1, far === 2 ? 5 : far ? 6 : low ? 8 : 12, far === 2 ? 3 : far ? 5 : low ? 10 : 20, true);
   g.translate(0, 0.5, 0);
   const p = g.attributes.position, uvA = g.attributes.uv;
   for (let k = 0; k < p.count; k++) {
@@ -543,7 +547,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         side: THREE.DoubleSide, roughness: 0.75 });
       const placePalms = (list, far) => {
         if (!list.length) return;
-        const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo(far), trunkMat, list.length);
+        const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo(far, low), trunkMat, list.length);
         // near the hole: five crown shapes (GFX LOW: three of them); far away: two copies of the plain one
         const crownGeos = far ? [0, 1].map(v => palmCrown(11 + v * 29, far)) : PALM_STYLES.slice(0, low ? 3 : 5).map((st, v) => palmCrown(11 + v * 29, 0, low, st));
         const nv = crownGeos.length;
