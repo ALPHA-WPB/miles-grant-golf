@@ -654,8 +654,10 @@ function turf(size, { base, light, dark, bladeLen, blades, angle, seed, drift = 
   });
 }
 
-function sand(size, seed) {
-  return canvasPattern(size, (x, n) => {
+function sand(size, seed, res = 1) {
+  // res: supersampling; same ground footprint (pair with pixelRatio 2*res), res x more texels per metre
+  const sz = size * res;
+  return canvasPattern(sz, (x, n) => {
     const img = x.createImageData(n, n), d = img.data, r = rng(seed);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
       const k = (j * n + i) * 4;
@@ -672,10 +674,10 @@ function sand(size, seed) {
     }
     x.putImageData(img, 0, 0);
     // a few small pebbles and footprints-like soft dents
-    for (let p = 0; p < 26; p++) {
-      const px = r() * n, py = r() * n, rad = 1 + r() * 1.6;
+    for (let p = 0; p < 26 * res * res; p++) {
+      const px = r() * n, py = r() * n, rad = (1 + r() * 1.6) * res;
       x.fillStyle = `rgba(${150 + r() * 40},${135 + r() * 35},${110 + r() * 30},0.85)`;
-      wrapDraw(n, px, py, 4, (X, Y) => { x.beginPath(); x.ellipse(X, Y, rad, rad * 0.75, r() * 3, 0, Math.PI * 2); x.fill(); });
+      wrapDraw(n, px, py, 4 * res, (X, Y) => { x.beginPath(); x.ellipse(X, Y, rad, rad * 0.75, r() * 3, 0, Math.PI * 2); x.fill(); });
     }
   });
 }
@@ -692,7 +694,7 @@ function plain(size, base, seed) {
 }
 
 // Per-texture pixelRatio (default 2); res-2 textures draw 2x the texels over the same ground area
-export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4 };
+export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4, "tex-sand": 4, "tex-ground": 4 };
 export const GROUND_TEXTURES = {
   "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5, res: 2 }),
   "tex-fairway": () => turf(512, { base: [104, 170, 70], light: [150, 206, 104], dark: [70, 128, 48], bladeLen: 4, blades: 9000, angle: 0, seed: 5, res: 2 }),
@@ -701,6 +703,6 @@ export const GROUND_TEXTURES = {
   "tex-fringe": () => turf(256, { base: [88, 156, 62], light: [138, 196, 96], dark: [58, 112, 42], bladeLen: 3, blades: 3500, angle: 0.3, seed: 9, res: 2 }),
   "tex-green": () => turf(256, { base: [128, 196, 92], light: [168, 222, 124], dark: [100, 164, 72], bladeLen: 1.6, blades: 4500, angle: 0, seed: 11, res: 2 }),
   "tex-tee": () => turf(256, { base: [116, 186, 82], light: [160, 214, 114], dark: [84, 146, 58], bladeLen: 2.4, blades: 4000, angle: 0, seed: 13, res: 2 }),
-  "tex-sand": () => sand(512, 17),
-  "tex-ground": () => plain(256, [203, 210, 190], 19),
+  "tex-sand": () => sand(512, 17, 2),
+  "tex-ground": () => plain(512, [203, 210, 190], 19),
 };
