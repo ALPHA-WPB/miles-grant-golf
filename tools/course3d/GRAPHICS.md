@@ -98,3 +98,8 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
   Flag cloth texture 256x176 -> 512x352 (drawn via 2x scale, same layout), anisotropy 4 -> 8, so the hole number stays
   sharp up close (92e32a8). Build + eslint clean. Shadow map is already 4096. Section 1 still unticked. Still fake: no drift
   beyond the tile, oak leaf cards, bark/sand have no normal map, flat turf lighting. OWNER: allow the preview server.
+- 2026-11-23 (hi-res run 9): preview server declined a thirteenth time, so NO screenshots; low-risk change only.
+  Anisotropic filtering 8 on the vendor oak leaf and bark textures (color/normal/AO/roughness) in ez-tree `textures.js`
+  (593dae0), so oak foliage and trunks stay sharp at oblique angles; no new downloads. Build + eslint clean; live index
+  hash changed (deploy ok). Section 1 still unticked. Still fake: no drift beyond the tile, oak leaf cards, flat turf
+  lighting, sand has no normal map. OWNER: allow the preview server.
