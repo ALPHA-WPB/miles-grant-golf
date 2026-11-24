@@ -29,6 +29,14 @@ within `NEAR` (160 m) of the hole's tee-to-green line, the hole's own tees/fairw
 paid for by trimming far detail. No texture or shadow-map size increases without a measured before/after.
 
 Done 2026-11-24: near/far tree detail (`isNear` in realScene.js; far oaks and palms are light versions). 8.7 M -> 4.0 M.
+Step 1 progress 2026-11-24 (preview blocked, cost-only): far palm crowns 660 -> 380 triangles (aca753d), far hedge blobs 180 -> 80 (ca2632b).
+All 18 holes now 3.11-4.02 M on HIGH (were 3.47-4.31 M). Far detail is still about 2.2 M on a typical hole (far oak limbs ~0.7 M,
+far oak leaves ~0.5 M, far palms ~0.4 M, buildings 0.29 M), so the 'far < 1.2 M' target is NOT met yet; the near-hole tree upgrade
+(the visible half of step 1) still needs a run with a working preview. Step 1 stays open.
+**GFX LOW is over budget:** 3.0-3.8 M measured against the 2.5 M limit (LOW only halves near oak leaves and drops shadows; palms and
+limbs are the same as HIGH). Fixing it means lighter NEAR trees on LOW, a visible change, so it needs the preview too.
+No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
+hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
 Order of work (one step per run, each checked by before/after screenshot from the same camera, phone-size viewport):
 1. TREES near the hole: fuller oak crowns (more, smaller leaf cards), palm fronds with more leaflets and a boot/skirt
@@ -144,3 +152,11 @@ Each run logs triangles before/after and what still looks fake.
   at a non-multiple period) so the tile never repeats; (c) rough clearly coarser than fairway; check
   `window.__mggSceneStats.triangles` stays under 4.5 M. OWNER DECISION (unchanged): set "always allow" for the Browser-pane
   server "miles-grant-golf (dev)", or tell the run it may ship unverified visual changes.
+- 2026-11-24 (hi-res run 11): preview server "miles-grant-golf (preview)" declined (sixteenth time): preview blocked, so only
+  cost reductions away from the hole, proved by count with the new `tools/course3d/tri_count/run.sh` (Node, no browser).
+  (1) aca753d: far palms draw each leaflet as one card instead of two (crown 660 -> 380 triangles). (2) ca2632b: hedge blobs more than
+  160 m from the hole's line use an 80-triangle ball instead of 180. Triangles, HIGH, worst hole (1): 4.31 M -> 4.02 M; hole 6:
+  3.95 M -> 3.63 M; lightest (7): 3.47 M -> 3.11 M. Near-hole trees, hedges, tees, greens untouched. Build + eslint clean.
+  FOUND: GFX LOW is 3.0-3.8 M, over its 2.5 M limit (see Resolution plan). Still fake near the hole: oak leaf cards, palm crowns
+  without a boot/skirt, bark without a normal map, no drift beyond the turf tile. Not looked at on screen: far palms and far hedges
+  after this change. OWNER: allow the Browser-pane preview server so step 1's visible half (and the LOW fix) can be done.
