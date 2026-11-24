@@ -39,6 +39,10 @@ Step 1 progress 2026-11-24, run 12 (preview blocked, cost-only): far oaks no lon
 1020/756 -> 354/348 triangles. All 18 holes now 2.67-3.64 M on HIGH and 2.57-3.43 M on LOW. Far detail is now about 1.8 M on a typical
 hole (far oak leaves ~0.5 M, far palms ~0.35 M, buildings 0.29 M, far oak limbs ~0.25 M, hedges 0.08 M); 'far < 1.2 M' still NOT met.
 LOW is still over its 2.5 M limit on every hole. Headroom on HIGH for the near-hole tree upgrade: about 0.85 M on the worst hole (1).
+Step 1 progress 2026-11-24, run 13 (preview blocked, cost-only): third tree tier. Oaks more than 320 m from the hole's line (`FAR2`,
+`isVeryFar` in realScene.js) use about 60% of the far leaf cards (76fb70d). All 18 holes now 2.51-3.50 M on HIGH and 2.41-3.29 M on LOW
+(LOW is under its 2.5 M limit on holes 2, 3, 5, 7 and 15 only). Far detail on a typical hole is now about 1.65 M; 'far < 1.2 M' still NOT met.
+Headroom on HIGH for the near-hole tree upgrade: about 1.0 M on the worst hole (1).
 No-browser budget check: `sh tools/course3d/tri_count/run.sh` prints the same triangle totals as `window.__mggSceneStats` for every
 hole, HIGH and LOW (checked against the owner's hole 6 measurement: 3.95 M vs 4.0 M).
 
@@ -174,3 +178,13 @@ Each run logs triangles before/after and what still looks fake.
   leaf cards, palm crowns without a boot/skirt, bark without a normal map, no drift beyond the turf tile. Next cost-only candidates if the
   preview stays blocked: far oak leaves (0.5 M), far palm crowns (0.3 M). OWNER: allow the Browser-pane preview server so step 1's
   visible half (and the LOW fix) can be done.
+- 2026-11-24 (hi-res run 13): preview server "miles-grant-golf (preview)" declined (eighteenth time): preview blocked, so one cost
+  reduction away from the hole only, proved by count with `tools/course3d/tri_count/run.sh`. 76fb70d: a third tier for oaks. Oaks more than
+  320 m from the hole's tee-to-green line draw about 60% of the far leaf cards (1050/450 -> 630/270 triangles per tree), each card 1.3x
+  larger so the crown covers the same area; limbs as for far oaks. Oaks within 320 m (near and far tiers) are exactly as before.
+  Triangles, HIGH, worst hole (1): 3.64 M -> 3.50 M; hole 6: 3.25 M -> 3.10 M; lightest (7): 2.67 M -> 2.51 M. LOW: 2.57-3.43 M ->
+  2.41-3.29 M (still over 2.5 M on 13 holes). Build + eslint clean. Not looked at on screen: oaks beyond 320 m after this change (risk:
+  slightly blockier crowns on the horizon; revert 76fb70d if so). Still fake near the hole: oak leaf cards, palm crowns without a
+  boot/skirt, bark without a normal map, no drift beyond the turf tile. Next cost-only candidates if the preview stays blocked: the same
+  320 m tier for palms (far crowns are ~0.35 M), buildings (0.29 M, walls cut every metre). OWNER: allow the Browser-pane preview server
+  so step 1's visible half (and the LOW fix) can be done.
