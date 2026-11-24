@@ -41,7 +41,25 @@ function oakVariants(low = false, far = false) {
     o.branch.children[2] = Math.max(2, (o.branch.children[2] || 3) - 1);
     for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * (far ? 0.4 : 0.6)));
     for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(1, Math.round(o.branch.sections[k] * (far ? 0.3 : 0.6)));
+    // far oaks: the last level of twigs is thinner than a pixel from 160 m and sits inside the (large) leaf cards, so it
+    // is generated (the leaves grow from it, in the same places) but not drawn. Branches are generated level by level,
+    // so the twigs are the tail of the buffers.
+    let twigI = -1, twigV = -1;
+    if (far) {
+      const gen = tree.generateBranch.bind(tree);
+      tree.generateBranch = br => {
+        if (twigI < 0 && br.level === o.branch.levels) { twigI = tree.branches.indices.length; twigV = tree.branches.verts.length / 3; }
+        gen(br);
+      };
+    }
     tree.generate();
+    if (twigI > 0) {
+      const g0 = tree.branchesMesh.geometry, g1 = new THREE.BufferGeometry();
+      for (const [name, n] of [["position", 3], ["normal", 3], ["uv", 2]]) g1.setAttribute(name, new THREE.BufferAttribute(g0.attributes[name].array.slice(0, twigV * n), n));
+      g1.setIndex(new THREE.BufferAttribute(g0.index.array.slice(0, twigI), 1));
+      g0.dispose();
+      tree.branchesMesh.geometry = g1;
+    }
     const bGeo = tree.branchesMesh.geometry, lGeo = tree.leavesMesh.geometry;
     lGeo.computeBoundingBox(); bGeo.computeBoundingBox();
     const bb = lGeo.boundingBox.clone().union(bGeo.boundingBox);
