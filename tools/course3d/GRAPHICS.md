@@ -137,3 +137,10 @@ Each run logs triangles before/after and what still looks fake.
   safe range. Section 1 still unticked. Still fake: no drift beyond the tile, oak leaf cards, flat turf lighting, sand/bark
   have no normal map. OWNER: allow the preview server so bigger changes can be verified.
 - 2026-11-24 (owner session): hi-res job paused, measured, near/far tree LOD shipped (8.7 M -> 4.0 M triangles per frame, same look near the hole). `window.__mggSceneStats` added for the budget. See 'Resolution plan' above. JS heap baseline still ~1.2 GB in the preview: not yet explained (suspect per-frame garbage in the three.js render of the instanced trees, about 5 MB a frame).
+- 2026-11-24 (daily run): both Browser-pane servers ("miles-grant-golf (dev)" and "(preview)") declined at the permission
+  prompt (fifteenth time), so NO screenshots and NO code change (rules: keep a visual change only if verified against
+  before/after). Section 1 (TURF) still unticked. What is left for it, in order: (a) verify or revert the blind tweaks
+  5558ffa / 4f689cb / bf356a0; (b) colour drift larger than one tile (low-opacity overlay layer, or a second noise octave
+  at a non-multiple period) so the tile never repeats; (c) rough clearly coarser than fairway; check
+  `window.__mggSceneStats.triangles` stays under 4.5 M. OWNER DECISION (unchanged): set "always allow" for the Browser-pane
+  server "miles-grant-golf (dev)", or tell the run it may ship unverified visual changes.
