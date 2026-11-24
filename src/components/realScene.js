@@ -138,7 +138,16 @@ function trunkTexture() {
 // Crown geometry in unit-height space: arching fronds (some young and upright, some old and
 // hanging), each with leaflets on both sides that droop from the stem
 // far: 0 = near the hole (full detail), 1 = beyond NEAR, 2 = beyond FAR2 (a crown about a dozen pixels wide on a phone)
-function palmCrown(seed, far = 0, low = false) {
+// Palm shapes near the hole, so a row of palms is not one tree repeated: frond count, frond length, how upright or drooping
+// the crown is, how much dead skirt hangs under it, and leaf colour. Far palms keep the one plain shape.
+const PALM_STYLES = [
+  { nF: 17, len: 1, up: 0, dead: 6, hue: 0.22, light: 1 },            // the standard crown
+  { nF: 22, len: 1.25, up: -0.1, dead: 8, hue: 0.225, light: 0.92 },  // big full round crown, heavy skirt
+  { nF: 11, len: 0.7, up: 0.45, dead: 0, hue: 0.24, light: 1.3 },     // young: a few short upright fronds, fresh green, no skirt
+  { nF: 14, len: 1.1, up: -0.5, dead: 12, hue: 0.19, light: 0.8 },    // old and drooping, darker, long skirt
+  { nF: 18, len: 0.75, up: 0.05, dead: 4, hue: 0.2, light: 1.1 },     // compact ball, slightly yellow-green
+];
+function palmCrown(seed, far = 0, low = false, style = PALM_STYLES[0]) {
   const r = rng(seed);
   const pos = [], uv = [], col = [], idx = [];
   const c = new THREE.Color();
@@ -151,16 +160,16 @@ function palmCrown(seed, far = 0, low = false) {
   };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const top = V(0.035, 1, 0);
-  const nF = far === 2 ? 7 : far ? 10 : 17;      // far palms: fewer fronds and leaflets, each leaflet wider so the crown reads the same
+  const nF = far === 2 ? 7 : far ? 10 : style.nF;      // far palms: fewer fronds and leaflets, each leaflet wider so the crown reads the same
   // near palms only: a skirt of dead, straw-brown fronds hanging against the trunk under the green crown (generated after
   // the live fronds, so those are exactly as before)
-  const nDead = far || low ? 0 : 6;   // GFX LOW: no skirt or boot (LOW must not get heavier)
+  const nDead = far || low ? 0 : style.dead;   // GFX LOW: no skirt or boot (LOW must not get heavier)
   for (let f = 0; f < nF + nDead; f++) {
     const dead = f >= nF;
     const az = dead ? ((f - nF) / nDead) * Math.PI * 2 + r() * 0.6 : (f / nF) * Math.PI * 2 + r() * 0.35;
     const tier = dead ? 2 : f % 3;                        // 0 young/upright, 1 spreading, 2 old/hanging
-    const elev = dead ? -0.9 - r() * 0.35 : tier === 0 ? 0.95 + r() * 0.3 : tier === 1 ? 0.35 + r() * 0.25 : -0.15 - r() * 0.3;
-    const L = dead ? 0.2 + r() * 0.07 : 0.34 + r() * 0.08;
+    const elev = dead ? -0.9 - r() * 0.35 : (tier === 0 ? 0.95 + r() * 0.3 : tier === 1 ? 0.35 + r() * 0.25 : -0.15 - r() * 0.3) + (far ? 0 : style.up);
+    const L = dead ? 0.2 + r() * 0.07 : (0.34 + r() * 0.08) * (far ? 1 : style.len);
     const dirH = V(Math.cos(az), 0, Math.sin(az));
     const start = top.clone().add(V(0, dead ? -0.04 : -0.015 * tier, 0));
     const pts = [], tans = [];
@@ -195,7 +204,7 @@ function palmCrown(seed, far = 0, low = false) {
         const across = new THREE.Vector3().crossVectors(dir, tan).normalize().multiplyScalar(w);
         // dead leaflets: the tint multiplies the green leaflet texture, so red is pushed up to land on straw brown
         const tint = dead ? c.setRGB(1.2 + r() * 0.3, 0.66 + r() * 0.12, 0.85 + r() * 0.2).clone()
-          : c.setHSL(0.22 + (r() - 0.5) * 0.03, 0.42 + r() * 0.12, (0.3 + r() * 0.08) * shade).clone();
+          : c.setHSL((far ? 0.22 : style.hue) + (r() - 0.5) * 0.03, 0.42 + r() * 0.12, (0.3 + r() * 0.08) * shade * (far ? 1 : style.light)).clone();
         if (far || dead) {   // far palms: one straight card per leaflet (the bend at mid-length cannot be seen from 160 m away); half the crown's triangles
           quad(base.clone().addScaledVector(across, -0.7), base.clone().addScaledVector(across, 0.7), tip.clone().addScaledVector(across, 0.6), tip.clone().addScaledVector(across, -0.6), tint);
           continue;
@@ -220,6 +229,7 @@ function palmCrown(seed, far = 0, low = false) {
   g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
+  g.translate(-top.x, -top.y, -top.z);   // origin at the top of the trunk: each palm places and sizes its crown there
   return g;
 }
 
@@ -474,7 +484,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       sun.target.position.set(0, 0, 0);
       scene.add(sun, sun.target);
 
-      const dummy = new THREE.Object3D(), tmpColor = new THREE.Color();
+      const dummy = new THREE.Object3D(), tmpColor = new THREE.Color(), tmpVec = new THREE.Vector3();
       const oaks = trees.filter(f => f.properties.type !== "palm"), palms = trees.filter(f => f.properties.type === "palm");
 
       // Detail where the player is: trees within NEAR metres of this hole's tee-to-green line are drawn in full
@@ -527,18 +537,40 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       const placePalms = (list, far) => {
         if (!list.length) return;
         const palmTrunks = new THREE.InstancedMesh(palmTrunkGeo(far), trunkMat, list.length);
-        const crownGeos = (far ? [0, 1] : [0, 1, 2]).map(v => palmCrown(11 + v * 29, far, low)), nv = crownGeos.length;
-        const crowns = crownGeos.map(g => new THREE.InstancedMesh(g, leafletMat, Math.ceil(list.length / nv)));
+        // near the hole: five crown shapes (GFX LOW: three of them); far away: two copies of the plain one
+        const crownGeos = far ? [0, 1].map(v => palmCrown(11 + v * 29, far)) : PALM_STYLES.slice(0, low ? 3 : 5).map((st, v) => palmCrown(11 + v * 29, 0, low, st));
+        const nv = crownGeos.length;
+        const pick = f => { const [x, z] = toLocal(...f.geometry.coordinates); return Math.min(nv - 1, Math.floor(hash3(x, z, 11) * nv)); };
         const counts = crownGeos.map(() => 0);
+        list.forEach(f => counts[pick(f)]++);
+        const crowns = crownGeos.map((g, v) => new THREE.InstancedMesh(g, leafletMat, Math.max(1, counts[v])));
+        counts.fill(0);
         list.forEach((f, i) => {
-          const [x, z] = toLocal(...f.geometry.coordinates), h = f.properties.h, y0 = (f.properties.z || 0) * exaggeration;
+          const [x, z] = toLocal(...f.geometry.coordinates), y0 = (f.properties.z || 0) * exaggeration, v = pick(f);
+          // Size. 869 of the 1,070 palms carry one of three default heights (7.0, 7.8, 8.6 m: found on the photo, never
+          // measured), which made every palm the same. Those are spread over about 0.72-1.3x (5 to 11 m); palms whose height
+          // was read off their shadow keep it to within 4%. Crown width and trunk thickness vary per palm as well.
+          const h0 = f.properties.h, guessed = [7, 7.8, 8.6].some(q => Math.abs(h0 - q) < 0.01);
+          const h = h0 * (guessed ? 0.72 + 0.58 * hash3(z, x, 2) : 0.96 + 0.08 * hash3(z, x, 2));
+          const thick = (0.82 + 0.5 * hash3(x, z, 12)) * Math.sqrt(h0 / h);        // slim to stout; a short palm is not a thin one
+          const crown = h0 * (0.7 + 0.6 * hash3(x, z, 13));
+          // some palms stand straight, some lean up to about 7 degrees; the crown sits on the end of the trunk wherever that is
+          const a = hash3(x, z, 7) * Math.PI * 2, tilt = (hash3(z, 19, x) - 0.35) * 0.19;
           dummy.position.set(x, y0 - 0.2, z);
-          dummy.rotation.set(0, hash3(x, z, 7) * Math.PI * 2, 0);
-          dummy.scale.set(h, h * (0.95 + hash3(z, x, 2) * 0.1), h);
+          dummy.rotation.set(0, a, tilt);
+          dummy.scale.set(h0 * thick, h, h0 * thick);
           dummy.updateMatrix();
           palmTrunks.setMatrixAt(i, dummy.matrix);
-          const v = i % nv;
-          crowns[v].setMatrixAt(counts[v]++, dummy.matrix);
+          const topAt = tmpVec.set(0.035, 1, 0).applyMatrix4(dummy.matrix);
+          const kt = 0.82 + 0.3 * hash3(z, 14, x);
+          palmTrunks.setColorAt(i, tmpColor.setRGB(kt, kt * (0.96 + 0.06 * hash3(x, 15, z)), kt * 0.94));
+          dummy.position.copy(topAt);
+          dummy.rotation.set(0, a, tilt * 0.5);
+          dummy.scale.setScalar(crown);
+          dummy.updateMatrix();
+          crowns[v].setMatrixAt(counts[v], dummy.matrix);
+          const kc = 0.78 + 0.42 * hash3(z, x, 16);                                  // some crowns lighter, some darker, a little warmer or cooler
+          crowns[v].setColorAt(counts[v]++, tmpColor.setRGB(kc * (0.94 + 0.14 * hash3(x, 17, z)), kc, kc * (0.88 + 0.16 * hash3(z, 18, x))));
         });
         crowns.forEach((c, v) => { c.count = counts[v]; c.castShadow = true; c.receiveShadow = true; c.frustumCulled = false; scene.add(c); });
         palmTrunks.castShadow = true; palmTrunks.frustumCulled = false;
