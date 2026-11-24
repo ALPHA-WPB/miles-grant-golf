@@ -25,6 +25,8 @@ const color = hex => new THREE.Color(hex);
 function oakVariants(low = false, far = false) {
   // far: trees away from the hole being played. Same silhouettes, a fraction of the triangles (fewer, bigger leaf
   // cards and coarser limbs), so the detail budget goes to the trees the player actually stands next to.
+  // far === 2: trees more than 320 m from the hole's line (a leaf card there is a pixel or two): about 60% of the far leaf
+  // cards (630/270 instead of 1050/450 triangles), each larger so the crown covers the same area; limbs as for far.
   return (far ? ["Oak Medium", "Oak Small"] : ["Oak Medium", "Oak Medium", "Oak Small", "Oak Medium"]).map((name, i) => {
     const tree = new Tree();
     tree.loadPreset(name);
@@ -35,8 +37,8 @@ function oakVariants(low = false, far = false) {
     o.branch.angle[1] = Math.min(80, (o.branch.angle[1] || 50) + 14);
     o.branch.angle[2] = Math.min(75, (o.branch.angle[2] || 50) + 8);
     o.branch.length[1] *= 1.15;
-    o.leaves.count = Math.max(far ? 4 : 7, Math.round(o.leaves.count * (far ? 0.16 : low ? 0.35 : 0.7)));   // Low graphics: half the leaf cards, bigger so the canopy still fills
-    o.leaves.size *= far ? 4.4 : low ? 3.1 : 2.3;
+    o.leaves.count = Math.max(far === 2 ? 2 : far ? 4 : 7, Math.round(o.leaves.count * (far === 2 ? 0.08 : far ? 0.16 : low ? 0.35 : 0.7)));   // Low graphics: half the leaf cards, bigger so the canopy still fills
+    o.leaves.size *= far === 2 ? 5.7 : far ? 4.4 : low ? 3.1 : 2.3;
     o.leaves.billboard = "single";
     o.branch.children[2] = Math.max(2, (o.branch.children[2] || 3) - 1);
     for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * (far ? 0.4 : 0.6)));
@@ -452,15 +454,17 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       // Detail where the player is: trees within NEAR metres of this hole's tee-to-green line are drawn in full
       // detail; the rest of the property (the same trees, seen from far away or not at all) in a light version.
       // Drawing every tree on the property at full detail was ~8.7 million triangles a frame.
-      const NEAR = 160;
+      const NEAR = 160, FAR2 = 320;
       const fa = focus && toLocal(...focus[0]), fb = focus && toLocal(...focus[1]);
-      const nearXZ = (x, z) => {
-        if (!focus) return true;
+      const distXZ = (x, z) => {   // metres from the hole's tee-to-green line (0 when no hole is in focus)
+        if (!focus) return 0;
         const dx = fb[0] - fa[0], dz = fb[1] - fa[1];
         const t = Math.max(0, Math.min(1, ((x - fa[0]) * dx + (z - fa[1]) * dz) / (dx * dx + dz * dz || 1)));
-        return Math.hypot(x - fa[0] - t * dx, z - fa[1] - t * dz) <= NEAR;
+        return Math.hypot(x - fa[0] - t * dx, z - fa[1] - t * dz);
       };
+      const nearXZ = (x, z) => distXZ(x, z) <= NEAR;
       const isNear = f => nearXZ(...toLocal(...f.geometry.coordinates));
+      const isVeryFar = f => distXZ(...toLocal(...f.geometry.coordinates)) > FAR2;
 
       // Oaks: ez-tree shapes, instanced; each scaled to the tree's measured canopy
       const leafMat = new THREE.MeshStandardMaterial({ map: getLeafTexture("oak"), color: 0xc4d4a8, alphaTest: 0.5,
@@ -485,9 +489,10 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         });
         for (const m of [branches, leaves]) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
       });
-      const nearOaks = oaks.filter(isNear), farOaks = oaks.filter(f => !isNear(f));
+      const nearOaks = oaks.filter(isNear), farOaks = oaks.filter(f => !isNear(f) && !isVeryFar(f)), veryFarOaks = oaks.filter(isVeryFar);
       if (nearOaks.length) placeOaks(nearOaks, oakVariants(low));
-      if (farOaks.length) placeOaks(farOaks, oakVariants(low, true));
+      if (farOaks.length) placeOaks(farOaks, oakVariants(low, 1));
+      if (veryFarOaks.length) placeOaks(veryFarOaks, oakVariants(low, 2));
 
       // Palms: ringed trunk + crown of fronds with individual leaflets (scaled by height)
       const trunkMat = new THREE.MeshStandardMaterial({ map: trunkTexture(), roughness: 1 });
