@@ -436,12 +436,13 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       // Drawing every tree on the property at full detail was ~8.7 million triangles a frame.
       const NEAR = 160;
       const fa = focus && toLocal(...focus[0]), fb = focus && toLocal(...focus[1]);
-      const isNear = f => {
+      const nearXZ = (x, z) => {
         if (!focus) return true;
-        const [x, z] = toLocal(...f.geometry.coordinates), dx = fb[0] - fa[0], dz = fb[1] - fa[1];
+        const dx = fb[0] - fa[0], dz = fb[1] - fa[1];
         const t = Math.max(0, Math.min(1, ((x - fa[0]) * dx + (z - fa[1]) * dz) / (dx * dx + dz * dz || 1)));
         return Math.hypot(x - fa[0] - t * dx, z - fa[1] - t * dz) <= NEAR;
       };
+      const isNear = f => nearXZ(...toLocal(...f.geometry.coordinates));
 
       // Oaks: ez-tree shapes, instanced; each scaled to the tree's measured canopy
       const leafMat = new THREE.MeshStandardMaterial({ map: getLeafTexture("oak"), color: 0xc4d4a8, alphaTest: 0.5,
@@ -505,15 +506,18 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         const hedgeLen = hedges.reduce((a, f) => { const c = f.geometry.coordinates; let l = 0; for (let j = 0; j < c.length - 1; j++) l += Math.hypot((c[j + 1][0] - c[j][0]) * 99500, (c[j + 1][1] - c[j][1]) * 111320); return a + l; }, 0);
         const longRun = hedges.length && hedgeLen > 600;
         const spacing = longRun ? 2.4 : 1.3;
-        const geo = new THREE.IcosahedronGeometry(1, longRun ? 2 : 3), p = geo.attributes.position, nrm = geo.attributes.normal, col = [];
-        for (let i = 0; i < p.count; i++) {
-          const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 0.88 + hash3(x * 4.3, y * 4.3, z * 4.3) * 0.24;
-          p.setXYZ(i, x * n, y * n, z * n);
-          nrm.setXYZ(i, x, y, z);   // smooth, rounded shading (the lumps stay in the outline)
-          const c = (0.62 + 0.38 * (y + 1) / 2) * (0.85 + hash3(z * 5, x * 5, y * 5) * 0.3);
-          col.push(0.36 * c, 0.55 * c, 0.24 * c);
-        }
-        geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+        const blob = detail => {
+          const geo = new THREE.IcosahedronGeometry(1, detail), p = geo.attributes.position, nrm = geo.attributes.normal, col = [];
+          for (let i = 0; i < p.count; i++) {
+            const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 0.88 + hash3(x * 4.3, y * 4.3, z * 4.3) * 0.24;
+            p.setXYZ(i, x * n, y * n, z * n);
+            nrm.setXYZ(i, x, y, z);   // smooth, rounded shading (the lumps stay in the outline)
+            const c = (0.62 + 0.38 * (y + 1) / 2) * (0.85 + hash3(z * 5, x * 5, y * 5) * 0.3);
+            col.push(0.36 * c, 0.55 * c, 0.24 * c);
+          }
+          geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+          return geo;
+        };
         const pts = [];
         hedges.forEach(f => {
           const cs = f.geometry.coordinates.map(c => toLocal(...c)), zs = f.properties.zs || [], { h, w } = f.properties;
@@ -525,8 +529,12 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
             }
           }
         });
-        const hedgeMesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), pts.length);
-        pts.forEach(({ x, z, y0, h, w }, i) => {
+        // hedge blobs away from the hole being played: same size, place and colour, a coarser ball (80 triangles, not 180/320)
+        const hedgeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
+        [pts.filter(q => nearXZ(q.x, q.z)), pts.filter(q => !nearXZ(q.x, q.z))].forEach((list, far) => {
+        if (!list.length) return;
+        const hedgeMesh = new THREE.InstancedMesh(blob(far ? 1 : longRun ? 2 : 3), hedgeMat, list.length);
+        list.forEach(({ x, z, y0, h, w }, i) => {
           const jx = (hash3(x, z, 3) - 0.5) * 0.8, jz = (hash3(z, x, 4) - 0.5) * 0.8, hh = h * (0.9 + hash3(x, 9, z) * 0.2);
           dummy.position.set(x + jx, y0 + hh / 2 - 0.15, z + jz);
           dummy.rotation.set(0, hash3(x, z, 5) * Math.PI * 2, 0);
@@ -536,6 +544,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         });
         hedgeMesh.castShadow = hedgeMesh.receiveShadow = true; hedgeMesh.frustumCulled = false;
         scene.add(hedgeMesh);
+        });
       }
 
       // Practice-range nets: tall poles every ~12 m and a dark, see-through netting between them
