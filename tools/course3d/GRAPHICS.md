@@ -245,3 +245,13 @@ Each run logs triangles before/after and what still looks fake.
   3D view of hole 1 loaded on a 375x812 viewport. `window.__mggSceneStats.triangles` on hole 1, GFX HIGH: 3,339,875 (the no-browser
   counter says 3.38 M). The re-traced tees (e172b56) draw correctly from the tee camera; no new console errors (only the expected local
   404s). PREVIEW WORKS NOW: the next run should do hole 1's visible step 1 (near-hole trees) with before/after screenshots.
+- 2026-11-24 (owner session, HOLE 1, step 1 trees, WITH PREVIEW): near palms (within 160 m of the hole's line) get a skirt of six dead,
+  straw-brown fronds hanging against the trunk under the green crown and a boot of 16 old leaf bases where the trunk meets the crown (d6b9124).
+  Before, the crown sat on a bare thin stick. Live fronds are unchanged; far palms and GFX LOW are unchanged. Triangles on hole 1, GFX HIGH,
+  read in the browser: 3,339,875 -> 3,430,735 (limit 4.5 M); LOW 3.17 M, unchanged and still over its 2.5 M limit. Before/after shot on a
+  375x812 viewport from the same camera, set with the new `window.__mggMap` handle:
+  `__mggMap.stop(); __mggMap.jumpTo({center:[-80.17612,27.14719], zoom:20.9, pitch:72, bearing:255})` (wait ~25 s after the hole opens, or
+  the opening fly-through moves the camera again). Console: only the local 404s / blocked requests that were there before.
+  Still fake near hole 1: the palms are feather palms, most real ones here are probably cabbage palms with fan leaves (not checked);
+  oak leaf cards; bark without a normal map; no drift beyond the turf tile. Step 1 left for hole 1: fuller oak crowns, and lighter near
+  trees on LOW to get it under 2.5 M.
