@@ -202,3 +202,7 @@ Each run logs triangles before/after and what still looks fake.
   palm crowns without a boot/skirt, bark without a normal map, no drift beyond the turf tile. Next cost-only candidate if the preview
   stays blocked: a 320 m tier for palms (far crowns are ~0.35 M). OWNER: allow the Browser-pane preview server so step 1's visible half
   (and the LOW fix) can be done.
+  DEPLOY NOTE (run 14): the Cloudflare Workers build for 14f55d2 failed the instant it started (13:46:59Z, no log text on the GitHub
+  check; build 1c4f3eb9), although `vite build` passes locally and the previous push (63980e7) built fine. This log line is pushed as a
+  second attempt; if the live index-*.js is still BkJfsXFB afterwards, the cause is on the Cloudflare side (build quota or an outage),
+  not the code. OWNER: open the Workers Builds page for miles-grant-golf and read the failed build.
