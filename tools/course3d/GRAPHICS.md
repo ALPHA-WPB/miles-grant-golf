@@ -64,6 +64,9 @@ Hole 1 LOW 3,096,705 -> 2,352,405 in the browser; all 18 holes 1.86-2.37 M on LO
 **HOLE 1, STEP 1 (TREES) DONE** (palm skirt and boot, palm variety, fuller oak crowns, far tiers, LOW in budget; the bark normal map was
 optional and is left out). Hole 1 steps: [x] 1 trees  [ ] 2 grass  [ ] 3 tees (re-traced e172b56; bank, crisp edge and markers open)
 [ ] 4 green  [ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 2 (grass).
+Step 2 progress 2026-11-24, run 19, HOLE 1 (WITH PREVIEW): colour drift larger than one tile is done for the rough and lawns (b6c5dc8,
+`turfDrift` in realScene.js, layer `turf-drift`). Triangles unchanged: hole 1 3,691,189 HIGH (browser), 2.37 M LOW (counter).
+Left in step 2 for hole 1: (a) rough clearly coarser than fairway up close, (b) the fine blade layer near the camera. NEXT RUN: (a).
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -327,3 +330,22 @@ Each run logs triangles before/after and what still looks fake.
   oaks (r 2-3 m) thin up close, leaf cards flat edge-on, bark has no normal map, palms are all feather palms, no drift beyond the turf
   tile, tees have no bank or markers, green outline is a symmetric oval (the photo shows a pear shape). Next: hole 1 step 2 (grass):
   fine blade layer near the camera, colour drift larger than one tile, rough coarser than fairway.
+- 2026-11-24 (hi-res run 19, HOLE 1, step 2 grass, WITH PREVIEW): starting the preview server was declined at the prompt again, but one
+  was still listening on 127.0.0.1:4173 (owner session), so a tab was opened on it without starting anything. b6c5dc8: the rough and the
+  lawns get broad, soft patches a little darker (lusher) and a little paler (sun-bleached), 20-130 m across. Why: the turf patterns are
+  small repeating tiles whose ground size also changes with zoom, so no pattern can vary over a whole hole and the rough was one flat
+  green. How: one 512 px image made in code once per page load (`turfDrift`, four octaves of smooth noise in metres, alpha at most 0.23
+  dark / 0.24 light, clipped to the `course` and `lawn` outlines), added as a MapLibre image source and drawn as raster layer `turf-drift`
+  just above the lawn fill, so fairways, greens, tees, water, roads and the photo outside the course are not tinted. It is pinned to the
+  ground (does not slide or rescale with zoom), adds no triangles and no per-frame work; same on HIGH and LOW. A first try with the dark
+  side at 0.30 looked blotchy top-down next to the tree shadows, so it was cut to 0.23. Triangles, hole 1, GFX HIGH, browser: 3,691,189
+  before and after; counter, all holes HIGH 2.52-3.74 M, LOW 1.86-2.37 M (unchanged). Compared with the layer switched off and on from
+  the same camera on 375x812 (`__mggMap.setLayoutProperty('turf-drift','visibility','none')`, then jumpTo again so the ground redraws):
+  `jumpTo({center:[-80.1779,27.1470], zoom:18.6, pitch:50, bearing:255})` (rough both sides of the fairway: flat before, gently mottled
+  after), `jumpTo({center:[-80.17766,27.1468], zoom:17.2, pitch:0, bearing:255})` (top-down) and zoom 21.3 at pitch 60 (close up the
+  patches are smooth gradients, no blocks). From the tee camera the palms hide most of the rough, so the change is small there. SAT and
+  back to 3D still work; console: only the local 404s and the service-worker fetch error. Build + eslint clean. Not checked: GFX LOW was
+  not opened in the browser (same code path), other holes were not opened. Still fake on hole 1's grass: fairway and greens are still
+  perfectly even (deliberately left clean; stripes are step 5), the rough's blades are no coarser than the fairway's at close range, no
+  fine blade layer near the camera. Also still open: small oaks thin up close, bark has no normal map, tees have no bank or markers,
+  green outline is a symmetric oval. Next: hole 1 step 2 (a) rough coarser than fairway, then (b) fine blades near the camera.
