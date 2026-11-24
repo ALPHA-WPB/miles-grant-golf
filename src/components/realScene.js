@@ -499,12 +499,12 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         pole.position.set(px, py + 2.13 / 2, pz);
         // White flag with the hole number on both sides; its cloth ripples in the wind (render())
         const flagTex = (() => {
-          const cv = document.createElement("canvas"); cv.width = 256; cv.height = 176;
-          const x = cv.getContext("2d");
+          const cv = document.createElement("canvas"); cv.width = 512; cv.height = 352;   // 2x texels (was 256x176) so the hole number stays sharp up close
+          const x = cv.getContext("2d"); x.scale(2, 2);
           x.fillStyle = "#fbfbf8"; x.fillRect(0, 0, 256, 176);
           x.fillStyle = "#0f3b22"; x.font = "900 128px Inter, Arial, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
           x.fillText(String(pin.number ?? ""), 128, 96);
-          const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+          const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
           return t;
         })();
         const flagGeo = new THREE.PlaneGeometry(0.72, 0.5, 16, 6);
