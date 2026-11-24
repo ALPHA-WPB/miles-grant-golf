@@ -801,13 +801,27 @@ function TabBar({ active, onSelect, onGame, onScore, scoring }) {
   );
 }
 
+// If the phone reloads the page mid-round (iOS drops a tab that uses too much memory), pick up where the player
+// was: same hole, scores, shots and signed-in round, instead of the "which hole are you starting on" screen.
+const RESUME_KEY = "mg_resume_v1", GPS_OK_KEY = "mg_gps_ok";
+function readResume(uid) {
+  try {
+    const r = JSON.parse(localStorage.getItem(RESUME_KEY) || "null");
+    if (r && r.uid === uid && r.screen === "hole" && Date.now() - r.t < 8 * 3600e3) return r;
+  } catch { /* corrupt or private mode */ }
+  return null;
+}
+
 function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowInstructions }) {
+  const resumeRef = useRef(undefined);
+  if (resumeRef.current === undefined) resumeRef.current = readResume(user?.id || "guest");
+  const resume = resumeRef.current;
   const [tab, setTab]               = useState(null); // null | history | leaderboard | friends | profile
-  const [round, setRound]           = useState(null); // { round, roundPlayer } from Supabase, or null for guests
-  const [screen, setScreen]         = useState("start");
+  const [round, setRound]           = useState(resume?.round ?? null); // { round, roundPlayer } from Supabase, or null for guests
+  const [screen, setScreen]         = useState(resume ? "hole" : "start");
   // White is the default tee; a different choice is remembered (new key so every phone starts on White once)
   const [playerTee, setPlayerTee]   = useState(() => { try { return localStorage.getItem("mg_tee2") || "mens"; } catch { return "mens"; } });
-  const [scoring, setScoring]       = useState(false);   // "Keep score" mode
+  const [scoring, setScoring]       = useState(!!resume?.scoring);   // "Keep score" mode
   const [offCourse, setOffCourse]   = useState(false);
   // Full-screen play layout: measured overlay sizes so the map fits around them
   const [dockH, setDockH]           = useState(150);
@@ -887,18 +901,18 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     return () => ro.disconnect();
   }, [screen, tab]);
   const startDoneRef                = useRef(false);
-  const [roundStart, setRoundStart] = useState(0);
-  const [roundEnd, setRoundEnd]     = useState(18);
-  const [holeIdx, setHoleIdx]       = useState(0);
+  const [roundStart, setRoundStart] = useState(resume?.roundStart ?? 0);
+  const [roundEnd, setRoundEnd]     = useState(resume?.roundEnd ?? 18);
+  const [holeIdx, setHoleIdx]       = useState(resume?.holeIdx ?? 0);
   const [holeComplete, setHoleComplete] = useState(false);
   const [showScorecard, setShowScorecard] = useState(false);
   const [scorecardCountdown, setScorecardCountdown] = useState(10);
   const scorecardTimerRef = useRef(null);
   const scorecardIntervalRef = useRef(null);
-  const [scores, setScores]         = useState(() => Array(HOLES.length).fill(0));
-  const [skipped, setSkipped]       = useState(() => Array(HOLES.length).fill(false));
+  const [scores, setScores]         = useState(() => resume?.scores?.length === HOLES.length ? resume.scores : Array(HOLES.length).fill(0));
+  const [skipped, setSkipped]       = useState(() => resume?.skipped?.length === HOLES.length ? resume.skipped : Array(HOLES.length).fill(false));
   const [pickupConfirm, setPickupConfirm] = useState(false);
-  const [shots, setShots]           = useState(() => Array(HOLES.length).fill(null).map(() => []));
+  const [shots, setShots]           = useState(() => resume?.shots?.length === HOLES.length ? resume.shots : Array(HOLES.length).fill(null).map(() => []));
   const [gps, setGps]               = useState(null);
   const [gpsStatus, setGpsStatus]   = useState("checking"); // checking | ok | weak | denied | timeout | unavailable | unsupported
   const [shotFrom, setShotFrom]     = useState(null);
@@ -908,7 +922,12 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
   const candidateRef                = useRef({ idx: null, count: 0 });
   const promptAtTeeRef              = useRef(false);  // prompt came from standing at a tee
   const [shotFlash, setShotFlash]   = useState(null);
-  const [locationReady, setLocationReady] = useState(false);
+  const [locationReady, setLocationReady] = useState(() => { try { return localStorage.getItem(GPS_OK_KEY) === "1"; } catch { return false; } });   // allowed before: don't ask again after a reload
+  useEffect(() => { if (locationReady) { try { localStorage.setItem(GPS_OK_KEY, "1"); } catch { /* ignore */ } } }, [locationReady]);
+  useEffect(() => {
+    if (screen !== "hole") return;
+    try { localStorage.setItem(RESUME_KEY, JSON.stringify({ t: Date.now(), uid: user?.id || "guest", screen, holeIdx, roundStart, roundEnd, scores, skipped, shots, scoring, round })); } catch { /* storage full or private */ }
+  }, [screen, holeIdx, roundStart, roundEnd, scores, skipped, shots, scoring, round, user?.id]);
   const [longestToday, setLongestToday] = useState(() => {
     try { return Number(localStorage.getItem(longestKey())) || 0; } catch { return 0; }
   });
