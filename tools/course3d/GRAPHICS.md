@@ -125,6 +125,10 @@ stripes no longer sit square in the re-traced fairway was checked on the zoom-20
 meet the new edge at a shallow angle only, so they stay. Triangles unchanged: hole 1 3.74 M HIGH, 2.37 M LOW (counter). Hole 1 steps
 unchanged: step 5 open (fairway outline 6f00567 and sand bed 82ba254 STILL not seen in 3D; feathered first cut, bunker lips, raked floor open).
 NEXT RUN: same as run 29's list; every remaining job on hole 1 is a visible one and needs the preview.
+Step 5 progress 2026-11-25, run 31, HOLE 1 (preview blocked, photo-overlay check only, NO change): hole 1's paved cart path (tees to the
+clubhouse walk) checked on the zoom-20 photo: it sits on the pavement all the way; kept. Triangles unchanged: hole 1 3.74 M HIGH, 2.37 M LOW
+(counter, run 30). Hole 1 steps unchanged: step 5 open (fairway outline 6f00567 and sand bed 82ba254 STILL not seen in 3D; feathered first
+cut, bunker lips, raked floor open). NEXT RUN: same as run 29's list; needs the preview.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -663,3 +667,16 @@ Each run logs triangles before/after and what still looks fake.
   WAITING FOR THE PREVIEW on hole 1: first look at the fairway outline (6f00567) and the sand bed (82ba254) in 3D, the feathered first
   cut, bunker lips and rake lines, then step 6 (terrain). OWNER: three runs in a row were blocked; hole 1 cannot move on until the
   Browser-pane server "miles-grant-golf (preview)" is allowed (always allow) or left running.
+
+- 2026-11-25 (hi-res run 31, HOLE 1, step 5): preview blocked. Nothing was listening on 127.0.0.1:4173 and starting
+  "miles-grant-golf (preview)" was declined at the prompt (not retried, no server started any other way). No code or data change.
+  Done instead, on the photo overlay: hole 1's paved cart path, the last of the hole's shapes not yet looked at on the zoom-20 photo
+  (`ground_kit.py check 3930 2230 4300 2470 3.4 h1cp_chk cartpath,cartedge,tee`). The concrete stretch south of the tees (x 3960-4200)
+  sits on the pavement. On the short asphalt stretch round the bend by the cart barn (x 4200-4270, y 2400-2420) the photo's pavement is
+  about 3 m wide and the drawn path about 2 m, lying on its north half; under 1 m off on either side, behind the tees and off the line
+  of play, so not changed. The three re-traced tees (e172b56) sit on their mown tops in the same picture.
+  `vite build` passes on the unchanged code (index-D_zf5axi.js). Triangles as run 30 (`tri_count`): hole 1 3,738,895 HIGH, 2,371,273 LOW.
+  Every traced shape of hole 1 (tees, green, fairway, bunkers, cart path) has now been checked at zoom 20; nothing is left on this hole
+  that can be done without seeing it. WAITING FOR THE PREVIEW: first look at the fairway outline (6f00567) and the sand bed (82ba254) in
+  3D, the feathered first cut, bunker lips and rake lines, then step 6 (terrain). OWNER: four runs in a row were blocked; hole 1 cannot
+  move on until the Browser-pane server "miles-grant-golf (preview)" is allowed (always allow) or left running.
