@@ -871,6 +871,26 @@ function tufts(size, { light, dark, count, angle, seed, scale = 1 }) {
   });
 }
 
+// Fine blades for the mown surfaces (fairway, collar, fringe, green, tees): a see-through tile of short,
+// hairline grass blades, one texel wide, laid over the smooth turf only when the camera is very close
+// (layers `fine-fairway` and `fine-green`). The turf tiles themselves are drawn finer than a screen pixel,
+// so close up the mown grass was an even wash; this gives it a crisp, short nap that still reads far
+// smoother than the clumps in the rough. No geometry; not drawn at all from further out.
+function fineBlades(size, { light, dark, count, angle, seed }) {
+  return canvasPattern(size, (x, n) => {
+    const r = rng(seed * 331);
+    x.lineCap = "round";
+    for (let b = 0; b < count; b++) {
+      const px = r() * n, py = r() * n, len = 3 + r() * 4, a = angle + (r() - 0.5) * 1.1, q = r();
+      const dx = Math.sin(a) * len, dy = -Math.cos(a) * len, bend = (r() - 0.5) * 1.6;
+      x.strokeStyle = q < 0.48 ? `rgba(${light[0]},${light[1]},${light[2]},${0.2 + r() * 0.26})`
+        : q < 0.95 ? `rgba(${dark[0]},${dark[1]},${dark[2]},${0.16 + r() * 0.22})` : `rgba(214,206,128,${0.14 + r() * 0.16})`;
+      x.lineWidth = 0.7 + r() * 0.5;
+      wrapDraw(n, px, py, len + 2, (X, Y) => { x.beginPath(); x.moveTo(X, Y); x.quadraticCurveTo(X + dx * 0.5 + bend, Y + dy * 0.5, X + dx, Y + dy); x.stroke(); });
+    }
+  });
+}
+
 function sand(size, seed, res = 1) {
   // res: supersampling; same ground footprint (pair with pixelRatio 2*res), res x more texels per metre
   const sz = size * res;
@@ -911,7 +931,7 @@ function plain(size, base, seed) {
 }
 
 // Per-texture pixelRatio (default 2); res-2 textures draw 2x the texels over the same ground area
-export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-rough-tufts": 2, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4, "tex-sand": 4, "tex-ground": 4 };
+export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-rough-tufts": 2, "tex-fine-blades": 2, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4, "tex-sand": 4, "tex-ground": 4 };
 export const GROUND_TEXTURES = {
   "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5, res: 2 }),
   "tex-rough-tufts": () => tufts(512, { light: [118, 172, 78], dark: [34, 78, 28], count: 860, angle: 0.15, seed: 3, scale: 1.2 }),
@@ -921,6 +941,7 @@ export const GROUND_TEXTURES = {
   "tex-fringe": () => turf(256, { base: [88, 156, 62], light: [138, 196, 96], dark: [58, 112, 42], bladeLen: 3, blades: 3500, angle: 0.3, seed: 9, res: 2 }),
   "tex-green": () => turf(256, { base: [128, 196, 92], light: [168, 222, 124], dark: [100, 164, 72], bladeLen: 1.6, blades: 4500, angle: 0, seed: 11, res: 2 }),
   "tex-tee": () => turf(256, { base: [116, 186, 82], light: [160, 214, 114], dark: [84, 146, 58], bladeLen: 2.4, blades: 4000, angle: 0, seed: 13, res: 2 }),
+  "tex-fine-blades": () => fineBlades(512, { light: [186, 232, 136], dark: [48, 104, 38], count: 15000, angle: 0, seed: 29 }),
   "tex-sand": () => sand(512, 17, 2),
   "tex-ground": () => plain(512, [203, 210, 190], 19),
 };

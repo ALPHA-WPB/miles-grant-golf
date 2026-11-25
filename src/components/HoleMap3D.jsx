@@ -845,6 +845,15 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
           paint: { "fill-pattern": "tex-rough-tufts", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 19.3, 0, 20.5, 1] } }, "lawn");
       } catch { /* fine rough remains */ }
       try {
+        // A short, fine nap of blades over the mown grass, only when the camera is very close (fades in
+        // between zoom 20 and 21). One layer over the fairway (under the collar) and one over the collar,
+        // which holds the fringe and green, and the tees, lighter there: those are cut tighter.
+        const fine = (id, kinds, before, op) => { if (!map.getLayer(id)) map.addLayer({ id, type: "fill", source: "ground", filter: ["in", ["get", "kind"], ["literal", kinds]], minzoom: 20,
+          paint: { "fill-pattern": "tex-fine-blades", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 20, 0, 21, op] } }, before); };
+        fine("fine-fairway", ["fairway"], "fairway-edge", 1);
+        fine("fine-green", ["collar", "tee"], "paved", 0.6);
+      } catch { /* smooth turf remains */ }
+      try {
         // Broad, soft light and dark patches over the rough and lawns, pinned to the ground, so the
         // small repeating turf tile no longer reads as one flat green (sits under water, roads and fairways)
         const dr = !map.getSource("turf-drift") && turfDrift(course.features);
