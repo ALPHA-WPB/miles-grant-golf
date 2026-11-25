@@ -450,7 +450,11 @@ for num, t in traced['holes'].items():
         tees_greens.append(gp)
     h = HOLES[int(num)]
     glat, glng = h['green']
-    fws = [Polygon(f) for f in t.get('fairways', [])] + [spine_poly(s) for s in t.get('fairwaySpines', [])]
+    # "fairwayOutlines" (optional, one per spine, null = none): the mown edge traced on the zoom-20 photo. It replaces
+    # the outline made from the spine's widths; the spine stays as the centre line (fly-through, stripe direction).
+    outl = t.get('fairwayOutlines', [])
+    fws = [Polygon(f) for f in t.get('fairways', [])] + [
+        Polygon(outl[i]) if i < len(outl) and outl[i] else spine_poly(s) for i, s in enumerate(t.get('fairwaySpines', []))]
     for sp in t.get('fairwaySpines', []):     # fairway centerline: the fly-through walks along it
         add(LineString([(lng, lat) for lng, lat, _ in sp]), kind='spine', hole=int(num))
     n_traced = len(t.get('fairways', []))
