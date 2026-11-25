@@ -900,7 +900,13 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
             const show = p && p.height > 0 && p.height < 16;
             flagEl.style.display = show ? "block" : "none";
             if (show) flagEl.style.transform = `translate(${(p.x - 1).toFixed(1)}px, ${(p.y - 44).toFixed(1)}px)`;
-          }, "real3d", !!lowGfx, [[t.lng, t.lat], [hole.green.lng, hole.green.lat]]));
+          }, "real3d", !!lowGfx, [[t.lng, t.lat], [hole.green.lng, hole.green.lat]],
+          // tee markers: each tee colour's pair faces the first stretch of the fairway line (the green on a straight hole)
+          [["champ", 0x2563eb], ["mens", 0xf4f4f0], ["womens", 0xdc2626]].filter(([k]) => hole.tees[k] && isFinite(hole.tees[k].lat)).map(([k, color]) => {
+            const p = hole.tees[k], toGreen = q => haversineYards(q.lat, q.lng, hole.green.lat, hole.green.lng);
+            const ahead = spine.find(q => toGreen(q) < toGreen(p) - 60) || hole.green;
+            return { lng: p.lng, lat: p.lat, z: terrainOf(course).ground(p.lng, p.lat), color, aim: [ahead.lng, ahead.lat] };
+          })));
         flagMarker?.remove();
         flagMarker = null;
         ["trees", "buildings"].forEach(id => map.setLayoutProperty(id, "visibility", "none"));

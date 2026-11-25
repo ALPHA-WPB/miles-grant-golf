@@ -466,7 +466,7 @@ function bridgesGeometry(bridges, toLocal, exaggeration) {
   return geo;
 }
 
-export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d", low = false, focus = null) {
+export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin = null, id = "real3d", low = false, focus = null, tees = null) {
   const trees = course.features.filter(f => f.properties.kind === "tree");
   const buildings = course.features.filter(f => f.properties.kind === "building");
   const allPts = trees.map(f => f.geometry.coordinates);
@@ -713,6 +713,34 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         cup.rotation.x = -Math.PI / 2;
         cup.position.set(px, py + 0.02, pz);
         for (const m of [pole, flag, cup]) { m.castShadow = true; m.frustumCulled = false; scene.add(m); }
+      }
+
+      // Tee markers: a pair of small coloured balls for each tee colour, one either side of the tee point and
+      // square to the line of play, kept on the traced tee top. Only the hole being played (about 1,800 triangles).
+      if (tees?.length) {
+        const tops = course.features.filter(f => f.properties.kind === "tee" && f.geometry.type === "Polygon")
+          .map(f => f.geometry.coordinates[0].map(p => toLocal(...p)));
+        const R = 0.11, ballG = new THREE.SphereGeometry(R, 16, 10);
+        // a small soft-dark patch on the turf just north of each ball (the sun is in the south), so it sits on the ground
+        const padG = new THREE.CircleGeometry(R * 1.25, 14).rotateX(-Math.PI / 2);
+        const padM = new THREE.MeshBasicMaterial({ color: 0x0c2212, transparent: true, opacity: 0.34, depthWrite: false });
+        for (const t of tees) {
+          const [tx, tz] = toLocal(t.lng, t.lat), [ax, az] = toLocal(...t.aim);
+          const L = Math.hypot(ax - tx, az - tz) || 1, nx = -(az - tz) / L, nz = (ax - tx) / L;   // across the line of play
+          const top = tops.find(p => insidePoly(tx, tz, p));
+          let half = 2.3;                                    // markers 4.6 m apart, closer on a narrow tee
+          if (top) while (half > 0.8 && !(insidePoly(tx + nx * (half + 0.5), tz + nz * (half + 0.5), top) && insidePoly(tx - nx * (half + 0.5), tz - nz * (half + 0.5), top))) half -= 0.1;
+          else half = 1.5;
+          const mat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.35, emissive: t.color, emissiveIntensity: 0.18 });
+          for (const sgn of [-1, 1]) {
+            const ball = new THREE.Mesh(ballG, mat);
+            ball.position.set(tx + sgn * nx * half, (t.z || 0) + R * 0.9, tz + sgn * nz * half);
+            ball.castShadow = true; ball.frustumCulled = false; scene.add(ball);
+            const pad = new THREE.Mesh(padG, padM);
+            pad.position.set(ball.position.x - 0.03, (t.z || 0) + 0.015, ball.position.z - 0.07);
+            pad.frustumCulled = false; scene.add(pad);
+          }
+        }
       }
 
       // Houses
