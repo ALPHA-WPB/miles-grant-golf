@@ -75,6 +75,10 @@ Step 2 progress 2026-11-24, run 21, HOLE 1 (WITH PREVIEW): (b) is done (f986890,
 unchanged: hole 1 3,691,189 HIGH (browser). **HOLE 1, STEP 2 (GRASS) DONE** (colour drift, coarse rough, fine nap; judged from the fairway,
 green and tee close-ups). Hole 1 steps: [x] 1 trees  [x] 2 grass  [ ] 3 tees (re-traced e172b56; bank, crisp edge and markers open)
 [ ] 4 green  [ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 3 (tee bank, crisp edge, markers).
+Step 3 progress 2026-11-25, run 22, HOLE 1 (WITH PREVIEW): raised bank and crisp cut edge are done (5cb4d2a, `teeBank` in HoleMap3D.jsx,
+layers `tee-shade`, `tee-lit`, `tee-edge`). Triangles unchanged: hole 1 3,691,189 HIGH (browser). Hole 1 steps: [x] 1 trees  [x] 2 grass
+[ ] 3 tees (re-traced e172b56; bank and edge 5cb4d2a; tee markers per tee colour open)  [ ] 4 green  [ ] 5 fairway and bunkers  [ ] 6 terrain.
+NEXT RUN: hole 1, step 3, tee markers (a pair of small 3D markers per tee colour beside the blue/white/red dots), then close step 3.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -397,3 +401,25 @@ Each run logs triangles before/after and what still looks fake.
   Hole 1's step 2 is closed. Still fake on hole 1's grass: at the default tee camera (zoom 19.3) none of the close-up layers show, so the
   first view is unchanged; the fairway is a touch darker close up than from afar (the dark blades); blades are a flat picture. Also open:
   small oaks thin up close, bark has no normal map, tees have no bank or markers, green outline is a symmetric oval. Next: hole 1 step 3.
+
+- 2026-11-25 (hi-res run 22, HOLE 1, step 3 tees, WITH PREVIEW): starting the preview server was declined at the prompt again, but one was
+  still listening on 127.0.0.1:4173 (owner session), so a tab was opened on it without starting anything. 5cb4d2a: the tee boxes read as
+  raised, flat-cut platforms. Before, each tee was a flat pale blob with a fuzzy edge lying on the rough. How: `teeBank` in HoleMap3D.jsx
+  makes three true-size shapes per tee from its traced outline, once, when the map style is built, and they are drawn UNDER the tee fill so
+  only what sticks out shows: two shadow steps pushed north (0.45 m and 0.75 m, `tee-shade`, opacity 0.21 each) and one lit band pushed
+  south (0.5 m, `tee-lit`, opacity 0.1); plus `tee-edge`, a 1.1 px line a shade darker than the turf at the cut edge, from zoom 17.5. The
+  sun direction is the same as the tree and house shadows (shadows fall north). The traced tee outlines, sizes and positions are untouched;
+  the terrain is untouched (the bank is shading only, no invented height). All tees on the course get it (shared style); judged on hole 1.
+  A first try (shade 0.17, lit 0.2 pale yellow) read as a pale halo round the south side, so the lit band was halved and the shade raised.
+  Map fills only: no triangles, no textures, no per-frame work, same on HIGH and LOW. Triangles, hole 1, GFX HIGH, browser: 3,691,189
+  before and after. Cameras (375x812, wait ~40 s after the hole opens): `__mggMap.stop(); __mggMap.jumpTo({center:[-80.17462,27.14757],
+  zoom:20.6, pitch:55, bearing:255})` (back and middle tees close up: clear dark crescent on the north side, crisp top edge),
+  `jumpTo({center:[-80.17485,27.14752], zoom:19.3, pitch:68, bearing:255})` (all three tees from behind: each sits up off the rough),
+  `jumpTo({center:[-80.17474,27.14754], zoom:19.9, pitch:0, bearing:255})` (top-down), and the tee view at 19.3 (tees are behind the camera,
+  unchanged). Caveat as in run 17: the 'before' shots were taken with the phone viewport scaled down in the pane, the 'after' at full size.
+  SAT and back to 3D work (the three tee layers and the grass layers come back); console: only the local 404s and the service-worker
+  fetch error. Build + eslint clean. Not checked: GFX LOW was not opened in the browser (same code path, no 3D geometry changed); other
+  holes were not opened (risk: on a long tee strip under trees the shadow crescent may sit oddly next to a tree shadow; lower `tee-shade`
+  opacity if so). Still fake on hole 1's tees: no tee markers (only the round blue/white/red dots), the top has no mowing pattern, the
+  bank is a flat picture (no real height). Also open: small oaks thin up close, bark has no normal map, green outline is a symmetric
+  oval. Next: hole 1 step 3, tee markers.
