@@ -186,8 +186,27 @@ function buildStyle(course) {
     const moved = ring.map(([x, y]) => [x - 0.12 * off / (M * k), y + 0.75 * off / M]);
     return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [hull([...ring, ...moved])] } };
   }) };
+  // Tee boxes are raised, flat-cut platforms. Their bank is shaded like the bunkers' baked shading, as true-size
+  // shapes drawn UNDER the tee, so only what sticks out past the tee's own outline shows: the sun is in the
+  // south, so the north bank is in shade (two steps, soft) and the south bank catches the light.
+  const teeBank = { type: "FeatureCollection", features: course.features.filter(f => f.properties.kind === "tee" && f.geometry.type === "Polygon").flatMap(f => {
+    const ring = f.geometry.coordinates[0], n = ring.length - 1, lat = ring[0][1], kx = M * Math.cos(lat * Math.PI / 180);
+    if (n < 3) return [];
+    const pts = ring.slice(0, n).map(([x, y]) => [x * kx, y * M]);                    // metres
+    let area = 0;
+    pts.forEach((p, i) => { const q = pts[(i + 1) % n]; area += p[0] * q[1] - q[0] * p[1]; });
+    const out = area > 0 ? 1 : -1;                                                       // which side is outside
+    const shape = (s, grow, dx, dy) => {                                                 // outline pushed out by `grow` m, moved by (dx, dy) m
+      const r = pts.map((p, i) => {
+        const a = pts[(i + n - 1) % n], b = pts[(i + 1) % n], tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1;
+        return [(p[0] + out * grow * ty / l + dx) / kx, (p[1] - out * grow * tx / l + dy) / M];
+      });
+      return { type: "Feature", properties: { s }, geometry: { type: "Polygon", coordinates: [[...r, r[0]]] } };
+    };
+    return [shape("shade", 0.25, -0.1, 0.75), shape("shade", 0.1, -0.06, 0.45), shape("lit", 0.2, 0.06, -0.5)];
+  }) };
   const terr = course.terrain;
-  const demSource = terr && { type: "raster-dem", tiles: [location.origin + terr.tiles], encoding: "terrarium", tileSize: 256,
+  const demSource =terr && { type: "raster-dem", tiles: [location.origin + terr.tiles], encoding: "terrarium", tileSize: 256,
     minzoom: terr.minzoom, maxzoom: terr.maxzoom, bounds: terr.bounds };
   return {
     version: 8,
@@ -195,6 +214,7 @@ function buildStyle(course) {
     sources: {
       ...(terr ? { dem: demSource, demShade: { ...demSource } } : {}),
       houseShadows: { type: "geojson", data: houseShadows },
+      teeBank: { type: "geojson", data: teeBank },
       photo: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
                tileSize: 256, maxzoom: 19, attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
       ground: { type: "geojson", data: ground },
@@ -234,7 +254,12 @@ function buildStyle(course) {
       fill("fringe", "fringe", "#62b348"),
       fill("green", "green", "#a3e672"),
       { id: "green-edge", type: "line", source: "ground", filter: kind("green"), paint: { "line-color": "#6cba4d", "line-width": 3, "line-blur": 3, "line-opacity": 0.8 } },
+      { id: "tee-shade", type: "fill", source: "teeBank", filter: ["==", ["get", "s"], "shade"], paint: { "fill-color": "#10301a", "fill-opacity": 0.21, "fill-antialias": false } },
+      { id: "tee-lit", type: "fill", source: "teeBank", filter: ["==", ["get", "s"], "lit"], paint: { "fill-color": "#d9f08a", "fill-opacity": 0.1, "fill-antialias": false } },
       fill("tee", "tee", "#8bd862"),
+      // the cut edge of the tee top: a thin, crisp line a shade darker than the turf (not an outline)
+      { id: "tee-edge", type: "line", source: "ground", filter: kind("tee"), minzoom: 17.5, layout: { "line-join": "round" },
+        paint: { "line-color": "#4f9a45", "line-width": 1.1, "line-opacity": ["interpolate", ["linear"], ["zoom"], 17.5, 0, 19, 0.7] } },
       // Service driveways / yards, rock gardens, condo lanes and parking lots (asphalt with a concrete
       // curb) and walks, traced on the photo; painted parking-stall lines on top
       fill("paved", "paved", ["match", ["get", "s"], "rock", "#8f8d86", "asphalt", "#a9a8a4", "walk", "#d3cec2", "grass", "#58a048", "deck", "#dde4e7", "court", "#5b9b69", "courtblue", "#3b6ea5", "sand", "#d8c6a0", "lane", "#6a9468", "putt", "#4f9a45", "chip", "#5cab4d", "mat", "#2f7a5c", "mulch", "#b98d55", "#bdb9ae"]),
