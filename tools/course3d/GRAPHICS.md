@@ -79,6 +79,11 @@ Step 3 progress 2026-11-25, run 22, HOLE 1 (WITH PREVIEW): raised bank and crisp
 layers `tee-shade`, `tee-lit`, `tee-edge`). Triangles unchanged: hole 1 3,691,189 HIGH (browser). Hole 1 steps: [x] 1 trees  [x] 2 grass
 [ ] 3 tees (re-traced e172b56; bank and edge 5cb4d2a; tee markers per tee colour open)  [ ] 4 green  [ ] 5 fairway and bunkers  [ ] 6 terrain.
 NEXT RUN: hole 1, step 3, tee markers (a pair of small 3D markers per tee colour beside the blue/white/red dots), then close step 3.
+Step 3 progress 2026-11-25, run 23, HOLE 1 (WITH PREVIEW): tee markers are done (7b6fe66, `tees` argument of `createRealisticLayer` in
+realScene.js, filled in HoleMap3D.jsx). Hole 1: 3,691,189 -> 3,693,001 triangles on HIGH (browser). **HOLE 1, STEP 3 (TEES) DONE** (re-traced
+e172b56; bank and crisp edge 5cb4d2a; markers 7b6fe66). Hole 1 steps: [x] 1 trees  [x] 2 grass  [x] 3 tees  [ ] 4 green  [ ] 5 fairway and
+bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4 (green: re-trace the edge at zoom 20, it is still a symmetric oval; then collar/fringe rings,
+cross-cut, cup shadow).
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -423,3 +428,30 @@ Each run logs triangles before/after and what still looks fake.
   opacity if so). Still fake on hole 1's tees: no tee markers (only the round blue/white/red dots), the top has no mowing pattern, the
   bank is a flat picture (no real height). Also open: small oaks thin up close, bark has no normal map, green outline is a symmetric
   oval. Next: hole 1 step 3, tee markers.
+
+- 2026-11-25 (hi-res run 23, HOLE 1, step 3 tees, WITH PREVIEW): starting the dev preview server was declined at the prompt again; the
+  python server on 127.0.0.1:4173 (owner session) was still listening, so each build was copied into its folder (/private/tmp/claude-501/mgg-dist)
+  and a tab opened on it, without starting anything. 7b6fe66: tee markers. Before, the tees only had the flat round blue/white/red map dots.
+  Now each tee colour of the hole being played has a pair of small 3D marker balls (22 cm across, blue / white / red) standing on the tee
+  top: one either side of the tee point, square to the line of play (aimed at the first fairway-line point at least 60 yd ahead, or the green),
+  4.6 m apart and pulled closer on a narrow tee so both stay at least 0.5 m inside the traced tee outline; a small dark patch on the turf
+  just north of each ball (sun in the south) stops them floating. The round dots stay where they were (they are the tap target and are seen
+  from far away). Only the open hole's tees get markers (the other holes' tee points are not in the 3D layer). Traced shapes, terrain and
+  textures untouched; nothing downloaded. Triangles, GFX HIGH, browser: hole 1 3,691,189 -> 3,693,001 (+1,812); hole 2 2,573,161 with
+  markers. `tools/course3d/tri_count/run.sh` does not pass tees, so it reads about 1,800 low. Cameras (375x812): before and after at
+  `__mggMap.stop(); __mggMap.jumpTo({center:[-80.17462,27.14757], zoom:20.6, pitch:55, bearing:255})` (back and middle tees: the pairs are
+  clear, on the top, across the line) and `jumpTo({center:[-80.17485,27.14752], zoom:19.3, pitch:68, bearing:255})` (all three tees from
+  behind: small coloured specks either side of each dot, right scale); after only at `jumpTo({center:[-80.174650,27.147562], zoom:22.6,
+  pitch:66, bearing:255})` (one white pair close up: round, shaded, sitting on the turf). Second hole: hole 2 (one long strip tee),
+  `jumpTo({center:[-80.17935365,27.14645101], zoom:20.6, pitch:55})`: three pairs on the strip, all inside it, square to the green.
+  The mid-fairway, green and top-down cameras were not re-shot: nothing there changed (markers exist only on tees). A first build had no
+  ground patch and the plain colours; the white balls read grey and all of them floated, so the patch and a little self-colour were added.
+  The opening fly-through played on both holes; SAT and back to 3D work (markers come back); console: only the local 404s and the
+  service-worker fetch error. Build + eslint clean. Not checked: GFX LOW was not opened in the browser (same code; on LOW the balls cast no
+  shadow, the ground patch is still there); frame rate was not measured (1,800 triangles in 3.7 M); holes 3-18 were not opened (risk: a tee
+  point that sits outside its traced tee gets a fixed 3 m pair, which could land on the rough).
+  OWNER TO DECIDE: I do not know what Miles Grant's real tee markers look like, so these are plain coloured balls at a typical size. If the
+  club uses blocks, logos or other colours (gold/green tees), say so and they can be matched.
+  Hole 1's step 3 is closed. Still fake on hole 1's tees: the top has no mowing pattern, the bank is a flat picture (no real height), the
+  markers are tiny from the default tee camera (true size). Also open: small oaks thin up close, bark has no normal map, green outline
+  is a symmetric oval. Next: hole 1 step 4 (green).
