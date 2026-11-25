@@ -70,6 +70,11 @@ Left in step 2 for hole 1: (a) rough clearly coarser than fairway up close, (b) 
 Step 2 progress 2026-11-24, run 20, HOLE 1 (WITH PREVIEW): (a) is done (d512749, `tufts()` in realScene.js, layer `rough-tufts`): coarse grass
 clumps over the rough when the camera is close. Triangles unchanged: hole 1 3,691,189 HIGH (browser). Left in step 2 for hole 1:
 (b) the fine blade layer near the camera on the fairway, tees and green. NEXT RUN: (b), then judge step 2 from the tee, fairway and green cameras.
+Step 2 progress 2026-11-24, run 21, HOLE 1 (WITH PREVIEW): (b) is done (f986890, `fineBlades()` in realScene.js, layers `fine-fairway` and
+`fine-green`): a fine nap of short blades over the fairway, collar, fringe, green and tees when the camera is very close. Triangles
+unchanged: hole 1 3,691,189 HIGH (browser). **HOLE 1, STEP 2 (GRASS) DONE** (colour drift, coarse rough, fine nap; judged from the fairway,
+green and tee close-ups). Hole 1 steps: [x] 1 trees  [x] 2 grass  [ ] 3 tees (re-traced e172b56; bank, crisp edge and markers open)
+[ ] 4 green  [ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 3 (tee bank, crisp edge, markers).
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -372,3 +377,23 @@ Each run logs triangles before/after and what still looks fake.
   the default tee camera (zoom 19.3) the rough is still the fine grain, the clumps need a closer camera; the clumps are a flat picture
   (no height); fairway, tees and green have no fine blade layer near the camera yet. Also open: small oaks thin up close, bark has no
   normal map, tees have no bank or markers, green outline is a symmetric oval. Next: hole 1 step 2 (b).
+
+- 2026-11-24 (hi-res run 21, HOLE 1, step 2 grass, WITH PREVIEW): starting the preview server was not tried; one was still listening on
+  127.0.0.1:4173 (owner session), so a tab was opened on it. f986890: the mown grass gets a fine nap of short blades close up. Before, the
+  fairway, collar, green and tees were an even airbrushed wash when the camera was near, because their turf tiles are drawn finer than a
+  screen pixel and average out. How: one 512 px see-through tile made in code (`fineBlades()`: 15,000 hairline blades 3-7 texels long,
+  one texel wide, pale and dark green with a few straw ones), image `tex-fine-blades` at pixelRatio 2, drawn as two fill layers:
+  `fine-fairway` (kind fairway, just under `fairway-edge`, so the collar covers it) and `fine-green` (kinds collar and tee, just under
+  `paved`, at 0.6 strength; the collar outline holds the fringe and green, so each spot is drawn once). Both fade in between zoom 20 and 21
+  and are not drawn below 20. No triangles, no per-frame work, same on HIGH and LOW; one extra 512 px image, no existing texture enlarged.
+  Triangles, hole 1, GFX HIGH, browser: 3,691,189 before and after. Compared with the two layers off and on from the same camera on 375x812
+  at device pixels (map canvas crop): `jumpTo({center:[-80.17775,27.14712], zoom:21.3, pitch:60, bearing:255})` (fairway edge: flat wash
+  -> short-cut turf, still far smoother than the clumpy rough beside it), `jumpTo({center:[-80.17890,27.14654], zoom:21.0, pitch:58,
+  bearing:255})` (green: collar clearly napped, the green itself only faintly, so it stays the smoothest surface, and its cloudy blotches
+  are less obvious), `jumpTo({center:[-80.174649,27.147566], zoom:21.0, pitch:55, bearing:255})` (tees: faint nap), fairway at 20.3 (barely
+  there, as intended). SAT and back to 3D work (all four ground layers come back); console: only the local 404s and the service-worker
+  fetch error. Build + eslint clean. Not checked: GFX LOW was not opened in the browser (same code path); other holes were not opened; not
+  looked at while the camera moves (risk: fine blades could shimmer in the distance of a low, close view; drop `fine-fairway` if so).
+  Hole 1's step 2 is closed. Still fake on hole 1's grass: at the default tee camera (zoom 19.3) none of the close-up layers show, so the
+  first view is unchanged; the fairway is a touch darker close up than from afar (the dark blades); blades are a flat picture. Also open:
+  small oaks thin up close, bark has no normal map, tees have no bank or markers, green outline is a symmetric oval. Next: hole 1 step 3.
