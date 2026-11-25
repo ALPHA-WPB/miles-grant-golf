@@ -84,6 +84,10 @@ realScene.js, filled in HoleMap3D.jsx). Hole 1: 3,691,189 -> 3,693,001 triangles
 e172b56; bank and crisp edge 5cb4d2a; markers 7b6fe66). Hole 1 steps: [x] 1 trees  [x] 2 grass  [x] 3 tees  [ ] 4 green  [ ] 5 fairway and
 bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4 (green: re-trace the edge at zoom 20, it is still a symmetric oval; then collar/fringe rings,
 cross-cut, cup shadow).
+Step 4 progress 2026-11-25, run 24, HOLE 1 (WITH PREVIEW): the green is re-traced on the zoom-20 photo (dff783e): a smooth pear, 185 m2,
+was a 282 m2 symmetric oval. Triangles unchanged: hole 1 3,693,001 HIGH (browser). Hole 1 steps: [x] 1 trees  [x] 2 grass  [x] 3 tees
+[ ] 4 green (re-traced and smooth dff783e; fringe/collar ring widths to check, cross-cut mowing pattern and cup shadow open)
+[ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4, cross-cut mowing pattern on the green, then the cup and its shadow.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -455,3 +459,27 @@ Each run logs triangles before/after and what still looks fake.
   Hole 1's step 3 is closed. Still fake on hole 1's tees: the top has no mowing pattern, the bank is a flat picture (no real height), the
   markers are tiny from the default tee camera (true size). Also open: small oaks thin up close, bark has no normal map, green outline
   is a symmetric oval. Next: hole 1 step 4 (green).
+
+- 2026-11-25 (hi-res run 24, HOLE 1, step 4 green, WITH PREVIEW): the preview server was already listening on 127.0.0.1:4173, so a tab was
+  opened on it without starting anything. This run first built tee markers, then found run 23 had pushed the same thing two minutes
+  earlier (7b6fe66), threw its own copy away and moved to step 4. dff783e: hole 1's green re-traced at zoom 20 (0.13 m per pixel). The
+  old outline was a 14.2 x 25.8 m ellipse (282 m2). On the photo the pale, close-mown putting surface is a pear: narrow at the north tip,
+  widest at the south end, with a straight-ish east edge; the old ellipse took in about 4 m of darker turf at the north-west and 3-4 m
+  along the east side. New outline: 12.4 x 25.4 m, 185 m2, 72 points on one smooth curve (no straight facets). How: brightness of the
+  photo smoothed over 0.4 m, the golfer and their shadow painted out, the edge taken 40% of the way from the surrounding turf's
+  brightness to the green's, then smoothed to a 3-harmonic closed curve; drawn back on the photo and looked at
+  (`ground_kit.py check 2470 2740 2630 2900 6`): it sits on the pale edge all the way round. build.py rebuilt the fringe (1.2 m), the
+  collar (4.5 m) and hole 1's gold outline round it. Data diff: hole 1's green, fringe, collar and outline only; trees (1976), bunkers and
+  terrain tiles identical; a clean rebuild before the edit reproduced the committed course.json byte for byte. Map fills only: hole 1
+  3,693,001 triangles on HIGH before and after (browser). Cameras (375x812, before and after): `__mggMap.stop();
+  __mggMap.jumpTo({center:[-80.17895,27.14652], zoom:20.2, pitch:0, bearing:255})` (top-down: oval -> pear, flag on the green in its wide
+  end) and `jumpTo({center:[-80.17890,27.14654], zoom:20.0, pitch:58, bearing:255})` (tilted: same, rings follow the new edge).
+  Console: only the local 404s and the service-worker fetch error. The app code is unchanged (data only).
+  LEAST CERTAIN, OWNER PLEASE LOOK: the green is now a third smaller. The band of smooth, darker-green turf the old oval included on
+  the east side (about 3 m wide) is drawn as fringe and collar now. If that band is really putting surface that just photographs
+  greener, the old shape was nearer on that side: revert dff783e. 185 m2 is small for a green, which is the reason for the doubt.
+  Also seen, not changed: the app's own front/back-of-green points for hole 1 (App.jsx) sit 9-12 m outside the green on the photo (they
+  were outside the old oval too); the centre point is on the green.
+  Not checked: GFX LOW and SAT were not opened (no code changed); the fly-through's end position near the smaller green was not watched.
+  Still fake on hole 1's green: no cross-cut mowing pattern, no dark cup or cup shadow (only the white liner ring), the surface is one
+  even colour while the photo shows pale wear in the south end. Next: hole 1 step 4, cross-cut pattern, then cup and shadow.
