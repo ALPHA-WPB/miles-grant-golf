@@ -709,10 +709,33 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
         const flag = new THREE.Group(); flag.add(flagMesh, flagBack);
         flag.position.set(px + 0.016, py + 2.13 - 0.27, pz);
         flag.rotation.y = -0.4;
-        const cup = new THREE.Mesh(new THREE.RingGeometry(0.03, 0.054, 20), white);
-        cup.rotation.x = -Math.PI / 2;
-        cup.position.set(px, py + 0.02, pz);
-        for (const m of [pole, flag, cup]) { m.castShadow = true; m.frustumCulled = false; scene.add(m); }
+        for (const m of [pole, flag]) { m.castShadow = true; m.frustumCulled = false; scene.add(m); }
+        // The cup, true size (108 mm across): a dark hole; the white liner shows only on the inner wall the sun
+        // reaches (the north half, the sun is in the south), the near wall is in its own shade.
+        const flat = (g, color, opacity, y) => {
+          const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: opacity < 1, opacity, depthWrite: false }));
+          m.position.set(px, py + y, pz); m.frustumCulled = false; scene.add(m); return m;
+        };
+        flat(new THREE.CircleGeometry(0.054, 24).rotateX(-Math.PI / 2), 0x0b100b, 1, 0.02);
+        flat(new THREE.RingGeometry(0.034, 0.051, 16, 1, 0.25, Math.PI - 0.5).rotateX(-Math.PI / 2), 0xdedfd8, 1, 0.022);
+        // The flagstick's and the flag's shadow on the green. The map draws the ground, so nothing placed here can
+        // cast on it: these are flat dark strips laid along the sun's direction (the same sun as the tree shadows),
+        // following the green's surface where its height is known.
+        const sdx = -140, sdz = -330, sl = Math.hypot(sdx, sdz), run = 420 / sl, ux = sdx / sl, uz = sdz / sl;   // run: height per metre of shadow
+        const gy = (x, z) => (pin.ground ? pin.ground(lng0 + x / (M * k), lat0 - z / M) : py) + 0.016;
+        const strip = (pts, opacity) => {                    // pts: [x, z] pairs, left and right edge alternately
+          const pos = [], idx = [];
+          pts.forEach(([x, z]) => pos.push(x, gy(x, z), z));
+          for (let q = 0; q + 3 < pts.length; q += 2) idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2);
+          const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+          const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x0c2212, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }));
+          m.frustumCulled = false; scene.add(m);
+        };
+        const at = (h, off = 0) => [px + ux * h / run + 0.92 * off, pz + uz * h / run + 0.39 * off];   // shadow of a point h up the pole, off metres out along the flag
+        const hw = 0.02, wx = -uz * hw, wz = ux * hw, poleSh = [];
+        for (let q = 0; q <= 8; q++) { const [x, z] = at(0.05 + (2.13 - 0.05) * q / 8); poleSh.push([x - wx, z - wz], [x + wx, z + wz]); }
+        strip(poleSh, 0.3);
+        strip([at(1.61), at(2.11), at(1.61, 0.36), at(2.11, 0.36), at(1.63, 0.7), at(2.09, 0.7)], 0.24);
       }
 
       // Tee markers: a pair of small coloured balls for each tee colour, one either side of the tee point and

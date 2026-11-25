@@ -904,7 +904,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         Object.assign(flagEl.style, { position: "absolute", left: "0", top: "0", pointerEvents: "none", zIndex: 2, display: "none" });
         map.getCanvasContainer().appendChild(flagEl);
         map.addLayer(createRealisticLayer(course, terrainOf(course).E,
-          { lng: hole.green.lng, lat: hole.green.lat, z: terrainOf(course).ground(hole.green.lng, hole.green.lat), number: hole.number },
+          { lng: hole.green.lng, lat: hole.green.lat, z: terrainOf(course).ground(hole.green.lng, hole.green.lat), number: hole.number, ground: terrainOf(course).ground },
           p => {
             wavePin(p && p.height >= 16);
             const show = p && p.height > 0 && p.height < 16;
