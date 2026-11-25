@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import HoleLoader from "./HoleLoader";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO, turfDrift } from "./realScene";
+import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO, turfDrift, greenCut } from "./realScene";
 import { COURSE_PLACES, placeBadgeHtml } from "../lib/places";
 
 // Illustrated, tilted 3D view of a hole: drawn fairways, greens, bunkers and water
@@ -887,6 +887,16 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
           map.addLayer({ id: "turf-drift", type: "raster", source: "turf-drift", paint: { "raster-fade-duration": 0, "raster-resampling": "linear" } }, "water-bank");
         }
       } catch { /* flat turf remains */ }
+      try {
+        // Cross-cut mowing pattern on the green of the hole being played: true-size 1.5 m passes, pinned to
+        // the ground, under the green's soft edge line. Fades out when zoomed out (passes thinner than ~3 px).
+        const gc = !map.getSource("green-cut") && greenCut(course.features, hole.number, bearingOf(t, hole.green));
+        if (gc) {
+          map.addSource("green-cut", { type: "image", url: gc.url, coordinates: gc.coordinates });
+          map.addLayer({ id: "green-cut", type: "raster", source: "green-cut",
+            paint: { "raster-fade-duration": 0, "raster-resampling": "linear", "raster-opacity": ["interpolate", ["linear"], ["zoom"], 17, 0, 18.2, 1] } }, "green-edge");
+        }
+      } catch { /* plain green remains */ }
       try {
         // Flag icon follows the 3D flagstick's screen position; once the real flagstick is big
         // enough to see, the icon hides so there's only ever one flag

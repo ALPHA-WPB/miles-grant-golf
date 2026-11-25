@@ -1018,3 +1018,40 @@ export function turfDrift(features) {
   driftCache = { url: cv.toDataURL("image/png"), coordinates: [[w, nn], [e, nn], [e, s], [w, s]] };
   return driftCache;
 }
+
+// Cross-cut mowing pattern for one green: two sets of mower passes at right angles, each pass MOW metres
+// wide and alternately brushed toward and away from the viewer, which gives the checkerboard of slightly
+// lighter and darker squares seen on a cut green. A fill pattern cannot do this (its size is fixed on
+// screen, not on the ground), so it is one small see-through image, made once when the hole opens,
+// pinned to the ground and clipped to the traced green. No triangles, no per-frame work.
+// `bearing` is the hole's tee-to-green bearing: the passes run at 45 degrees either side of it.
+export function greenCut(features, holeNumber, bearing, MOW = 1.5) {
+  const f = features.find(q => q.properties.kind === "green" && q.properties.hole === holeNumber && q.geometry.type === "Polygon");
+  if (!f) return null;
+  const ring = f.geometry.coordinates[0];
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  for (const [x, y] of ring) { w = Math.min(w, x); e = Math.max(e, x); s = Math.min(s, y); n = Math.max(n, y); }
+  const kx = 111320 * Math.cos((s + n) / 2 * Math.PI / 180), ky = 110574, pad = 0.5;
+  w -= pad / kx; e += pad / kx; s -= pad / ky; n += pad / ky;
+  const mx = (e - w) * kx, my = (n - s) * ky, px = Math.max(mx, my) / 512 > 0.06 ? Math.max(mx, my) / 512 : 0.06;   // metres per texel
+  const W = Math.max(8, Math.round(mx / px)), H = Math.max(8, Math.round(my / px));
+  const cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const x = cv.getContext("2d"), img = x.createImageData(W, H), d = img.data;
+  const a = (bearing + 45) * Math.PI / 180, sa = Math.sin(a), ca = Math.cos(a), soft = 0.09;
+  // one set of passes: +1 on one pass, -1 on the next, with a soft 9 cm join between them
+  const pass = t => { const u = ((t / MOW) % 2 + 2) % 2, r = u < 1 ? u : u - 1, edge = Math.min(r, 1 - r) * MOW; return (u < 1 ? 1 : -1) * Math.min(1, edge / soft); };
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const X = (i + 0.5) * px, Y = my - (j + 0.5) * px, k = (j * W + i) * 4;
+    const v = (pass(X * sa + Y * ca) + pass(X * ca - Y * sa)) / 2;          // -1, 0 or +1: both dark, one each, both light
+    if (v < 0) { d[k] = 24; d[k + 1] = 84; d[k + 2] = 36; d[k + 3] = -v * 0.1 * 255; }
+    else { d[k] = 236; d[k + 1] = 248; d[k + 2] = 176; d[k + 3] = v * 0.115 * 255; }
+  }
+  x.putImageData(img, 0, 0);
+  x.globalCompositeOperation = "destination-in";
+  x.beginPath();
+  ring.forEach(([lx, ly], q) => { const X = (lx - w) / (e - w) * W, Y = (n - ly) / (n - s) * H; if (q) x.lineTo(X, Y); else x.moveTo(X, Y); });
+  x.closePath();
+  x.fill();
+  return { url: cv.toDataURL("image/png"), coordinates: [[w, n], [e, n], [e, s], [w, s]] };
+}
