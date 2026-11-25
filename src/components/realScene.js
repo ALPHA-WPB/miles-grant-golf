@@ -843,6 +843,34 @@ function turf(size, { base, light, dark, bladeLen, blades, angle, seed, drift = 
   });
 }
 
+// Coarse clumps for the rough: a see-through tile of grass tufts (a soft shaded base and a fan of longer,
+// thicker blades) laid over the fine rough texture only when the camera is close (layer `rough-tufts`),
+// so uncut rough reads coarser than the mown fairway beside it. Zoomed out it is not drawn at all:
+// the pattern's size is fixed on screen, so from far away the clumps would be metres across.
+function tufts(size, { light, dark, count, angle, seed, scale = 1 }) {
+  return canvasPattern(size, (x, n) => {
+    const r = rng(seed * 613);
+    x.lineCap = "round";
+    for (let t = 0; t < count; t++) {
+      const px = r() * n, py = r() * n, sz = (0.7 + r() * 0.7) * scale, lean = angle + (r() - 0.5) * 0.8, nb = 5 + Math.floor(r() * 5);
+      const fan = [];
+      for (let b = 0; b < nb; b++) {
+        const a = lean + (r() - 0.5) * 1.5, len = (7 + r() * 8) * sz, q = r();
+        fan.push([Math.sin(a) * len, -Math.cos(a) * len, (r() - 0.5) * 3 * sz, (0.6 + r() * 0.6) * sz,
+          q < 0.5 ? `rgba(${light[0]},${light[1]},${light[2]},${0.3 + r() * 0.3})` : q < 0.88 ? `rgba(${dark[0]},${dark[1]},${dark[2]},${0.3 + r() * 0.3})` : `rgba(206,198,116,${0.22 + r() * 0.22})`]);
+      }
+      wrapDraw(n, px, py, 18 * sz, (X, Y) => {
+        x.fillStyle = `rgba(${dark[0]},${dark[1]},${dark[2]},0.22)`;
+        x.beginPath(); x.ellipse(X, Y, 4.5 * sz, 2.6 * sz, 0, 0, Math.PI * 2); x.fill();
+        for (const [dx, dy, ox, w, col] of fan) {
+          x.strokeStyle = col; x.lineWidth = w;
+          x.beginPath(); x.moveTo(X + ox, Y); x.quadraticCurveTo(X + ox + dx * 0.3, Y + dy * 0.65, X + ox + dx, Y + dy); x.stroke();
+        }
+      });
+    }
+  });
+}
+
 function sand(size, seed, res = 1) {
   // res: supersampling; same ground footprint (pair with pixelRatio 2*res), res x more texels per metre
   const sz = size * res;
@@ -883,9 +911,10 @@ function plain(size, base, seed) {
 }
 
 // Per-texture pixelRatio (default 2); res-2 textures draw 2x the texels over the same ground area
-export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4, "tex-sand": 4, "tex-ground": 4 };
+export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-rough-tufts": 2, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4, "tex-sand": 4, "tex-ground": 4 };
 export const GROUND_TEXTURES = {
   "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5, res: 2 }),
+  "tex-rough-tufts": () => tufts(512, { light: [118, 172, 78], dark: [34, 78, 28], count: 860, angle: 0.15, seed: 3, scale: 1.2 }),
   "tex-fairway": () => turf(512, { base: [104, 170, 70], light: [150, 206, 104], dark: [70, 128, 48], bladeLen: 4, blades: 9000, angle: 0, seed: 5, res: 2 }),
   "tex-stripe": () => turf(512, { base: [118, 184, 82], light: [164, 216, 116], dark: [82, 140, 58], bladeLen: 4, blades: 9000, angle: 3.14, seed: 7, res: 2 }),
   "tex-collar": () => turf(256, { base: [100, 168, 68], light: [146, 204, 102], dark: [66, 122, 46], bladeLen: 3.5, blades: 4000, angle: 1.57, seed: 21, res: 2 }),

@@ -839,6 +839,12 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
       } catch { /* plain colors remain */ }
       try {
+        // Coarse grass clumps over the rough, only when the camera is close (they fade in between zoom 19.3
+        // and 20.5; further out the pattern would be metres across). Not on the lawns: those are mown.
+        if (!map.getLayer("rough-tufts")) map.addLayer({ id: "rough-tufts", type: "fill", source: "ground", filter: ["==", ["get", "kind"], "course"], minzoom: 19.3,
+          paint: { "fill-pattern": "tex-rough-tufts", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 19.3, 0, 20.5, 1] } }, "lawn");
+      } catch { /* fine rough remains */ }
+      try {
         // Broad, soft light and dark patches over the rough and lawns, pinned to the ground, so the
         // small repeating turf tile no longer reads as one flat green (sits under water, roads and fairways)
         const dr = !map.getSource("turf-drift") && turfDrift(course.features);
