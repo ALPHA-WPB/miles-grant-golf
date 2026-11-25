@@ -93,6 +93,11 @@ raster layer `green-cut`, the open hole's green only). Triangles unchanged: hole
 [x] 3 tees  [ ] 4 green (re-traced dff783e; cross-cut f5b89e0; dark cup and its shadow open; fringe/collar ring widths to check)
 [ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4, the cup (dark hole inside the white liner ring) and a soft shadow, check
 the fringe (1.2 m) and collar (4.5 m) widths on the zoom-20 photo, then close step 4.
+Step 4 progress 2026-11-25, run 26, HOLE 1 (WITH PREVIEW): dark cup and the flagstick's shadow are done (a0f975a, the `pin` block of
+`createRealisticLayer` in realScene.js). Hole 1: 3,693,001 -> 3,693,037 triangles on HIGH (browser). Hole 1 steps: [x] 1 trees  [x] 2 grass
+[x] 3 tees  [ ] 4 green (re-traced dff783e; cross-cut f5b89e0; cup and shadow a0f975a; ONLY the fringe/collar ring widths are left to check)
+[ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4, check the fringe (1.2 m) and collar (4.5 m) widths against the zoom-20
+photo (`ground_kit.py check 2470 2740 2630 2900 6`), fix them for hole 1 if the photo shows other widths, then close step 4 and start step 5.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -513,3 +518,24 @@ Each run logs triangles before/after and what still looks fake.
   checker could shimmer during the fly-through's last seconds; raise the fade-out zoom if so); other holes were not opened.
   Still fake on hole 1's green: no dark cup or cup shadow (only the white liner ring), the surface has no pale wear in the south end that
   the photo shows, the pattern is a flat picture with perfectly straight passes. Next: hole 1 step 4, cup and shadow, ring widths, then close.
+
+- 2026-11-25 (hi-res run 26, HOLE 1, step 4 green, WITH PREVIEW): starting the preview server was declined at the prompt again, but the python
+  server on 127.0.0.1:4173 was still listening, so the build was copied into its folder and a tab opened on it without starting anything.
+  a0f975a: the cup and the pin's shadow. Before, the cup was a white washer lying on the grass with turf showing through the middle, and
+  the flagstick cast nothing on the green, so the pin floated. Now (1) the cup is a dark hole at true size (108 mm across) and the white
+  liner shows only as a crescent on the north inner wall, the one the sun reaches (sun in the south); (2) the flagstick lays a 4 cm wide,
+  1.8 m long shadow across the green and the flag a small dark patch at its end, in the direction of the scene's sun (the same one the
+  tree shadows use, falling north-north-west). The map draws the ground, so three.js shadows cannot fall on it: these are flat dark strips
+  built once when the hole opens, lifted 1.6 cm and following the green's measured height (HoleMap3D passes the terrain's `ground` function
+  in `pin`). Nothing traced or measured changed; no textures, no per-frame work, same on HIGH and LOW; every hole's pin gets it.
+  Triangles, hole 1, GFX HIGH, browser: 3,693,001 -> 3,693,037 (+36). Cameras (375x812, before and after, ~40 s after the hole opens):
+  `__mggMap.stop(); __mggMap.jumpTo({center:[-80.17895987,27.14645837], zoom:22, pitch:60, bearing:255})` (the closest the app allows:
+  the pin now stands on a dark dot with a shadow line and flag shadow running right) and, for inspection only, `__mggMap.setMaxZoom(25)`
+  then the same at zoom 24.6, pitch 55 (cup close up: washer -> dark hole with the lit liner edge). After only: top-down
+  `jumpTo({center:[-80.17893,27.14650], zoom:20.6, pitch:0, bearing:0})`. Console: only the local 404s and the service-worker script error.
+  Build + eslint clean; live index BNgT7kK6 -> DgzYXmbV (deploy ok).
+  Not checked: GFX LOW and SAT were not opened in the browser (no ground layer changed; the strips are plain unlit materials); not watched
+  during the fly-through; other holes were not opened (risk: on a green in tree shade the pin's shadow is drawn on top of the tree shadow,
+  where a real one would vanish). The flag's shadow is a fixed shape while the flag itself waves.
+  Still fake on hole 1's green: no pale wear in the south end that the photo shows, the mowing passes are perfectly straight, the cup has
+  no depth (a flat picture of a hole). Step 4 stays open only for the ring-width check. Next: that check, then step 5 (fairway and bunkers).
