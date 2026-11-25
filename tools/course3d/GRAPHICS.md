@@ -120,6 +120,11 @@ new option `flat`: no hollow cut, terrain as measured). Triangles unchanged: hol
 [x] 1 trees  [x] 2 grass  [x] 3 tees  [x] 4 green  [ ] 5 fairway and bunkers (stripe direction c730265; fairway outline 6f00567 and sand bed
 82ba254, BOTH NOT yet seen in 3D; open: feathered first cut, bunker lips with height, raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5:
 first LOOK at the new fairway outline and the sand bed in 3D, then the feathered first cut, then bunker lips and rake lines.
+Step 5 progress 2026-11-25, run 30, HOLE 1 (preview blocked, photo-overlay check only, NO change): run 28's worry that the lengthwise
+stripes no longer sit square in the re-traced fairway was checked on the zoom-20 photo: they run with the photo's own mowing lines and
+meet the new edge at a shallow angle only, so they stay. Triangles unchanged: hole 1 3.74 M HIGH, 2.37 M LOW (counter). Hole 1 steps
+unchanged: step 5 open (fairway outline 6f00567 and sand bed 82ba254 STILL not seen in 3D; feathered first cut, bunker lips, raked floor open).
+NEXT RUN: same as run 29's list; every remaining job on hole 1 is a visible one and needs the preview.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -645,3 +650,16 @@ Each run logs triangles before/after and what still looks fake.
   Still fake on hole 1's fairway and bunkers: a hard fairway edge into the rough (no feathered first cut), the worn dirt cart track is
   not drawn, bunkers have no real lip height or rake lines. OWNER: the run needs the Browser-pane server "miles-grant-golf (preview)"
   allowed (or left running) to do the visible steps; two data changes on hole 1 are now waiting for a first look in 3D.
+
+- 2026-11-25 (hi-res run 30, HOLE 1, step 5): preview blocked. Nothing was listening on 127.0.0.1:4173 and starting
+  "miles-grant-golf (preview)" was declined at the prompt (not retried, no server started any other way). No code or data change.
+  Done instead, on the photo overlay: hole 1's mowing stripes drawn over the zoom-20 photo together with the re-traced fairway outline
+  (boxes 3150,2380-3760,2640; 2600,2560-3200,2860; 3640,2300-3960,2500). Run 28 feared the passes, still laid out from the old centre
+  line, would hit the new north edge at a slant near x 3300. They do run out against the edge there and at the tee end, but at a shallow
+  angle (about 5-10 degrees), and they are parallel to the mowing lines the photo itself shows at x 3400-3600, so nothing was changed.
+  Triangles (`tri_count/run.sh`): hole 1 3,738,895 HIGH and 2,371,273 LOW; all holes 2.52-3.74 M HIGH, 1.86-2.37 M LOW (in budget).
+  No further cost-only cut was made: hole 1 has 0.76 M of headroom, the far trees are already three tiers that nobody has looked at on
+  screen, and cutting them further blind adds risk without need. `vite build` passes on the unchanged code.
+  WAITING FOR THE PREVIEW on hole 1: first look at the fairway outline (6f00567) and the sand bed (82ba254) in 3D, the feathered first
+  cut, bunker lips and rake lines, then step 6 (terrain). OWNER: three runs in a row were blocked; hole 1 cannot move on until the
+  Browser-pane server "miles-grant-golf (preview)" is allowed (always allow) or left running.
