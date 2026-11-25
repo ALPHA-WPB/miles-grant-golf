@@ -107,6 +107,12 @@ Hole 1 steps: [x] 1 trees  [x] 2 grass  [x] 3 tees  [x] 4 green  [ ] 5 fairway a
 re-traced at zoom 20, feathered first cut, bunker lips with height, raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5, re-trace the fairway
 outline on the zoom-20 photo (it is still a 9-point centre line with widths; the worn cart track marks its north edge at course pixels
 x 3200-3360, the mown edge shows on the south side at x 3700-3800), then the feathered first cut, then the bunkers.
+Step 5 progress 2026-11-25, run 28, HOLE 1 (preview blocked, photo-overlay only): the fairway outline is re-traced on the zoom-20 photo
+(6f00567, new per-hole key `fairwayOutlines` in traced.json, used by build.py instead of the spine's widths; the spine stays as centre line).
+Triangles unchanged (map fills): hole 1 3.74 M HIGH, 2.37 M LOW (counter). Hole 1 steps: [x] 1 trees  [x] 2 grass  [x] 3 tees  [x] 4 green
+[ ] 5 fairway and bunkers (stripe direction c730265; outline 6f00567, NOT yet seen in 3D; open: feathered first cut, bunker lips with height,
+raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5: first LOOK at the new outline in 3D (tee end, first landing area, approach; cameras in
+run 27's log line), then the feathered first cut (a soft band outside the fairway edge), then the bunkers.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -577,3 +583,29 @@ Each run logs triangles before/after and what still looks fake.
   could shimmer in the distance at a low angle); the stripes are mirrored about the centre line, a real mower's are not.
   Still fake on hole 1's fairway: the outline is a smooth sausage from 9 centre points, not the mown edge on the photo; a hard edge into the
   rough (no feathered first cut); the worn dirt cart track along its north side is not drawn; bunkers have no real lip height or rake lines.
+
+- 2026-11-25 (hi-res run 28, HOLE 1, step 5 fairway): preview blocked. Nothing was listening on 127.0.0.1:4173 this time and starting
+  "miles-grant-golf (preview)" was declined at the prompt, so only the allowed photo-checked job was done.
+  6f00567: hole 1's fairway outline re-traced at zoom 20 (0.13 m per pixel). Before, it was a sausage made from 9 centre points with
+  widths. Read from contrast-boosted close-ups in five sections (course pixels 2560-4040 x 2300-2920) and drawn back on the plain photo
+  (`ground_kit.py check 2560 2300 4040 2920 1.3 h1fwN_all fairway,green,bunker,tee`):
+  (1) TEE END, certain: the pale close-mown cut ends at a crisp line and corner (north edge at pixel y 2352 for x 3860-3907, east end
+  at x 3920); beyond it the turf is darker with the mower's turning arcs. The old outline ran 16 m further toward the tees with a round
+  end and sat 5.5 m too far south on its north side there.
+  (2) NORTH EDGE, FIRST LANDING AREA, fairly certain: the worn cart track (x 3200-3700) is the edge; striped pale turf south of it, plain
+  greener turf north of it. The old edge was up to 8 m too far north at x 3270-3340, 4 m at x 3500, right by x 3700.
+  (3) NORTH EDGE, APPROACH (x 2630-2900), LEAST CERTAIN: the same track runs straight on west while the old edge veered south-west; the
+  turf between looks like the fairway's, so the edge now follows the track (up to 7 m further north at x 2650-2750). If the approach looks
+  too wide in 3D, this is the part to take back.
+  (4) Not changed: the south edge all the way (cues on the photo are within about 2 m of the old line and no clearer), the green end
+  (kept 1-2 m off the bunker's grass lip), and the stretches under the big oaks at x 2900-3000 and x 3700-3860 (hidden; joined straight).
+  Area 9,402 -> 8,979 m2. build.py: `fairwayOutlines` (optional, one ring per spine, null = use the spine's widths); other holes are
+  untouched until their turn. Data diff against the committed course.json: hole 1's `fairway`, `stripe` and gold `outline` only; trees
+  (1976), bunkers and all terrain tiles identical. `vite build` passes; no JS changed. Triangles (`tri_count/run.sh`): hole 1 3,738,895
+  HIGH and 2,371,273 LOW before and after; all holes 2.52-3.74 M HIGH, 1.86-2.37 M LOW.
+  NOT CHECKED: nothing was looked at in 3D (no screenshots). Risks to look at first next run: the lengthwise stripes are still laid out
+  from the old centre line, so they are no longer centred between the edges where the north edge moved (passes may meet the new edge at a
+  slant near x 3300); the fly-through still walks the old centre line (fine, it is inside the fairway everywhere).
+  Still fake on hole 1's fairway: a hard edge into the rough (no feathered first cut), the worn dirt track itself is not drawn, bunkers
+  have no real lip height or rake lines. OWNER: the run needs the Browser-pane server "miles-grant-golf (preview)" allowed (or left
+  running) to do the visible steps.
