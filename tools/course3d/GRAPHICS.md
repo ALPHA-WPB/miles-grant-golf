@@ -67,6 +67,9 @@ optional and is left out). Hole 1 steps: [x] 1 trees  [ ] 2 grass  [ ] 3 tees (r
 Step 2 progress 2026-11-24, run 19, HOLE 1 (WITH PREVIEW): colour drift larger than one tile is done for the rough and lawns (b6c5dc8,
 `turfDrift` in realScene.js, layer `turf-drift`). Triangles unchanged: hole 1 3,691,189 HIGH (browser), 2.37 M LOW (counter).
 Left in step 2 for hole 1: (a) rough clearly coarser than fairway up close, (b) the fine blade layer near the camera. NEXT RUN: (a).
+Step 2 progress 2026-11-24, run 20, HOLE 1 (WITH PREVIEW): (a) is done (d512749, `tufts()` in realScene.js, layer `rough-tufts`): coarse grass
+clumps over the rough when the camera is close. Triangles unchanged: hole 1 3,691,189 HIGH (browser). Left in step 2 for hole 1:
+(b) the fine blade layer near the camera on the fairway, tees and green. NEXT RUN: (b), then judge step 2 from the tee, fairway and green cameras.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -349,3 +352,23 @@ Each run logs triangles before/after and what still looks fake.
   perfectly even (deliberately left clean; stripes are step 5), the rough's blades are no coarser than the fairway's at close range, no
   fine blade layer near the camera. Also still open: small oaks thin up close, bark has no normal map, tees have no bank or markers,
   green outline is a symmetric oval. Next: hole 1 step 2 (a) rough coarser than fairway, then (b) fine blades near the camera.
+- 2026-11-24 (hi-res run 20, HOLE 1, step 2 grass, WITH PREVIEW): starting the preview server was declined at the prompt again, but one
+  was still listening on 127.0.0.1:4173 (owner session), so a tab was opened on it without starting anything. d512749: the rough gets coarse
+  grass clumps up close, so it reads as uncut grass next to the smooth mown fairway (before, both were the same fine grain and differed
+  only in colour). How: one 512 px see-through tile made in code (`tufts()`: 860 clumps, each a soft shaded base and a fan of 5-9 longer,
+  thicker blades), image `tex-rough-tufts` at pixelRatio 2, drawn as fill layer `rough-tufts` directly above the `course` fill, so
+  fairways, greens, tees, bunkers and water cover it; NOT on the `lawn` areas between the condos (those are mown). It fades in between
+  zoom 19.3 and 20.5 and is not drawn below 19.3. Why the fade: a fill pattern's size is fixed on screen, so a first try that painted
+  the clumps into the rough tile itself showed blades 2-4 m long beside the houses at zoom 17-18.6 (looked at top-down and dropped).
+  No triangles, no per-frame work, same on HIGH and LOW; one extra 512 px image (1 MB, smaller than every other ground tile), no existing
+  texture enlarged. Triangles, hole 1, GFX HIGH, browser: 3,691,189 before and after. Compared on 375x812 at device pixels (a crop of the
+  map canvas, since the pane shows the phone viewport scaled down): `jumpTo({center:[-80.17775,27.14712], zoom:21.3, pitch:60,
+  bearing:255})` (right edge of the fairway: clumps clear), `jumpTo({center:[-80.1779,27.1470], zoom:20.3, pitch:55, bearing:255})`
+  (moderate), same at 19.7 (faint), 18.6 and the top-down 17.2 view (none, as before), tee view at 19.3 (unchanged). NOTE FOR LATER RUNS:
+  the map caches the ground it has drawn, so after switching a ground layer on or off jump far away and back (a jumpTo to the same spot
+  does not redraw); and a 512 px image at pixelRatio 4 covers only 128 px, which made the clumps a quarter of the intended size.
+  SAT and back to 3D work (both layers come back); console: only the local 404s and the service-worker fetch error. Build + eslint clean.
+  Not checked: GFX LOW was not opened in the browser (same code path); other holes were not opened. Still fake on hole 1's grass: at
+  the default tee camera (zoom 19.3) the rough is still the fine grain, the clumps need a closer camera; the clumps are a flat picture
+  (no height); fairway, tees and green have no fine blade layer near the camera yet. Also open: small oaks thin up close, bark has no
+  normal map, tees have no bank or markers, green outline is a symmetric oval. Next: hole 1 step 2 (b).
