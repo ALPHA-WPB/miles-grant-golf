@@ -98,6 +98,15 @@ Step 4 progress 2026-11-25, run 26, HOLE 1 (WITH PREVIEW): dark cup and the flag
 [x] 3 tees  [ ] 4 green (re-traced dff783e; cross-cut f5b89e0; cup and shadow a0f975a; ONLY the fringe/collar ring widths are left to check)
 [ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4, check the fringe (1.2 m) and collar (4.5 m) widths against the zoom-20
 photo (`ground_kit.py check 2470 2740 2630 2900 6`), fix them for hole 1 if the photo shows other widths, then close step 4 and start step 5.
+Step 4 closed, step 5 started 2026-11-25, run 27, HOLE 1 (WITH PREVIEW): the fringe (1.2 m) and collar (4.5 m) widths were checked on the
+zoom-20 photo and kept (no data change): brightness against distance from the green's edge in eight directions levels off 1.5-2 m out
+(fringe) and drops again 4.5-5.5 m out on the west, north-west and north sides (collar). **HOLE 1, STEP 4 (GREEN) DONE** (re-traced dff783e;
+cross-cut f5b89e0; cup and shadow a0f975a; ring widths checked). Step 5: hole 1's mowing stripes now run the length of the fairway as on the
+photo (c730265, `"mow": {"along": 2.7}` in traced.json, `mow_stripes_along` in build.py). Triangles unchanged: hole 1 3,693,037 HIGH (browser).
+Hole 1 steps: [x] 1 trees  [x] 2 grass  [x] 3 tees  [x] 4 green  [ ] 5 fairway and bunkers (stripe direction c730265; open: fairway outline
+re-traced at zoom 20, feathered first cut, bunker lips with height, raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5, re-trace the fairway
+outline on the zoom-20 photo (it is still a 9-point centre line with widths; the worn cart track marks its north edge at course pixels
+x 3200-3360, the mown edge shows on the south side at x 3700-3800), then the feathered first cut, then the bunkers.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -539,3 +548,32 @@ Each run logs triangles before/after and what still looks fake.
   where a real one would vanish). The flag's shadow is a fixed shape while the flag itself waves.
   Still fake on hole 1's green: no pale wear in the south end that the photo shows, the mowing passes are perfectly straight, the cup has
   no depth (a flat picture of a hole). Step 4 stays open only for the ring-width check. Next: that check, then step 5 (fairway and bunkers).
+
+- 2026-11-25 (hi-res run 27, HOLE 1, step 4 green closed, step 5 fairway started, WITH PREVIEW): the python server on 127.0.0.1:4173 was
+  still listening, so the build was copied into its folder and a tab opened on it without starting anything.
+  (1) Ring widths, no change. `ground_kit.py crop 2440 2710 2660 2930 5` plus an overlay of hole 1's green, fringe and collar, and the photo's
+  brightness averaged by distance from the traced green edge in eight 45-degree sectors (bunkers and shadows left out). The pale putting
+  surface ends at the traced edge; the turf reaches an even mid tone 1.5-2 m out; on the west, north-west and north it drops to the darker
+  rough 4.5-5.5 m out. That agrees with a 1.2 m fringe and a 4.5 m collar to within what a 0.13 m photo can show, so both stay. Seen, not
+  acted on: a faint mow line about 2.2 m outside the green on the south-west side only (the fringe may really be nearer 2 m there). Step 4 closed.
+  (2) c730265: mowing stripes along the fairway. Before, hole 1's fairway had 7 m light and dark bands ACROSS the line of play. The zoom-20
+  photo shows the mower's passes running the LENGTH of the fairway: the line direction was measured in four boxes (course pixels
+  3180,2480-3330,2600; 3380,2420-3520,2500; 3660,2400-3800,2480; 2800,2640-2960,2760) and in each it is the fairway's own direction there
+  (19, 20, 28 and -29 degrees). Now the stripes are 2.7 m passes parallel to the fairway's centre line, the centre line's corners rounded,
+  so they bend with the dogleg; they stop at the fairway's traced outline, which is untouched. Only hole 1 (per-hole setting
+  `"mow": {"along": 2.7}` in traced.json; `mow_stripes_along` in build.py); the other holes keep cross bands until their turn. Data diff:
+  hole 1's `stripe` feature only (+2.6 KB raw); trees (1976), bunkers, fairway outline and terrain tiles identical. Map fills only, no app
+  code changed: hole 1 3,693,037 triangles on HIGH before and after (browser). Cameras (375x812, before and after, ~45 s after the hole opens):
+  `__mggMap.stop(); __mggMap.jumpTo({center:[-80.1766,27.14738], zoom:18.9, pitch:60, bearing:255})` (mid-fairway: ladder of cross bands ->
+  long passes sweeping round the dogleg), `jumpTo({center:[-80.1768,27.14735], zoom:17.6, pitch:0, bearing:255})` (top-down: same); after
+  only: `jumpTo({center:[-80.17845,27.14668], zoom:19.4, pitch:62, bearing:255})` (fairway end short of the green: passes run out at the
+  rounded end) and the tee view at 19.3 (palms hide the fairway, unchanged). Console: only the local 404s and the service-worker script
+  error. NOTE FOR LATER RUNS: after copying a data-only build into the preview folder the page kept the old course.json from the browser's
+  own cache; run `await fetch('/course3d/course.json', {cache:'reload'})` in the page, then reload.
+  GUESS, OWNER MAY CORRECT: the 2.7 m pass width. The photo's lines are faint and uneven; a 5.3 m repeat (one pass up, one back) showed in
+  all four boxes but weakly. The direction is certain, the width is not. The drawn contrast between passes is the same as the old bands had
+  and is stronger than the photo, where the passes are barely visible; to tone it down, bring `tex-stripe` nearer `tex-fairway` in realScene.js.
+  Not checked: GFX LOW and SAT were not opened (no code changed, ground fills only); the fly-through was not watched (risk: thin passes
+  could shimmer in the distance at a low angle); the stripes are mirrored about the centre line, a real mower's are not.
+  Still fake on hole 1's fairway: the outline is a smooth sausage from 9 centre points, not the mown edge on the photo; a hard edge into the
+  rough (no feathered first cut); the worn dirt cart track along its north side is not drawn; bunkers have no real lip height or rake lines.
