@@ -88,6 +88,11 @@ Step 4 progress 2026-11-25, run 24, HOLE 1 (WITH PREVIEW): the green is re-trace
 was a 282 m2 symmetric oval. Triangles unchanged: hole 1 3,693,001 HIGH (browser). Hole 1 steps: [x] 1 trees  [x] 2 grass  [x] 3 tees
 [ ] 4 green (re-traced and smooth dff783e; fringe/collar ring widths to check, cross-cut mowing pattern and cup shadow open)
 [ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4, cross-cut mowing pattern on the green, then the cup and its shadow.
+Step 4 progress 2026-11-25, run 25, HOLE 1 (WITH PREVIEW): cross-cut mowing pattern on the green is done (f5b89e0, `greenCut` in realScene.js,
+raster layer `green-cut`, the open hole's green only). Triangles unchanged: hole 1 3,693,001 HIGH (browser). Hole 1 steps: [x] 1 trees  [x] 2 grass
+[x] 3 tees  [ ] 4 green (re-traced dff783e; cross-cut f5b89e0; dark cup and its shadow open; fringe/collar ring widths to check)
+[ ] 5 fairway and bunkers  [ ] 6 terrain. NEXT RUN: hole 1, step 4, the cup (dark hole inside the white liner ring) and a soft shadow, check
+the fringe (1.2 m) and collar (4.5 m) widths on the zoom-20 photo, then close step 4.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -483,3 +488,28 @@ Each run logs triangles before/after and what still looks fake.
   Not checked: GFX LOW and SAT were not opened (no code changed); the fly-through's end position near the smaller green was not watched.
   Still fake on hole 1's green: no cross-cut mowing pattern, no dark cup or cup shadow (only the white liner ring), the surface is one
   even colour while the photo shows pale wear in the south end. Next: hole 1 step 4, cross-cut pattern, then cup and shadow.
+
+- 2026-11-25 (hi-res run 25, HOLE 1, step 4 green, WITH PREVIEW): starting the preview server was declined at the prompt again, but the python
+  server on 127.0.0.1:4173 was still listening, so the build was copied into its folder and a tab opened on it without starting anything.
+  f5b89e0: cross-cut mowing pattern on the green. Before, the green was one even pale colour. Now the green of the hole being played shows
+  the faint checkerboard a cross-cut leaves: two sets of mower passes at right angles, 45 degrees either side of the tee-to-green line, each
+  pass 1.5 m wide, giving squares a little lighter, unchanged, or a little darker. How: a fill pattern cannot do it (its size is fixed on
+  screen, not on the ground), so `greenCut()` makes one small see-through image when the hole opens (6 cm per texel, at most 512 px a
+  side; 9 cm soft joins between passes; dark at most 0.10 alpha, light at most 0.115), clipped to the traced green outline, added as
+  MapLibre image source and raster layer `green-cut` just under `green-edge`. It is pinned to the ground at true size, fades out between
+  zoom 18.2 and 17 (passes thinner than about 3 px), adds no triangles and no per-frame work, and is the same on HIGH and LOW. The traced
+  green is untouched. Only the open hole's green gets it (one image per map), so hole 18 and the rest get theirs when they are opened.
+  A first build at 0.13 / 0.15 alpha looked like a tablecloth top-down, so it was cut by about a quarter.
+  Triangles, hole 1, GFX HIGH, browser: 3,693,001 before and after. Cameras (375x812, layer off and on, jumping away and back so the ground
+  redraws): `__mggMap.stop(); __mggMap.jumpTo({center:[-80.17890,27.14654], zoom:20.0, pitch:58, bearing:255})` (tilted: plain -> soft
+  diamonds), `jumpTo({center:[-80.17895,27.14652], zoom:20.2, pitch:0, bearing:255})` (top-down: clear but gentle checker, stops at the
+  green's edge), `jumpTo({center:[-80.17860,27.14662], zoom:18.6, pitch:66, bearing:255})` (approach from the fairway: the green reads
+  as before, the pattern is too fine to see, no moire in the still). SAT and back to 3D work (`green-cut` and `turf-drift` come back,
+  3,693,001 again); console: only the local 404s and the service-worker script error. Build + eslint clean.
+  GUESSES, OWNER MAY CORRECT: the 1.5 m pass width (a ride-on triplex; a walk mower would be about 0.55 m) and the 45-degree direction are
+  typical values, not read from the photo (the zoom-20 photo shows no clear mowing lines on this green). To remove: drop the `green-cut` block
+  in HoleMap3D.jsx.
+  Not checked: GFX LOW was not opened in the browser (same code path, no 3D geometry changed); not watched while the camera moves (risk: the
+  checker could shimmer during the fly-through's last seconds; raise the fade-out zoom if so); other holes were not opened.
+  Still fake on hole 1's green: no dark cup or cup shadow (only the white liner ring), the surface has no pale wear in the south end that
+  the photo shows, the pattern is a flat picture with perfectly straight passes. Next: hole 1 step 4, cup and shadow, ring widths, then close.
