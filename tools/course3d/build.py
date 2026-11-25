@@ -362,6 +362,32 @@ def mow_stripes(fw, tee, green, width=7.0):
     from shapely.geometry import MultiPolygon
     return MultiPolygon([back(g) for g in getattr(st, 'geoms', [st]) if g.geom_type == 'Polygon' and not g.is_empty])
 
+def mow_stripes_along(fw, spine, width):
+    """Alternate mowing passes running the length of the fairway (parallel to its centre line), each `width`
+    metres wide: the pattern a fairway mower leaves when it goes up and down the hole. Set per hole in
+    traced.json with "mow": {"along": <pass width in metres>}, read off the photo."""
+    lat0 = spine[0][1]; lng0 = spine[0][0]; k = math.cos(math.radians(lat0))
+    to_m = lambda lng, lat: ((lng - lng0) * M_PER_DEG * k, (lat - lat0) * M_PER_DEG)
+    pts = [to_m(lng, lat) for lng, lat, _ in spine]
+    ext = lambda a, b, d=60.0: (b[0] + (b[0] - a[0]) / math.hypot(b[0] - a[0], b[1] - a[1]) * d,
+                                b[1] + (b[1] - a[1]) / math.hypot(b[0] - a[0], b[1] - a[1]) * d)
+    pts = [ext(pts[1], pts[0])] + pts + [ext(pts[-2], pts[-1])]     # run past both rounded ends of the fairway
+    for _ in range(3):                                              # round the centre line's corners (Chaikin)
+        q = [pts[0]]
+        for a, b in zip(pts, pts[1:]):
+            q += [(a[0] * .75 + b[0] * .25, a[1] * .75 + b[1] * .25), (a[0] * .25 + b[0] * .75, a[1] * .25 + b[1] * .75)]
+        pts = q + [pts[-1]]
+    line = LineString(pts)
+    fm = Polygon([to_m(x, y) for x, y in fw.exterior.coords])
+    rings, d = [], 0.5 * width
+    while d < 60:
+        rings.append(line.buffer(d + width, 8, cap_style=2).difference(line.buffer(d, 8, cap_style=2))); d += 2 * width
+    st = unary_union(rings).intersection(fm).simplify(0.05)
+    back = lambda g: Polygon([(lng0 + x / (M_PER_DEG * k), lat0 + y / M_PER_DEG) for x, y in g.exterior.coords],
+                             [[(lng0 + x / (M_PER_DEG * k), lat0 + y / M_PER_DEG) for x, y in r.coords] for r in g.interiors])
+    from shapely.geometry import MultiPolygon
+    return MultiPolygon([back(g) for g in getattr(st, 'geoms', [st]) if g.geom_type == 'Polygon' and g.area > 1.0])
+
 regions = [Region(*reg['bbox']) for reg in traced['regions']]
 detected = [detect(rg) for rg in regions]
 
@@ -427,10 +453,15 @@ for num, t in traced['holes'].items():
     fws = [Polygon(f) for f in t.get('fairways', [])] + [spine_poly(s) for s in t.get('fairwaySpines', [])]
     for sp in t.get('fairwaySpines', []):     # fairway centerline: the fly-through walks along it
         add(LineString([(lng, lat) for lng, lat, _ in sp]), kind='spine', hole=int(num))
-    for fw in fws:
+    n_traced = len(t.get('fairways', []))
+    for fi, fw in enumerate(fws):
         add(fw, kind='fairway', hole=int(num))
         playing.append(fw)
-        add(mow_stripes(fw, h['tees'][1], h['green']), kind='stripe', hole=int(num))
+        along = (t.get('mow') or {}).get('along')
+        if along and fi >= n_traced:    # lengthwise passes, as seen on the photo (spine fairways only)
+            add(mow_stripes_along(fw, t['fairwaySpines'][fi - n_traced], along), kind='stripe', hole=int(num))
+        else:
+            add(mow_stripes(fw, h['tees'][1], h['green']), kind='stripe', hole=int(num))
     boxes = [Polygon(tp) for tp in t.get('tees', [])]   # traced tee boxes when we have them
     for lat, lng in ([] if boxes else h['tees']):
         k = math.cos(math.radians(lat))

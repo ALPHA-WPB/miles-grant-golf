@@ -2,6 +2,9 @@
  "_note": "Hand-traced from Esri World Imagery. greens/fairways are polygons [lng,lat]; fairway 'spine' is a centerline with widths in meters.",
  "holes": {
   "1": {
+   "mow": {
+    "along": 2.7
+   },
    "greens": [
     [
      [
