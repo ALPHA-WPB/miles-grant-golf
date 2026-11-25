@@ -425,9 +425,13 @@ not_sand = [Point(lng, lat).buffer(rm / M_PER_DEG) for lng, lat, rm in traced.ge
 detected = [([b for b in bs if not any(z.intersects(b) for z in not_sand)], ts) for bs, ts in detected]
 # bunkers the colour detector missed (e.g. sand strips beside a road, whose buffer blocks detection),
 # extracted on the photo with bunker_kit.py: bunkerEdits.add = [{tag, ring}]; a detected piece of the
-# same bunker is merged into it rather than drawn twice
+# same bunker is merged into it rather than drawn twice. "flat": 1 marks a sand area the LiDAR shows level
+# with its surroundings (a waste area with trees standing in it): it is drawn as sand but the terrain is
+# left exactly as measured, no hollow is cut
+flat_sand = []
 for bk in traced.get('bunkerEdits', {}).get('add', []):
     nb = Polygon(bk['ring']).buffer(0)
+    if bk.get('flat'): flat_sand.append(nb.representative_point())
     for i, (bs, ts) in enumerate(detected):
         hit = [b for b in bs if b.intersects(nb)]
         if hit: nb = unary_union([nb] + hit); detected[i] = ([b for b in bs if not b.intersects(nb)], ts)
@@ -651,6 +655,8 @@ base = float(np.nanmedian(dem[cmask > 0]))
 rel = np.clip(np.nan_to_num(dem - base, nan=0.0), -4.6, 6.0)   # the lakes sit ~2 m below their banks (real); the river is capped just below them
 rel = cv2.GaussianBlur(rel, (0, 0), 0.8 if 'Martin' in dem_source else 2.0)   # remove speckle, keep green and bunker shapes
 for b in all_bunkers:
+    if any(b.contains(q) for q in flat_sand):
+        continue
     for poly in getattr(b, 'geoms', [b]):
         m = np.zeros((dh, dw), np.uint8)
         cv2.fillPoly(m, [np.array([dpx(*c) for c in poly.exterior.coords], np.int32)], 1)
