@@ -113,6 +113,13 @@ Triangles unchanged (map fills): hole 1 3.74 M HIGH, 2.37 M LOW (counter). Hole 
 [ ] 5 fairway and bunkers (stripe direction c730265; outline 6f00567, NOT yet seen in 3D; open: feathered first cut, bunker lips with height,
 raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5: first LOOK at the new outline in 3D (tee end, first landing area, approach; cameras in
 run 27's log line), then the feathered first cut (a soft band outside the fairway edge), then the bunkers.
+Step 5 progress 2026-11-25, run 29, HOLE 1 (preview blocked, photo-overlay only): hole 1's bunkers checked on the zoom-20 photo. The two
+by the green and the three north of the fairway already sit on the sand's edge (kept). The sand bed with trees north of the fairway (course
+pixels 2987-3100 x 2424-2529) was only drawn where the sun reached it; it is re-traced whole (82ba254, `bunkerEdits.add` tag `h1-sandbed`,
+new option `flat`: no hollow cut, terrain as measured). Triangles unchanged: hole 1 3.74 M HIGH, 2.37 M LOW (counter). Hole 1 steps:
+[x] 1 trees  [x] 2 grass  [x] 3 tees  [x] 4 green  [ ] 5 fairway and bunkers (stripe direction c730265; fairway outline 6f00567 and sand bed
+82ba254, BOTH NOT yet seen in 3D; open: feathered first cut, bunker lips with height, raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5:
+first LOOK at the new fairway outline and the sand bed in 3D, then the feathered first cut, then bunker lips and rake lines.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -609,3 +616,32 @@ Each run logs triangles before/after and what still looks fake.
   Still fake on hole 1's fairway: a hard edge into the rough (no feathered first cut), the worn dirt track itself is not drawn, bunkers
   have no real lip height or rake lines. OWNER: the run needs the Browser-pane server "miles-grant-golf (preview)" allowed (or left
   running) to do the visible steps.
+
+- 2026-11-25 (hi-res run 29, HOLE 1, step 5 bunkers): preview blocked. Nothing was listening on 127.0.0.1:4173 and starting
+  "miles-grant-golf (preview)" was declined at the prompt (not retried, no server started any other way), so only the allowed
+  photo-checked job was done: hole 1's bunkers against the zoom-20 photo (0.13 m per pixel; the bunkers were found by colour at zoom 19).
+  (1) KEPT, no change: the two bunkers right of the green (`ground_kit.py check 2550 2750 2640 2890 6`) and the three north of the fairway
+  (`check 3390 2320 3680 2420 4`) follow the sand's edge to within about 0.5 m (the drawn line runs a touch inside the sand at the east
+  end of both green-side bunkers); the long bunker at x 2772-2846 also fits. Not worth a data change.
+  (2) 82ba254: the sand bed with trees north of the fairway, 210 yd from the green. Before: only the sunlit sand was drawn, 240 m2 with
+  two thin arms that followed the edges of tree shadows, and the shaded sand west of it and under the big oak was drawn as rough. On the
+  photo with the shadows lifted (gamma 0.5) it is one rounded bed about 30 x 28 m with two palms and two oaks standing IN the sand. Now one
+  smooth outline, 654 m2 (`bunkerEdits.add`, tag `h1-sandbed`), drawn back on the photo and looked at
+  (`check 2960 2390 3140 2560 5 ... bunker,fairway,tree`): it sits on the visible sand edge along the north, north-west, west, east and
+  south. LEAST CERTAIN: the south-east quarter under the big oak's canopy (about x 3060-3095, y 2490-2520) and the south-west under the
+  shadow of the trees south of the bed (x 2990-3020, y 2495-2515): the ground is hidden there and the line is a smooth join between the
+  edges seen either side. To undo: delete the `h1-sandbed` entry in traced.json and rebuild.
+  TERRAIN: build.py digs every bunker at least 0.1-0.35 m below its rim. Applied to this bed that lowered measured ground by up to 0.48 m
+  (mean 0.16 m) over 650 m2, although the LiDAR shows the bed level with the turf round it. So `flat: 1` was added for hand-added sand
+  (build.py `flat_sand`): drawn as sand, terrain left exactly as measured. That also takes back the small hollow the old 240 m2 piece had
+  been given (the two palms' bases go from 1.42/1.43 m back to the measured 1.58/1.64 m). The other 54 bunkers are untouched.
+  Data diff against the committed course.json: this one bunker, the course-wide `bshade`/`blit` shading features (they now include its
+  edge), the two palms' base heights, and five terrain tiles over the bed; trees (1976, same places), fairway, green, tees identical. A
+  clean rebuild before the edit reproduced the committed course.json. `vite build` passes; no app JS changed. Triangles
+  (`tri_count/run.sh`): hole 1 3,738,895 HIGH and 2,371,273 LOW before and after; all holes 2.52-3.74 M HIGH, 1.86-2.37 M LOW.
+  NOT CHECKED: nothing was looked at in 3D (no screenshots), same as run 28's fairway outline. Risks to look at first next run: the
+  bed's baked edge shading (dark crescent inside the south edge, lit band on the north) is made for sunken bowls and may read too strong
+  on a flat 30 m bed; the four trees now stand on sand, so their soft ground shadows sit on tan instead of green.
+  Still fake on hole 1's fairway and bunkers: a hard fairway edge into the rough (no feathered first cut), the worn dirt cart track is
+  not drawn, bunkers have no real lip height or rake lines. OWNER: the run needs the Browser-pane server "miles-grant-golf (preview)"
+  allowed (or left running) to do the visible steps; two data changes on hole 1 are now waiting for a first look in 3D.
