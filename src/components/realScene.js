@@ -788,7 +788,9 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       sun.target.position.copy(mid);
       Object.assign(sun.shadow.camera, { left: -ext, right: ext, top: ext, bottom: -ext, near: 10, far: 1400 });
       sun.shadow.camera.updateProjectionMatrix();
-      sun.shadow.mapSize.set(4096, 4096);
+      { // a 4096 shadow map is 64 MB of GPU memory; touch devices get 2048 (16 MB), which is still ~0.5 m per texel
+        let touch = false; try { touch = matchMedia("(pointer: coarse)").matches; } catch { /* old browser */ }
+        const sm = touch ? 2048 : 4096; sun.shadow.mapSize.set(sm, sm); }
       sun.shadow.bias = -0.0004;
       sun.shadow.normalBias = 0.4;
       sun.shadow.radius = 3;

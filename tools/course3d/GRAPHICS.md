@@ -150,6 +150,15 @@ as run 29's list; needs the preview.
 Step 5 progress 2026-11-26, run 38, HOLE 1 (preview blocked, NO change): nothing to add; hole 1 steps unchanged, step 5 open
 (fairway outline 6f00567 and sand bed 82ba254 STILL not seen in 3D; feathered first cut, bunker lips, raked floor open). NEXT RUN: same
 as run 29's list; needs the preview.
+**Phone crash, 2026-11-26 (owner's screen recording, iPhone, hole 1, GFX HIGH):** Safari killed the page twice within seconds of
+the hole opening ("A problem repeatedly occurred"), and round-resume reopened the same 3D hole, so the app was stuck. Fix shipped
+the same day: (1) crash guard in App.jsx (`mg_3d_live` mark; a start-up that finds it steps down HIGH -> LOW -> satellite map);
+(2) phones start on GFX LOW once (`mgg_gfx_phone_v1`); (3) GFX LOW is now the memory-safe mode: no multisampling, pixel ratio capped
+at 1.5, small tile cache, and NONE of the close-up overlays (tufts, fine blades, colour drift, green cut); (4) shadow map 2048 on
+touch devices. RULES for every run from now on: never add anything to GFX LOW; never remove the crash guard; every new HIGH-only
+layer, texture or image must be skipped when `lowGfx` is true. The triangle count is NOT a memory measure: nobody has measured
+memory on a phone yet, so treat HIGH on phones as unproven.
+
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass

@@ -411,9 +411,12 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       center: [hole.green.lng, hole.green.lat], zoom: 17, bearing, pitch: pitchRef.current, maxPitch: 89,
       attributionControl: false,
       dragRotate: false, pitchWithRotate: false, touchPitch: true, keyboard: false,
-      canvasContextAttributes: { antialias: true },
+      // GFX LOW is the memory-safe mode (phones start on it; Safari kills the page when it runs out of memory):
+      // no multisampling, a smaller drawing buffer and a small tile cache
+      canvasContextAttributes: { antialias: !lowGfx },
       fadeDuration: 0,
-      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),   // 3x phone screens: same look, far less GPU work
+      maxTileCacheSize: lowGfx ? 16 : 48,
+      pixelRatio: Math.min(window.devicePixelRatio || 1, lowGfx ? 1.5 : 2),   // 3x phone screens: same look, far less GPU work
     });
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "© OpenStreetMap contributors · traced from Esri imagery" }), "bottom-left");
     map.once("idle", () => map.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show"));
@@ -863,13 +866,15 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         [["course", "tex-rough"], ["lawn", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
       } catch { /* plain colors remain */ }
-      try {
+      // The close-up overlays below (tufts, fine blades, colour drift, green cut) each add a layer the map has to
+      // drape again over every terrain tile; GFX LOW leaves them out to save memory
+      if (!lowGfx) try {
         // Coarse grass clumps over the rough, only when the camera is close (they fade in between zoom 19.3
         // and 20.5; further out the pattern would be metres across). Not on the lawns: those are mown.
         if (!map.getLayer("rough-tufts")) map.addLayer({ id: "rough-tufts", type: "fill", source: "ground", filter: ["==", ["get", "kind"], "course"], minzoom: 19.3,
           paint: { "fill-pattern": "tex-rough-tufts", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 19.3, 0, 20.5, 1] } }, "lawn");
       } catch { /* fine rough remains */ }
-      try {
+      if (!lowGfx) try {
         // A short, fine nap of blades over the mown grass, only when the camera is very close (fades in
         // between zoom 20 and 21). One layer over the fairway (under the collar) and one over the collar,
         // which holds the fringe and green, and the tees, lighter there: those are cut tighter.
@@ -878,7 +883,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         fine("fine-fairway", ["fairway"], "fairway-edge", 1);
         fine("fine-green", ["collar", "tee"], "paved", 0.6);
       } catch { /* smooth turf remains */ }
-      try {
+      if (!lowGfx) try {
         // Broad, soft light and dark patches over the rough and lawns, pinned to the ground, so the
         // small repeating turf tile no longer reads as one flat green (sits under water, roads and fairways)
         const dr = !map.getSource("turf-drift") && turfDrift(course.features);
@@ -887,7 +892,7 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
           map.addLayer({ id: "turf-drift", type: "raster", source: "turf-drift", paint: { "raster-fade-duration": 0, "raster-resampling": "linear" } }, "water-bank");
         }
       } catch { /* flat turf remains */ }
-      try {
+      if (!lowGfx) try {
         // Cross-cut mowing pattern on the green of the hole being played: true-size 1.5 m passes, pinned to
         // the ground, under the green's soft edge line. Fades out when zoomed out (passes thinner than ~3 px).
         const gc = !map.getSource("green-cut") && greenCut(course.features, hole.number, bearingOf(t, hole.green));

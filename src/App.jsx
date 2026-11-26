@@ -803,6 +803,26 @@ function TabBar({ active, onSelect, onGame, onScore, scoring }) {
 
 // If the phone reloads the page mid-round (iOS drops a tab that uses too much memory), pick up where the player
 // was: same hole, scores, shots and signed-in round, instead of the "which hole are you starting on" screen.
+// 3D crash guard. Phone browsers kill a page that uses too much memory, and the round-resume above then reopens
+// the same 3D hole, so the app could crash in a loop. While a 3D hole is on screen a small "live" mark is kept in
+// localStorage (cleared when the page is hidden or closed normally). Finding the mark at start-up means the page
+// was killed in 3D: step down one level (HIGH -> LOW -> satellite map) so the next start works.
+// Phones also start on GFX LOW once (the owner can switch HIGH back on; a crash steps it down again).
+const LIVE_KEY = "mg_3d_live";
+let crashNote = null;
+(() => {
+  try {
+    const ls = localStorage;
+    const phone = window.matchMedia("(pointer: coarse)").matches && Math.min(window.screen.width, window.screen.height) < 600;
+    if (phone && !ls.getItem("mgg_gfx_phone_v1")) { ls.setItem("mgg_gfx_phone_v1", "1"); ls.setItem("mgg_gfx", "low"); }
+    const live = JSON.parse(ls.getItem(LIVE_KEY) || "null");
+    ls.removeItem(LIVE_KEY);
+    if (live && Date.now() - live.t < 5 * 60 * 1000) {
+      if (ls.getItem("mgg_gfx") !== "low") { ls.setItem("mgg_gfx", "low"); crashNote = "3D ran out of memory on this phone, so graphics are now on LOW."; }
+      else { ls.setItem("mgg_map_style", "2d"); crashNote = "3D ran out of memory on this phone, so the map is now on satellite view."; }
+    }
+  } catch { /* private mode */ }
+})();
 const RESUME_KEY = "mg_resume_v1", GPS_OK_KEY = "mg_gps_ok";
 function readResume(uid) {
   try {
@@ -968,6 +988,19 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
     try { localStorage.setItem('mgg_map_style', mapMode); } catch { /* private mode */ }
     if (mapMode === '3d' && !course3d) loadCourse3d().then(setCourse3d).catch(() => { setMapMode('2d'); toast.error('3D view needs a connection the first time'); });
   }, [mapMode, course3d]);
+  const live3d = screen === "hole" && mapMode === "3d";
+  useEffect(() => {
+    if (!live3d) return;
+    const set = () => { try { if (document.visibilityState === "visible") localStorage.setItem(LIVE_KEY, JSON.stringify({ t: Date.now() })); } catch { /* private mode */ } };
+    const clear = () => { try { localStorage.removeItem(LIVE_KEY); } catch { /* private mode */ } };
+    const vis = () => (document.visibilityState === "visible" ? set() : clear());
+    set();
+    const iv = setInterval(set, 60000);
+    document.addEventListener("visibilitychange", vis);
+    window.addEventListener("pagehide", clear);
+    return () => { clearInterval(iv); document.removeEventListener("visibilitychange", vis); window.removeEventListener("pagehide", clear); clear(); };
+  }, [live3d]);
+  useEffect(() => { if (crashNote) { toast(crashNote, { duration: 9000 }); crashNote = null; } }, []);
   const radarAutoRef = useRef(false);
   useEffect(() => {
     const m = weather?.rainMins;
