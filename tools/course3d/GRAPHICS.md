@@ -132,6 +132,9 @@ cut, bunker lips, raked floor open). NEXT RUN: same as run 29's list; needs the 
 Step 5 progress 2026-11-25, run 32, HOLE 1 (preview blocked, NO change): nothing to add; hole 1 steps unchanged, step 5 open
 (fairway outline 6f00567 and sand bed 82ba254 STILL not seen in 3D; feathered first cut, bunker lips, raked floor open). NEXT RUN: same
 as run 29's list; needs the preview.
+Step 5 progress 2026-11-25, run 33, HOLE 1 (preview blocked, NO change): nothing to add; hole 1 steps unchanged, step 5 open
+(fairway outline 6f00567 and sand bed 82ba254 STILL not seen in 3D; feathered first cut, bunker lips, raked floor open). NEXT RUN: same
+as run 29's list; needs the preview.
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass
@@ -690,4 +693,12 @@ Each run logs triangles before/after and what still looks fake.
   hole 1 3,738,895 HIGH, 2,371,273 LOW; code unchanged since), and no further blind far-tree cut was made for the reasons in run 30.
   `vite build` passes on the unchanged code. WAITING FOR THE PREVIEW on hole 1: first look at the fairway outline (6f00567) and the
   sand bed (82ba254) in 3D, the feathered first cut, bunker lips and rake lines, then step 6 (terrain). OWNER: five runs in a row were
+  blocked; hole 1 cannot move on until the Browser-pane server "miles-grant-golf (preview)" is allowed (always allow) or left running.
+
+- 2026-11-25 (hi-res run 33, HOLE 1, step 5): preview blocked. Nothing was listening on 127.0.0.1:4173 and starting
+  "miles-grant-golf (preview)" was declined at the prompt (not retried, no server started any other way). No code or data change, for
+  the reasons in runs 30-32: every traced shape of hole 1 is already checked at zoom 20, the triangle count is inside the budget (run
+  30's count: hole 1 3,738,895 HIGH, 2,371,273 LOW; code unchanged since), and a further blind far-tree cut adds risk without need.
+  `vite build` passes on the unchanged code. WAITING FOR THE PREVIEW on hole 1: first look at the fairway outline (6f00567) and the
+  sand bed (82ba254) in 3D, the feathered first cut, bunker lips and rake lines, then step 6 (terrain). OWNER: six runs in a row were
   blocked; hole 1 cannot move on until the Browser-pane server "miles-grant-golf (preview)" is allowed (always allow) or left running.
