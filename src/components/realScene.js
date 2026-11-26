@@ -985,18 +985,22 @@ function plain(size, base, seed) {
 
 // Per-texture pixelRatio (default 2); res-2 textures draw 2x the texels over the same ground area
 export const GROUND_PIXEL_RATIO = { "tex-rough": 4, "tex-rough-tufts": 2, "tex-fine-blades": 2, "tex-fairway": 4, "tex-stripe": 4, "tex-collar": 4, "tex-fringe": 4, "tex-green": 4, "tex-tee": 4, "tex-sand": 4, "tex-ground": 4 };
+// Makers take k: 1 = full detail; GFX LOW passes 0.25 (a quarter of the texels each way over the SAME ground area; pair with
+// pixelRatio * k). MapLibre copies every pattern a tile uses into that tile's own atlas, in memory and on the GPU, so
+// the total pattern area is paid once per loaded tile: at k = 1 that is about 30 MB per tile, which is what ran phones
+// out of memory.
 export const GROUND_TEXTURES = {
-  "tex-rough": () => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5, res: 2 }),
+  "tex-rough": (k = 1) => turf(512, { base: [64, 122, 48], light: [118, 172, 78], dark: [34, 78, 28], bladeLen: 8, blades: 9000, angle: 0.15, seed: 3, drift: 1.5, res: 2 * k }),
   "tex-rough-tufts": () => tufts(512, { light: [118, 172, 78], dark: [34, 78, 28], count: 860, angle: 0.15, seed: 3, scale: 1.2 }),
-  "tex-fairway": () => turf(512, { base: [104, 170, 70], light: [150, 206, 104], dark: [70, 128, 48], bladeLen: 4, blades: 9000, angle: 0, seed: 5, res: 2 }),
-  "tex-stripe": () => turf(512, { base: [118, 184, 82], light: [164, 216, 116], dark: [82, 140, 58], bladeLen: 4, blades: 9000, angle: 3.14, seed: 7, res: 2 }),
-  "tex-collar": () => turf(256, { base: [100, 168, 68], light: [146, 204, 102], dark: [66, 122, 46], bladeLen: 3.5, blades: 4000, angle: 1.57, seed: 21, res: 2 }),
-  "tex-fringe": () => turf(256, { base: [88, 156, 62], light: [138, 196, 96], dark: [58, 112, 42], bladeLen: 3, blades: 3500, angle: 0.3, seed: 9, res: 2 }),
-  "tex-green": () => turf(256, { base: [128, 196, 92], light: [168, 222, 124], dark: [100, 164, 72], bladeLen: 1.6, blades: 4500, angle: 0, seed: 11, res: 2 }),
-  "tex-tee": () => turf(256, { base: [116, 186, 82], light: [160, 214, 114], dark: [84, 146, 58], bladeLen: 2.4, blades: 4000, angle: 0, seed: 13, res: 2 }),
+  "tex-fairway": (k = 1) => turf(512, { base: [104, 170, 70], light: [150, 206, 104], dark: [70, 128, 48], bladeLen: 4, blades: 9000, angle: 0, seed: 5, res: 2 * k }),
+  "tex-stripe": (k = 1) => turf(512, { base: [118, 184, 82], light: [164, 216, 116], dark: [82, 140, 58], bladeLen: 4, blades: 9000, angle: 3.14, seed: 7, res: 2 * k }),
+  "tex-collar": (k = 1) => turf(256, { base: [100, 168, 68], light: [146, 204, 102], dark: [66, 122, 46], bladeLen: 3.5, blades: 4000, angle: 1.57, seed: 21, res: 2 * k }),
+  "tex-fringe": (k = 1) => turf(256, { base: [88, 156, 62], light: [138, 196, 96], dark: [58, 112, 42], bladeLen: 3, blades: 3500, angle: 0.3, seed: 9, res: 2 * k }),
+  "tex-green": (k = 1) => turf(256, { base: [128, 196, 92], light: [168, 222, 124], dark: [100, 164, 72], bladeLen: 1.6, blades: 4500, angle: 0, seed: 11, res: 2 * k }),
+  "tex-tee": (k = 1) => turf(256, { base: [116, 186, 82], light: [160, 214, 114], dark: [84, 146, 58], bladeLen: 2.4, blades: 4000, angle: 0, seed: 13, res: 2 * k }),
   "tex-fine-blades": () => fineBlades(512, { light: [186, 232, 136], dark: [48, 104, 38], count: 15000, angle: 0, seed: 29 }),
-  "tex-sand": () => sand(512, 17, 2),
-  "tex-ground": () => plain(512, [203, 210, 190], 19),
+  "tex-sand": (k = 1) => sand(512, 17, 2 * k),
+  "tex-ground": (k = 1) => plain(Math.round(512 * k), [203, 210, 190], 19),
 };
 
 // ── Turf colour drift: one soft light/dark mottle laid over the whole rough and the lawns ──

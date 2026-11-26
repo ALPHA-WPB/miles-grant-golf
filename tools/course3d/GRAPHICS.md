@@ -159,6 +159,14 @@ touch devices. RULES for every run from now on: never add anything to GFX LOW; n
 layer, texture or image must be skipped when `lowGfx` is true. The triangle count is NOT a memory measure: nobody has measured
 memory on a phone yet, so treat HIGH on phones as unproven.
 
+**CAUSE FOUND 2026-11-26:** after the fix above the owner's phone still ran out of memory on LOW (the guard dropped it to the
+satellite map). The memory is the ground PATTERNS, not the triangles: MapLibre copies every fill pattern a tile uses into that
+tile's own atlas (in JS memory and again on the GPU), so the total pattern area (about 30 MB after the blind "res 2" doubling) is
+paid once per loaded tile. Measured on hole 1, GFX LOW, desktop: JS heap **737 MB** with full-size patterns, **168 MB** with
+quarter-size ones (`texK` in HoleMap3D.jsx; the makers in GROUND_TEXTURES take k). Now: LOW uses k = 0.25, HIGH on touch devices
+k = 0.5, HIGH on desktop k = 1. RULES: never raise pattern sizes or add a new fill pattern without measuring
+`performance.memory.usedJSHeapSize` before and after; a new pattern costs its area times the number of loaded tiles.
+
 **Hole order (owner, 2026-11-24): par 5s first, one hole at a time, starting with hole 1.** Finish hole 1 completely, then
 hole 18 (the other par 5), then the par 4s (4, 6, 9, 10, 14, 17), then the par 3s. "Finish a hole" means every step below done
 for THAT hole and checked on that hole: its tees, green, fairway and bunkers re-traced at zoom 20; the shared tree and grass

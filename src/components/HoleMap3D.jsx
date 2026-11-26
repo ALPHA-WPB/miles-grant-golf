@@ -862,7 +862,17 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
       // Realistic look: textured turf and sand, and the three.js trees and houses in place of
       // the simple block ones (which stay as a fallback if the 3D layer can't start)
       try {
-        Object.entries(GROUND_TEXTURES).forEach(([id, make]) => { if (!map.hasImage(id)) map.addImage(id, make(), { pixelRatio: GROUND_PIXEL_RATIO[id] || 2 }); });
+        // GFX LOW: quarter-size patterns over the same ground area (see GROUND_TEXTURES), and no close-up overlay tiles
+        // Measured 2026-11-26, hole 1, GFX LOW, desktop: JS heap 737 MB at k = 1, 168 MB at k = 0.25.
+        let touch = false; try { touch = window.matchMedia("(pointer: coarse)").matches; } catch { /* old browser */ }
+        let texK = lowGfx ? 0.25 : touch ? 0.5 : 1;
+        try { const o = parseFloat(localStorage.getItem("mgg_texk")); if (o > 0 && o <= 1) texK = o; } catch { /* private mode */ }
+        Object.entries(GROUND_TEXTURES).forEach(([id, make]) => {
+          if (map.hasImage(id)) return;
+          if (lowGfx && (id === "tex-rough-tufts" || id === "tex-fine-blades")) return;
+          const k = GROUND_PIXEL_RATIO[id] === 4 ? texK : 1;   // the ratio-4 patterns are the ones whose makers take k
+          map.addImage(id, make(k), { pixelRatio: (GROUND_PIXEL_RATIO[id] || 2) * k });
+        });
         [["course", "tex-rough"], ["lawn", "tex-rough"], ["fairway", "tex-fairway"], ["stripe", "tex-stripe"], ["collar", "tex-collar"], ["fringe", "tex-fringe"],
          ["green", "tex-green"], ["tee", "tex-tee"], ["bunker", "tex-sand"]].forEach(([layer, img]) => map.setPaintProperty(layer, "fill-pattern", img));
       } catch { /* plain colors remain */ }
