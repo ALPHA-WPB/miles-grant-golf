@@ -160,6 +160,8 @@ entry says how to work without the local preview).
 Step 5 progress 2026-11-27, run 40, HOLE 1 (preview blocked, NO change): hole 1 steps unchanged, step 5 open (bunker lips with
 height, raked floor), then step 6 (terrain). The live-site method of run 39 was NOT used: the task's rules allow only cost cuts,
 photo-checked re-tracing or no change when the local preview is declined. NEXT RUN: same, needs the preview.
+Step 5 progress 2026-11-27, run 41, HOLE 1 (preview blocked, NO change): hole 1 steps unchanged, step 5 open (bunker lips with
+height, raked floor), then step 6 (terrain). NEXT RUN: same, needs the preview.
 **Phone crash, 2026-11-26 (owner's screen recording, iPhone, hole 1, GFX HIGH):** Safari killed the page twice within seconds of
 the hole opening ("A problem repeatedly occurred"), and round-resume reopened the same 3D hole, so the app was stuck. Fix shipped
 the same day: (1) crash guard in App.jsx (`mg_3d_live` mark; a start-up that finds it steps down HIGH -> LOW -> satellite map);
@@ -828,4 +830,11 @@ Each run logs triangles before/after and what still looks fake.
   without the local preview (cost cuts, photo-checked re-tracing, nothing) and that pane is signed in as the owner on the real site.
   LEFT ON HOLE 1: bunker lips with real height and rake lines in the sand (step 5), finer terrain mesh under the hole (step 6); the
   worn dirt cart track north of the fairway is not drawn. OWNER DECISION: either allow the Browser-pane server "miles-grant-golf
+  (preview)" (always allow) or leave it running, or add a line to the task saying the live site may be used as the viewer.
+
+- 2026-11-27 (hi-res run 41, HOLE 1, step 5): preview blocked. Nothing was listening on 127.0.0.1:4173 and starting
+  "miles-grant-golf (preview)" was declined at the prompt (not retried, no server started any other way). No code or data change, for
+  the reasons in run 40 (every traced shape of hole 1 is checked at zoom 20; 3,693,037 HIGH in the browser on run 39, 2,371,273 LOW by
+  the counter, 3D code unchanged since). `vite build` passes on the unchanged code. LEFT ON HOLE 1: bunker lips with real height and
+  rake lines (step 5), finer terrain mesh (step 6). OWNER DECISION (unchanged): allow the Browser-pane server "miles-grant-golf
   (preview)" (always allow) or leave it running, or add a line to the task saying the live site may be used as the viewer.
