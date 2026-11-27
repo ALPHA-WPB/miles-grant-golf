@@ -903,6 +903,14 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         }
       } catch { /* flat turf remains */ }
       if (!lowGfx) try {
+        // First cut: a band of half-height grass about 2 m wide outside every fairway, fading into the rough.
+        // A line twice that wide centred on the fairway's edge; the fairway fill above covers its inner half.
+        // Widths double per zoom level so the band keeps its size on the ground (0.13 m per pixel at zoom 19).
+        // Under the water, roads and paths so it never paints over them. No pattern, so no tile-atlas memory.
+        if (!map.getLayer("first-cut")) map.addLayer({ id: "first-cut", type: "line", source: "ground", filter: ["==", ["get", "kind"], "fairway"], layout: { "line-join": "round" },
+          paint: { "line-color": "#68b54c", "line-opacity": 0.5, "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 2.1, 19, 34, 21, 136], "line-blur": ["interpolate", ["exponential", 2], ["zoom"], 15, 0.5, 19, 8, 21, 32] } }, "water-bank");
+      } catch { /* hard fairway edge remains */ }
+      if (!lowGfx) try {
         // Cross-cut mowing pattern on the green of the hole being played: true-size 1.5 m passes, pinned to
         // the ground, under the green's soft edge line. Fades out when zoomed out (passes thinner than ~3 px).
         const gc = !map.getSource("green-cut") && greenCut(course.features, hole.number, bearingOf(t, hole.green));
