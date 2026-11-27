@@ -157,6 +157,9 @@ in HoleMap3D.jsx, all fairways, GFX HIGH only). Triangles unchanged (map line la
 [x] 1 trees  [x] 2 grass  [x] 3 tees  [x] 4 green  [ ] 5 fairway and bunkers (stripes c730265; outline 6f00567; sand bed 82ba254; first cut
 a7bf781; open: bunker lips with height, raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5, bunker lips and rake lines (run 39's log
 entry says how to work without the local preview).
+Step 5 progress 2026-11-27, run 40, HOLE 1 (preview blocked, NO change): hole 1 steps unchanged, step 5 open (bunker lips with
+height, raked floor), then step 6 (terrain). The live-site method of run 39 was NOT used: the task's rules allow only cost cuts,
+photo-checked re-tracing or no change when the local preview is declined. NEXT RUN: same, needs the preview.
 **Phone crash, 2026-11-26 (owner's screen recording, iPhone, hole 1, GFX HIGH):** Safari killed the page twice within seconds of
 the hole opening ("A problem repeatedly occurred"), and round-resume reopened the same 3D hole, so the app was stuck. Fix shipped
 the same day: (1) crash guard in App.jsx (`mg_3d_live` mark; a start-up that finds it steps down HIGH -> LOW -> satellite map);
@@ -816,3 +819,13 @@ Each run logs triangles before/after and what still looks fake.
   terrain mesh is coarse (step 6). OWNER: allowing the Browser-pane dev server (always allow) is still needed for tree, bunker-lip and
   other three.js work, which cannot be tried on the live page. Also: several sessions seem to run this task on the same day (runs 36-38
   were logged by others while this one worked); the lock file lives in each run's own temporary clone, so it cannot stop them overlapping.
+
+- 2026-11-27 (hi-res run 40, HOLE 1, step 5): preview blocked. Nothing was listening on 127.0.0.1:4173 and starting
+  "miles-grant-golf (preview)" was declined at the prompt (not retried, no server started any other way). No code or data change:
+  every traced shape of hole 1 is checked at zoom 20, the triangle count is inside the budget (3,693,037 HIGH in the browser on run 39;
+  2,371,273 LOW by the counter; 3D code unchanged since), and a further blind far-tree cut adds risk without need. `vite build` passes on
+  the unchanged code. Run 39's way of trying map layers on the live site was not repeated: the task's written rules list what is allowed
+  without the local preview (cost cuts, photo-checked re-tracing, nothing) and that pane is signed in as the owner on the real site.
+  LEFT ON HOLE 1: bunker lips with real height and rake lines in the sand (step 5), finer terrain mesh under the hole (step 6); the
+  worn dirt cart track north of the fairway is not drawn. OWNER DECISION: either allow the Browser-pane server "miles-grant-golf
+  (preview)" (always allow) or leave it running, or add a line to the task saying the live site may be used as the viewer.
