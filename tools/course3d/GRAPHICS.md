@@ -150,6 +150,13 @@ as run 29's list; needs the preview.
 Step 5 progress 2026-11-26, run 38, HOLE 1 (preview blocked, NO change): nothing to add; hole 1 steps unchanged, step 5 open
 (fairway outline 6f00567 and sand bed 82ba254 STILL not seen in 3D; feathered first cut, bunker lips, raked floor open). NEXT RUN: same
 as run 29's list; needs the preview.
+Step 5 progress 2026-11-26, run 39, HOLE 1 (local preview declined, LIVE SITE used as the viewer): the fairway outline (6f00567) and the
+sand bed (82ba254) were SEEN in 3D and kept: square tee end with its corner, north edge on the cart-track line, lengthwise stripes sit well
+in the new outline; the sand bed is flat sand with its oak and palms standing on it. Feathered first cut is done (a7bf781, layer `first-cut`
+in HoleMap3D.jsx, all fairways, GFX HIGH only). Triangles unchanged (map line layer): hole 1 3,693,037 HIGH (browser). Hole 1 steps:
+[x] 1 trees  [x] 2 grass  [x] 3 tees  [x] 4 green  [ ] 5 fairway and bunkers (stripes c730265; outline 6f00567; sand bed 82ba254; first cut
+a7bf781; open: bunker lips with height, raked floor)  [ ] 6 terrain. NEXT RUN: hole 1, step 5, bunker lips and rake lines (run 39's log
+entry says how to work without the local preview).
 **Phone crash, 2026-11-26 (owner's screen recording, iPhone, hole 1, GFX HIGH):** Safari killed the page twice within seconds of
 the hole opening ("A problem repeatedly occurred"), and round-resume reopened the same 3D hole, so the app was stuck. Fix shipped
 the same day: (1) crash guard in App.jsx (`mg_3d_live` mark; a start-up that finds it steps down HIGH -> LOW -> satellite map);
@@ -774,3 +781,38 @@ Each run logs triangles before/after and what still looks fake.
   the fairway outline (6f00567) and the sand bed (82ba254) in 3D, the feathered first cut, bunker lips and rake lines, then step 6
   (terrain). OWNER: eleven runs in a row were blocked; hole 1 cannot move on until the Browser-pane server "miles-grant-golf (preview)"
   is allowed (always allow) or left running.
+
+- 2026-11-26 (hi-res run 39, HOLE 1, step 5 first cut): the local server "miles-grant-golf (dev)" was declined at the prompt again (not
+  retried, no server started any other way). NEW WAY OF WORKING that needs no local server: the Browser pane opens the live site
+  https://www.milesgrant.golf, which already exposes `__mggMap` and `__mggSceneStats`. Map-style changes (MapLibre layers and paint) can be
+  tried in the open page with `__mggMap.addLayer / setPaintProperty` (only this browser sees them), judged by on/off screenshots from one
+  camera, then written into the source and checked again on the live site after the deploy. realScene.js (three.js) changes can NOT be
+  tried this way. CARE in that pane: (1) it is signed in as the owner (admin). Picking a hole and "Start on Hole" writes nothing (a round is
+  only created by "Keep score"); never press Keep score, Set pin or Sign Out. (2) Reloading the page while a 3D hole is open trips the new
+  crash guard (it stepped this pane from GFX HIGH to LOW once this run; put back with the GFX button). Before any reload run
+  `localStorage.removeItem('mg_3d_live')`. (3) Screenshots are only about 293 px wide while the pane is hidden; full size once it shows.
+  (4) Wait about 60 s after the hole opens before `jumpTo`, or the opening fly-through takes the camera back.
+  FIRST LOOK at runs 28-29 in 3D (375x812, hole 1): fairway outline 6f00567 and sand bed 82ba254 both kept.
+  Cameras: `__mggMap.stop(); __mggMap.jumpTo({center:[-80.1768,27.14735], zoom:17.6, pitch:0, bearing:255})` (top-down),
+  `{center:[-80.1766,27.14738], zoom:18.9, pitch:60, bearing:255}` (mid-fairway), `{center:[-80.17845,27.14668], zoom:19.4, pitch:62,
+  bearing:255}` (approach), `{center:[-80.17545,27.14757], zoom:19.2, pitch:58, bearing:255}` and the same at zoom 18.6 pitch 0 (tee end),
+  `{center:[-80.17742,27.14747], zoom:19.4, pitch:55, bearing:255}` (sand bed), `{center:[-80.17665,27.14745], zoom:19.6, pitch:50,
+  bearing:255}` (north edge, close).
+  a7bf781: FEATHERED FIRST CUT. New line layer `first-cut`, added with the other HIGH-only overlays (skipped when `lowGfx`, as today's
+  phone-crash rules require), above `turf-drift` and under the water, roads and fairway: colour #68b54c at 0.5 opacity, 34 px wide at
+  zoom 19 (doubling per zoom level, so about 4.5 m on the ground, of which the outer 2.2 m shows; the fairway fill covers the inner
+  half), blur 8 px at zoom 19 so the outer edge fades into the rough. Before: the pale fairway met the dark rough at one thin dark line.
+  After: a band of in-between green outside the edge that fades out. Seen in the deployed build at the tee-end and north-edge cameras,
+  with the layer on and off from the same camera. A first try with twice the blur read as a glow, not as cut grass, and was dropped.
+  Applies to all 18 fairways (shared style). Triangles unchanged: 3,693,037 on hole 1 HIGH. No pattern or texture, so nothing is copied
+  into the tile atlases; JS heap in the page with the layer 307 MB, 20 s after removing it 308 MB (readings swing 120-420 MB with garbage
+  collection, so this only shows there is no large cost). Download: +0.5 KB. Lint and `vite build` pass. Console: only the usual 404.
+  NOT CHECKED: other holes (a fairway right beside a green or tee would show the band up to that shape's own layers; none looked at);
+  the fly-through was not watched from start to end after the change; a real phone; SAT view was not opened (it is a separate Leaflet
+  map and this change does not touch it). GFX LOW has no band by design.
+  GUESS, OWNER MAY CORRECT: the 2.2 m width and the colour. The photo shows darker, longer turf beyond the close-mown cut but no sharp
+  second line, so the band is kept narrow and soft.
+  Still fake on hole 1: bunkers have no real lip height or rake lines; the worn dirt cart track north of the fairway is not drawn;
+  terrain mesh is coarse (step 6). OWNER: allowing the Browser-pane dev server (always allow) is still needed for tree, bunker-lip and
+  other three.js work, which cannot be tried on the live page. Also: several sessions seem to run this task on the same day (runs 36-38
+  were logged by others while this one worked); the lock file lives in each run's own temporary clone, so it cannot stop them overlapping.
