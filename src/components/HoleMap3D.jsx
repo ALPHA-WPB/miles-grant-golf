@@ -1233,10 +1233,10 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
   };
   const padUp = () => { moveRef.current = { f: 0, t: 0, h: 0, p: 0 }; };
   const padEvents = { onPointerDown: padDown, onPointerUp: padUp, onPointerCancel: padUp, onLostPointerCapture: padUp, onContextMenu: e => e.preventDefault() };
-  const padBtn = { position: "absolute", width: 40, height: 40, borderRadius: "50%", border: "2px solid #d4af37",
-    background: "rgba(6,20,12,0.82)", color: "#f0ead6", fontSize: 15, lineHeight: 1, display: "flex", alignItems: "center",
-    justifyContent: "center", cursor: "pointer", touchAction: "none", userSelect: "none", WebkitUserSelect: "none",
-    boxShadow: "0 3px 10px rgba(0,0,0,0.5)", padding: 0 };
+  // one slim button of the camera block
+  const cell = { width: 42, height: 40, borderRadius: 9, border: "1.5px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
+    fontSize: 15, lineHeight: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 0,
+    cursor: "pointer", touchAction: "none", userSelect: "none", WebkitUserSelect: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" };
 
   // Fly-through slider: drag from TEE (bottom) to the flag (top)
   const dragging = useRef(false);
@@ -1245,10 +1245,6 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
     if (!r) return;
     ctlRef.current.slide?.(Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height)));
   };
-  const railBtn = { width: 44, minHeight: 38, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-    background: "rgba(6,20,12,0.82)", border: "2px solid #d4af37", borderRadius: 10, color: "#f0ead6", cursor: "pointer", padding: 0,
-    boxShadow: "0 3px 12px rgba(0,0,0,0.5)" };
-
   const controls = (
     <>
       {looking && (
@@ -1260,53 +1256,46 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
         </button>
       )}
 
-      {/* Arrows: walk forward/back, turn left/right (hold to keep going) */}
-      <div role="group" aria-label="Move the view" style={{ position: "absolute", left: 64, bottom: pad.bottom + 12, width: 124, height: 124, zIndex: 1001 }}>
-        <button aria-label="Move forward" data-f="1" data-t="0" style={{ ...padBtn, left: 42, top: 0 }} {...padEvents}>▲</button>
-        <button aria-label="Move back" data-f="-1" data-t="0" style={{ ...padBtn, left: 42, top: 84 }} {...padEvents}>▼</button>
-        <button aria-label="Turn left" data-f="0" data-t="-1" style={{ ...padBtn, left: 0, top: 42 }} {...padEvents}>◀</button>
-        <button aria-label="Turn right" data-f="0" data-t="1" style={{ ...padBtn, left: 84, top: 42 }} {...padEvents}>▶</button>
+      {/* Camera buttons. Every one stays on screen (no menus: the players are seniors), but slim and packed along the
+          bottom-left edge so the middle of the map is clear: arrows laid out like a keyboard's, ANGLE and RESET in the
+          corners above them, camera height and tilt beside them. Hold an arrow, height or tilt button to keep going. */}
+      <div role="group" aria-label="Move and aim the view" style={{ position: "absolute", left: 8, bottom: pad.bottom - 12, zIndex: 1001, display: "grid", gridTemplateColumns: "repeat(5, 42px)", gap: 4 }}>
+        <button onClick={() => setAngleIdx(i => (i + 1) % ANGLES.length)} style={cell} aria-label={`Camera angle: ${ANGLES[angleIdx].label}. Tap to change`}>
+          <span style={{ font: "800 8px Inter, sans-serif", opacity: 0.85 }}>ANGLE</span>
+          <span style={{ font: `800 ${ANGLES[angleIdx].label.length > 4 ? 8 : 11}px Inter, sans-serif`, color: "#c9a84c", marginTop: 2 }}>{ANGLES[angleIdx].label}</span>
+        </button>
+        <button aria-label="Move forward" data-f="1" data-t="0" style={cell} {...padEvents}>▲</button>
+        <button onClick={() => ctlRef.current.reset?.()} style={cell} aria-label="Reset to the tee-to-green view">
+          <span ref={needleRef} style={{ display: "inline-block", fontSize: 13, lineHeight: 1, color: "#ef4444", transition: "transform 0.1s" }}>▲</span>
+          <span style={{ font: "800 8px Inter, sans-serif", marginTop: 2 }}>RESET</span>
+        </button>
+        <button aria-label="Raise the camera" title="Raise the camera" data-h="1" data-p="0" style={cell} {...padEvents}>{ICON_UP}</button>
+        <button aria-label="Tilt the view up" title="Tilt the view up" data-h="0" data-p="1" style={cell} {...padEvents}>{ICON_LOOK_UP}</button>
+        <button aria-label="Turn left" data-f="0" data-t="-1" style={cell} {...padEvents}>◀</button>
+        <button aria-label="Move back" data-f="-1" data-t="0" style={cell} {...padEvents}>▼</button>
+        <button aria-label="Turn right" data-f="0" data-t="1" style={cell} {...padEvents}>▶</button>
+        <button aria-label="Lower the camera" title="Lower the camera" data-h="-1" data-p="0" style={cell} {...padEvents}>{ICON_DOWN}</button>
+        <button aria-label="Tilt the view down" title="Tilt the view down" data-h="0" data-p="-1" style={cell} {...padEvents}>{ICON_LOOK_DOWN}</button>
       </div>
 
-      {/* Camera height and tilt, icons only (hold to keep going) */}
-      <div role="group" aria-label="Camera height and tilt" style={{ position: "absolute", left: 64 + 124 + 8, bottom: pad.bottom + 12, zIndex: 1001, display: "flex", flexDirection: "column", gap: 5 }}>
-        {[["h", 1, "Raise the camera", ICON_UP], ["h", -1, "Lower the camera", ICON_DOWN],
-          ["p", 1, "Tilt the view up", ICON_LOOK_UP], ["p", -1, "Tilt the view down", ICON_LOOK_DOWN]].map(([axis, v, aria, ic]) => (
-          <button key={aria} aria-label={aria} title={aria} data-h={axis === "h" ? v : 0} data-p={axis === "p" ? v : 0} {...padEvents}
-            style={{ width: 34, height: 34, borderRadius: 9, border: "2px solid #d4af37", background: "rgba(6,20,12,0.82)", color: "#f0ead6",
-              display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: "pointer", touchAction: "none",
-              userSelect: "none", WebkitUserSelect: "none", boxShadow: "0 3px 10px rgba(0,0,0,0.5)" }}>
-            {ic}
-          </button>
-        ))}
-      </div>
-
-      {/* Camera rail: fly-through slider, replay, angle presets, reset */}
-      <div style={{ position: "absolute", left: 10, bottom: pad.bottom + 34, zIndex: 1001, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-        <div style={{ ...railBtn, padding: "5px 0", gap: 4, cursor: "default" }}>
-          <span style={{ fontSize: 13, lineHeight: 1 }} aria-hidden="true">⛳</span>
+      {/* Fly-through: a slim slider up the left edge (tee at the bottom, flag at the top) with the replay button under it */}
+      <div style={{ position: "absolute", left: 8, bottom: pad.bottom + 80, zIndex: 1001, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+        <div style={{ ...cell, height: "auto", padding: "4px 0", gap: 3, cursor: "default" }}>
+          <span style={{ fontSize: 12, lineHeight: 1 }} aria-hidden="true">⛳</span>
           <div ref={trackRef} role="slider" aria-label="Fly along the hole" aria-valuemin={0} aria-valuemax={100}
             onPointerDown={e => { dragging.current = true; e.currentTarget.setPointerCapture?.(e.pointerId); slideTo(e); }}
             onPointerMove={e => { if (dragging.current) slideTo(e); }}
             onPointerUp={() => { dragging.current = false; }} onPointerCancel={() => { dragging.current = false; }}
-            style={{ position: "relative", width: 30, height: 110, touchAction: "none", cursor: "ns-resize" }}>
+            style={{ position: "relative", width: 30, height: 84, marginBottom: 10, touchAction: "none", cursor: "ns-resize" }}>
             <div style={{ position: "absolute", left: 13, top: 0, bottom: 0, width: 4, borderRadius: 2, background: "rgba(240,234,214,0.35)" }} />
             <div ref={thumbRef} style={{ position: "absolute", left: 4, bottom: -11, width: 22, height: 22, borderRadius: "50%",
               background: "#c9a84c", border: "2px solid #0b1a10", boxShadow: "0 1px 4px rgba(0,0,0,0.6)" }} />
           </div>
-          <span style={{ font: "800 9px Inter, sans-serif", letterSpacing: 0.3 }}>TEE</span>
+          <span style={{ font: "800 8px Inter, sans-serif", letterSpacing: 0.3 }}>TEE</span>
         </div>
-        <button onClick={() => ctlRef.current.replay?.()} style={railBtn} aria-label="Replay the fly-over">
-          <span style={{ fontSize: 14, lineHeight: 1 }}>▶</span>
+        <button onClick={() => ctlRef.current.replay?.()} style={cell} aria-label="Replay the fly-over">
+          <span style={{ fontSize: 13, lineHeight: 1 }}>▶</span>
           <span style={{ font: "800 8px Inter, sans-serif", marginTop: 2 }}>FLY</span>
-        </button>
-        <button onClick={() => setAngleIdx(i => (i + 1) % ANGLES.length)} style={railBtn} aria-label={`Camera angle: ${ANGLES[angleIdx].label}. Tap to change`}>
-          <span style={{ font: "800 8px Inter, sans-serif", opacity: 0.8 }}>ANGLE</span>
-          <span style={{ font: `800 ${ANGLES[angleIdx].label.length > 4 ? 9 : 12}px Inter, sans-serif`, color: "#c9a84c" }}>{ANGLES[angleIdx].label}</span>
-        </button>
-        <button onClick={() => ctlRef.current.reset?.()} style={railBtn} aria-label="Reset to the tee-to-green view">
-          <span ref={needleRef} style={{ display: "inline-block", fontSize: 15, lineHeight: 1, color: "#ef4444", transition: "transform 0.1s" }}>▲</span>
-          <span style={{ font: "800 8px Inter, sans-serif", marginTop: 2 }}>RESET</span>
         </button>
       </div>
     </>
@@ -1314,7 +1303,7 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
 
   return (
     <div ref={rootRef} className="mgg3d" style={{ position: "absolute", inset: 0, "--dock": `${pad.bottom - 12}px` }}>
-      <style>{`.mgg3d .maplibregl-ctrl-bottom-left{bottom:var(--dock)} .mgg3d .maplibregl-ctrl-attrib{font-size:10px;background:rgba(255,255,255,0.7)} .mgg3d .maplibregl-canvas{outline:none} .mgg-flag{animation:mggflag 1.6s ease-in-out infinite} @keyframes mggflag{0%,100%{transform:skewY(-4deg) scaleX(1)}50%{transform:skewY(5deg) scaleX(0.9)}} @media (prefers-reduced-motion: reduce){.mgg-flag{animation:none}}`}</style>
+      <style>{`.mgg3d .maplibregl-ctrl-bottom-left{bottom:calc(var(--dock) + 92px);left:50px} .mgg3d .maplibregl-ctrl-attrib{font-size:10px;background:rgba(255,255,255,0.7)} .mgg3d .maplibregl-canvas{outline:none} .mgg-flag{animation:mggflag 1.6s ease-in-out infinite} @keyframes mggflag{0%,100%{transform:skewY(-4deg) scaleX(1)}50%{transform:skewY(5deg) scaleX(0.9)}} @media (prefers-reduced-motion: reduce){.mgg-flag{animation:none}}`}</style>
       <div ref={boxRef} style={{ position: "absolute", inset: 0, background: "#cdd6c1" }} />
 
       {overlayHost ? createPortal(controls, overlayHost) : controls}

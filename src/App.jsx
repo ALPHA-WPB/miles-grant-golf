@@ -642,24 +642,31 @@ const css = `
   .map-wrap { height: 36dvh; flex-shrink: 0; position: relative; overflow: hidden; }
   .play-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; background: #0d2416; }
   .play-map { position: absolute; inset: 0; z-index: 0; }
-  .play-top { position: absolute; top: 10px; left: 10px; right: 64px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: none; }
+  .play-top { position: absolute; top: 8px; left: 8px; right: 60px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; pointer-events: none; }
   .hole-bar { pointer-events: auto; display: flex; align-items: stretch; width: 100%; max-width: 420px; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); border-radius: 18px; box-shadow: 0 3px 12px rgba(0,0,0,0.5); overflow: hidden; }
-  .hole-bar-arrow { flex: 0 0 56px; min-height: 56px; background: transparent; border: none; color: #f0ead6; font-size: 34px; font-weight: 800; cursor: pointer; font-family: 'Inter',sans-serif; line-height: 1; -webkit-tap-highlight-color: transparent; }
+  .hole-bar-arrow { flex: 0 0 50px; min-height: 46px; background: transparent; border: none; color: #f0ead6; font-size: 30px; font-weight: 800; cursor: pointer; font-family: 'Inter',sans-serif; line-height: 1; -webkit-tap-highlight-color: transparent; }
   .hole-bar-arrow:disabled { color: #2d5a3d; cursor: default; }
   .hole-bar-mid { flex: 1; background: transparent; border: none; border-left: 1px solid rgba(212,175,55,0.3); border-right: 1px solid rgba(212,175,55,0.3); cursor: pointer; padding: 4px 6px; text-align: center; font-family: 'Inter',sans-serif; color: #f0ead6; }
-  .hole-bar-title { font-size: 22px; font-weight: 900; color: #d4af37; line-height: 1.1; }
-  .hole-bar-sub { font-size: 14px; font-weight: 700; color: #f0ead6; }
+  .hole-bar-title { font-size: 20px; font-weight: 900; color: #d4af37; line-height: 1.1; }
+  .hole-bar-sub { font-size: 13px; font-weight: 700; color: #f0ead6; }
   .play-top .longest-pill { position: static; }
   .offcourse-pill { pointer-events: auto; border: 1px solid rgba(251,191,36,0.6); border-radius: 12px; background: rgba(58,46,10,0.92); color: #fbbf24; font: 700 15px 'Inter',sans-serif; padding: 8px 12px; cursor: pointer; text-align: left; }
-  .play-help { top: 16px; right: 10px; }
-  .side-boxes { position: absolute; left: 10px; z-index: 1000; display: flex; flex-direction: column; justify-content: flex-start; gap: 6px; width: min(26vw, 104px); pointer-events: none; }
-  .side-box { background: rgba(6,20,12,0.78); border: 2px solid #d4af37; border-radius: 12px; padding: 4px 4px 3px; text-align: center; box-shadow: 0 3px 14px rgba(0,0,0,0.55); }
+  .play-help { top: 10px; right: 8px; }
+  .side-boxes { position: absolute; left: 8px; z-index: 1000; display: flex; flex-direction: column; justify-content: flex-start; gap: 5px; width: min(24vw, 96px); pointer-events: none; }
+  .side-box { background: rgba(6,20,12,0.78); border: 1.5px solid #d4af37; border-radius: 10px; padding: 3px 4px 3px; text-align: center; box-shadow: 0 3px 14px rgba(0,0,0,0.55); }
   .side-box-label { font-size: 10px; font-weight: 800; color: #f0ead6; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
   .side-box-num { font-family: 'Inter',sans-serif; font-weight: 900; line-height: 1; color: #d4af37; letter-spacing: -0.02em; margin-top: 2px; white-space: nowrap; }
   .side-box-num.big { font-size: clamp(30px, 9vw, 40px); }
   .side-box-num.mid { font-size: clamp(24px, 7.5vw, 32px); }
   .side-box-unit { font-size: 11px; color: #f0ead6; font-weight: 700; }
-  .recenter-btn { position: absolute; right: 10px; z-index: 1000; width: 48px; height: 48px; border-radius: 50%; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); color: #d4af37; font-size: 22px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+  .edge-strip { position: absolute; right: 8px; z-index: 500; display: flex; flex-direction: column; gap: 4px; align-items: center; overflow: hidden; }
+  .slim { width: 46px; min-height: 37px; flex: 0 0 auto; padding: 2px 1px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; background: rgba(6,20,12,0.8); border: 1.5px solid #d4af37; border-radius: 9px; color: #f0ead6; cursor: pointer; font-family: 'Inter',sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,0.5); -webkit-tap-highlight-color: transparent; }
+  .slim.on { background: #c9a84c; color: #0b1a10; }
+  .slim-l { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.1; white-space: nowrap; }
+  .slim-v { font-size: 16px; font-weight: 900; color: #d4af37; line-height: 1.05; letter-spacing: -0.02em; white-space: nowrap; }
+  .slim-v small { font-size: 10px; font-weight: 800; }
+  .slim.on .slim-v { color: #0b1a10; }
+  .recenter-btn { position: absolute; right: 10px; z-index: 1000; width: 44px; height: 44px; border-radius: 50%; background: rgba(6,20,12,0.86); border: 2px solid rgba(212,175,55,0.75); color: #d4af37; font-size: 22px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
   .play-dock { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1100; display: flex; flex-direction: column; }
   .dock-panel { background: rgba(6,16,10,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid rgba(212,175,55,0.35); padding: 6px 8px; max-height: 45dvh; overflow-y: auto; }
   .seg-tabs { display: flex; gap: 6px; padding: calc(env(safe-area-inset-top) + 10px) 12px 6px; flex-shrink: 0; }
@@ -677,8 +684,8 @@ const css = `
   .glass-stat { background: rgba(255,255,255,0.05); border: 0.5px solid rgba(255,255,255,0.08); border-radius: 12px; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 1px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05); }
   .hole-pill { position: absolute; top: 12px; left: 12px; z-index: 1000; background: rgba(10,28,18,0.75); border: 1px solid rgba(201,168,76,0.6); border-radius: 50px; padding: 6px 16px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 2px 8px rgba(0,0,0,0.4); pointer-events: none; }
   .longest-pill { position: absolute; top: 52px; left: 12px; z-index: 1000; display: flex; flex-direction: column; gap: 2px; background: rgba(0,0,0,0.78); border: 2px solid #d4af37; border-radius: 12px; padding: 5px 10px; pointer-events: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
-  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 50px; height: 56px; padding: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: rgba(6,20,12,0.82); border: 2px solid #d4af37; box-shadow: 0 3px 14px rgba(0,0,0,0.55); color: #f0ead6; font: 800 11px Inter,sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
-  .help-pill .q { font: 700 25px 'Playfair Display',serif; line-height: 1; color: #d4af37; }
+  .help-pill { position: absolute; top: 12px; right: 12px; z-index: 1000; width: 46px; height: 46px; padding: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: rgba(6,20,12,0.82); border: 2px solid #d4af37; box-shadow: 0 3px 14px rgba(0,0,0,0.55); color: #f0ead6; font: 800 11px Inter,sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; }
+  .help-pill .q { font: 700 20px 'Playfair Display',serif; line-height: 1; color: #d4af37; }
   .shot-pill { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; border: none; border-radius: 50px; cursor: pointer; font-family: 'Inter',sans-serif; font-size: 16px; font-weight: 700; padding: 14px 32px; white-space: nowrap; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: all 0.2s; }
   .shot-pill-idle { background: rgba(255,255,255,0.15); color: #4ade80; border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 4px 20px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2); }
   .shot-pill-active { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); box-shadow: 0 4px 20px rgba(251,191,36,0.25), inset 0 1px 0 rgba(255,255,255,0.1); animation: pulse-amber 1.6s ease-in-out infinite; }
@@ -1944,21 +1951,16 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
             }} />
         )}
 
-        {/* Right-side column: temp → wind → rain → SC */}
-        <div style={{ position: 'absolute', top: topH + 8, bottom: dockH + 140, right: 12, zIndex: 500, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', overflow: 'hidden', opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
-          {/* Temperature box */}
+        {/* Right edge: one slim strip of buttons, all always visible: temp, wind, rain, radar, SAT, 3D, GFX, scorecard */}
+        <div className="edge-strip" style={{ top: topH + 8, bottom: dockH + 170, opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }}>
           {weather && (
-            <div className="side-box" role="button" aria-label="Show the hourly forecast" onClick={() => setShowWeather(true)}
-              style={{ width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
-              <p className="side-box-label" style={{ fontSize: 9 }}>Temp</p>
-              <p className="side-box-num mid" style={{ fontSize: 22, lineHeight: 1.1 }}>{weather.tempF}</p>
-              <p className="side-box-unit" style={{ fontSize: 9 }}>°F</p>
-            </div>
+            <button className="slim" aria-label="Show the hourly forecast" onClick={() => setShowWeather(true)}>
+              <span className="slim-l">Temp</span>
+              <span className="slim-v">{weather.tempF}°</span>
+            </button>
           )}
-
-          {/* Wind pill */}
           {wind && (
-            <div
+            <button className="slim" aria-label={`Wind ${wind.speed} miles per hour. Tap to line the arrow up with your phone's compass`}
               onClick={async () => {
                 if (typeof DeviceOrientationEvent !== 'undefined' &&
                     typeof DeviceOrientationEvent.requestPermission === 'function' &&
@@ -1968,54 +1970,25 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
                     setCompassPermission(result === 'granted' ? 'granted' : 'denied');
                   } catch { setCompassPermission('denied'); }
                 }
-              }}
-              style={{ background: 'rgba(6,20,12,0.78)', border: '2px solid #d4af37', borderRadius: 12, padding: '5px 9px', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', cursor: 'pointer', boxShadow: '0 3px 14px rgba(0,0,0,0.55)' }}>
-              <span style={{ display: 'inline-block', fontSize: 16, transform: `rotate(${compass != null ? wind.dir - compass : wind.dir}deg)`, transition: 'transform 0.3s ease', lineHeight: 1 }}>↑</span>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#d4af37', lineHeight: 1 }}>{wind.speed}</div>
-                <div style={{ fontSize: 9, color: 'rgba(200,216,204,0.6)', letterSpacing: '0.04em' }}>MPH</div>
-              </div>
-            </div>
+              }}>
+              <span className="slim-l"><span style={{ display: 'inline-block', fontSize: 12, transform: `rotate(${compass != null ? wind.dir - compass : wind.dir}deg)`, transition: 'transform 0.3s ease', lineHeight: 1 }}>↑</span> mph</span>
+              <span className="slim-v">{wind.speed}</span>
+            </button>
           )}
-
-          {/* Rain box */}
           {weather && (
-            <div className="side-box" role="button" aria-label="Show the hourly forecast" onClick={() => setShowWeather(true)}
-              style={{ width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
-              <p className="side-box-label" style={{ fontSize: 9 }}>Rain</p>
-              {weather.rainMins === null ? (
-                <>
-                  <p className="side-box-num mid" style={{ fontSize: 18, color: '#c8d8cc', lineHeight: 1 }}>48h+</p>
-                  <p className="side-box-unit" style={{ fontSize: 9 }}>away</p>
-                </>
-              ) : weather.rainMins === 0 ? (
-                <>
-                  <p style={{ fontSize: 18, lineHeight: 1, margin: '2px 0' }}>⛈️</p>
-                  <p className="side-box-unit" style={{ fontSize: 9, color: '#f87171' }}>Now</p>
-                </>
-              ) : weather.rainMins < 60 ? (
-                <>
-                  <p className="side-box-num mid" style={{ fontSize: 22, color: '#fbbf24', lineHeight: 1 }}>{weather.rainMins}</p>
-                  <p className="side-box-unit" style={{ fontSize: 9 }}>min</p>
-                </>
-              ) : (
-                <>
-                  <p className="side-box-num mid" style={{ fontSize: 22, color: '#c8d8cc', lineHeight: 1 }}>{Math.round(weather.rainMins / 60)}</p>
-                  <p className="side-box-unit" style={{ fontSize: 9 }}>hr</p>
-                </>
-              )}
-            </div>
+            <button className="slim" aria-label="Show the hourly forecast" onClick={() => setShowWeather(true)}>
+              <span className="slim-l">Rain</span>
+              {weather.rainMins === null ? <span className="slim-v" style={{ fontSize: 13, color: '#c8d8cc' }}>48h+</span>
+                : weather.rainMins === 0 ? <span className="slim-v" style={{ color: '#f87171', fontSize: 13 }}>Now</span>
+                : weather.rainMins < 60 ? <span className="slim-v" style={{ color: '#fbbf24' }}>{weather.rainMins}<small>m</small></span>
+                : <span className="slim-v" style={{ color: '#c8d8cc' }}>{Math.round(weather.rainMins / 60)}<small>h</small></span>}
+            </button>
           )}
-
-          {/* Rain radar toggle */}
-          <button onClick={() => setRadarOn(v => !v)} className="side-box"
-            style={{ width: 56, padding: '5px 4px 4px', textAlign: 'center', cursor: 'pointer',
-              background: radarOn ? 'rgba(201,168,76,0.3)' : 'rgba(6,20,12,0.78)' }}>
-            <p className="side-box-label" style={{ fontSize: 9 }}>Radar</p>
-            <p style={{ fontSize: 17, lineHeight: 1.2, margin: 0 }}>{radarOn ? '🌧️' : '📡'}</p>
+          <button className={`slim ${radarOn ? 'on' : ''}`} onClick={() => setRadarOn(v => !v)} aria-pressed={radarOn} aria-label="Rain radar on the map">
+            <span className="slim-l">Radar</span>
+            <span style={{ fontSize: 15, lineHeight: 1.15 }}>{radarOn ? '🌧️' : '📡'}</span>
           </button>
-
-          {/* Map style switch: satellite photo or illustrated 3D course */}
+          {/* Map style: satellite photo or the illustrated 3D course, then the 3D detail level */}
           {(() => {
             const has3d = !course3d || course3d.holes?.includes(hole.number);
             const showing3d = mapMode === '3d' && has3d;
@@ -2025,45 +1998,36 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
               if (next === '3d' && course3d && !course3d.holes?.includes(hole.number))
                 toast(`3D graphics are ready for holes ${course3d.holes.join(', ')} so far`);
             };
-            const seg = (active) => ({ width: '100%', border: '1px solid rgba(201,168,76,0.55)', borderRadius: 7, cursor: 'pointer',
-              padding: '4px 0 3px', background: active ? '#c9a84c' : 'rgba(6,20,12,0.4)', color: active ? '#0b1a10' : '#f0ead6',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 });
             return (
-              <div className="side-box" role="group" aria-label="Map style"
-                style={{ width: 56, padding: '5px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <p className="side-box-label" style={{ fontSize: 9 }}>Map</p>
-                <button onClick={() => choose('2d')} aria-pressed={!showing3d} style={seg(!showing3d)}>
-                  <span style={{ fontSize: 15, lineHeight: 1 }}>🛰️</span>
-                  <span style={{ font: '800 9px Inter, sans-serif', letterSpacing: 0.3 }}>SAT</span>
+              <>
+                <button className={`slim ${!showing3d ? 'on' : ''}`} onClick={() => choose('2d')} aria-pressed={!showing3d} aria-label="Satellite photo map">
+                  <span style={{ fontSize: 14, lineHeight: 1 }}>🛰️</span>
+                  <span className="slim-l">Sat</span>
                 </button>
-                <button onClick={() => choose('3d')} aria-pressed={showing3d} style={seg(showing3d)}>
-                  <span style={{ fontSize: 15, lineHeight: 1 }}>⛳</span>
-                  <span style={{ font: '800 9px Inter, sans-serif', letterSpacing: 0.3 }}>3D</span>
+                <button className={`slim ${showing3d ? 'on' : ''}`} onClick={() => choose('3d')} aria-pressed={showing3d} aria-label="3D course map">
+                  <span style={{ fontSize: 14, lineHeight: 1 }}>⛳</span>
+                  <span className="slim-l">{mapMode === '3d' && !has3d ? '3D soon' : '3D'}</span>
                 </button>
                 {showing3d && (
-                  <button onClick={() => setLowGfx(v => !v)} aria-label={`3D graphics detail: ${lowGfx ? 'Low' : 'High'}. Tap to change`}
-                    style={{ ...seg(false), padding: '3px 0', marginTop: 2 }}>
-                    <span style={{ font: '800 8px Inter, sans-serif', letterSpacing: 0.3, color: '#c9a84c' }}>GFX</span>
-                    <span style={{ font: '800 9px Inter, sans-serif', letterSpacing: 0.3 }}>{lowGfx ? 'LOW' : 'HIGH'}</span>
+                  <button className="slim" onClick={() => setLowGfx(v => !v)} aria-label={`3D graphics detail: ${lowGfx ? 'Low' : 'High'}. Tap to change`}>
+                    <span className="slim-l" style={{ color: '#c9a84c' }}>Gfx</span>
+                    <span className="slim-v" style={{ fontSize: 11, color: '#f0ead6' }}>{lowGfx ? 'LOW' : 'HIGH'}</span>
                   </button>
                 )}
-                {mapMode === '3d' && !has3d && <p style={{ fontSize: 8, margin: 0, color: '#c9a84c', textAlign: 'center' }}>3D soon</p>}
-              </div>
+              </>
             );
           })()}
-
-          {/* Scorecard toggle button */}
           {scoring && (
-            <button onClick={toggleScorecard} className="side-box" style={{ background: 'rgba(6,20,12,0.78)', width: 56, padding: '6px 4px', textAlign: 'center', cursor: 'pointer', pointerEvents: 'auto' }}>
-              <p className="side-box-label" style={{ fontSize: 9 }}>SC</p>
-              <p className="side-box-num mid" style={{ fontSize: 20, lineHeight: 1.1 }}>🏌️</p>
+            <button className="slim" onClick={toggleScorecard} aria-label="Show the scorecard">
+              <span style={{ fontSize: 15, lineHeight: 1.1 }}>🏌️</span>
+              <span className="slim-l">Card</span>
             </button>
           )}
         </div>
 
 
         {/* Right: recenter + swing button */}
-        <button className="recenter-btn" style={{ bottom: dockH + 124, opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }} onClick={() => setRecenterTick(n => n + 1)} aria-label="Recenter map">⌖</button>
+        <button className="recenter-btn" style={{ bottom: dockH + 120, opacity: mapFocused ? 0 : 1, pointerEvents: mapFocused ? 'none' : 'auto', transition: 'opacity 0.35s ease' }} onClick={() => setRecenterTick(n => n + 1)} aria-label="Recenter map">⌖</button>
         {!holeComplete && (
           <button
             onClick={markShot}

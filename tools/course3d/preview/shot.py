@@ -32,12 +32,15 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={"width": W, "height": H}, device_scale_factor=DPR, is_mobile=W < 600, has_touch=W < 600, reduced_motion="reduce")
     ctx.route(re.compile(r"arcgisonline"), lambda r: r.fulfill(status=200, content_type="image/jpeg", body=TILE, headers={"Access-Control-Allow-Origin": "*"}))
     ctx.route(re.compile(r"rainviewer|open-meteo|googleapis|gstatic|accounts.google|api/"), lambda r: r.abort())
+    if os.environ.get("WX"):   # a made-up weather reading, so the weather buttons show
+        ctx.route(re.compile(r"api\.open-meteo\.com/v1/forecast\?.*current="), lambda r: r.fulfill(status=200, content_type="application/json", headers={"Access-Control-Allow-Origin": "*"}, body='{"current":{"wind_speed_10m":9,"wind_direction_10m":120,"temperature_2m":78}}'))
     pg = ctx.new_page()
     logs = []
     pg.on("pageerror", lambda e: logs.append("PAGEERROR " + str(e)[:300]))
     pg.on("console", lambda m: logs.append(m.text[:300]) if m.type in ("error", "warning") and "404" not in m.text and "ERR_FAILED" not in m.text else None)
+    pg.add_init_script(f"window.__texk = '{os.environ.get('TEXK', '')}'")
     pg.goto(url)
-    pg.evaluate("""([h, gfx]) => { localStorage.clear(); localStorage.setItem('mgg_gfx', gfx); localStorage.setItem('mgg_gfx_phone_v1','1'); localStorage.setItem('mgg_map_style','3d'); localStorage.setItem('mg_instructions_seen','1');
+    pg.evaluate("""([h, gfx]) => { localStorage.clear(); localStorage.setItem('mgg_gfx', gfx); localStorage.setItem('mgg_gfx_phone_v1','1'); localStorage.setItem('mgg_map_style','3d'); localStorage.setItem('mg_instructions_seen','1'); if (window.__texk) localStorage.setItem('mgg_texk', window.__texk);
       localStorage.setItem('mg_resume_v1', JSON.stringify({t:Date.now(), uid:'guest', screen:'hole', holeIdx:h-1, roundStart:0, roundEnd:17, scores:{}, skipped:{}, shots:{}, scoring:false, round:null})); }""", [hole, gfx])
     pg.reload(); time.sleep(1.5)
     pg.get_by_text("Continue as Guest").click(timeout=8000)
