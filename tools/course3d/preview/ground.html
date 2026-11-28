@@ -1,0 +1,20 @@
+<!doctype html>
+<!-- The pictures groundDetail.js makes for one hole (fairway, green, tee boxes), on plain turf colours, for judging them
+     without opening the hole. Run `npx vite` and open /tools/course3d/preview/ground.html?hole=1&low=0 -->
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#333;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;color:#fff;font:12px sans-serif}div{position:relative}img{display:block;max-height:980px}</style></head>
+<body><script type="module">
+import { fairwayDetail, greenDetail, teeDetail } from "/src/components/groundDetail.js";
+const q = new URLSearchParams(location.search), hole = +(q.get("hole") || 1), low = q.get("low") === "1";
+const course = await (await fetch(`/course3d/hole/${hole}.json`)).json();
+const mid = f => { const r = f.geometry.coordinates[0]; return r.reduce((a, p) => [a[0] + p[0] / r.length, a[1] + p[1] / r.length], [0, 0]); };
+const g = mid(course.features.find(f => f.properties.kind === "green" && f.properties.hole === hole));
+const tees = course.features.filter(f => f.properties.kind === "tee" && f.properties.hole === hole).map(mid);
+const t = tees.sort((a, b) => Math.hypot(b[0] - g[0], b[1] - g[1]) - Math.hypot(a[0] - g[0], a[1] - g[1]))[0];
+const brg = (Math.atan2((g[0] - t[0]) * Math.cos(t[1] * Math.PI / 180), g[1] - t[1]) * 180 / Math.PI + 360) % 360;
+const yards = Math.hypot((g[0] - t[0]) * 111320 * Math.cos(t[1] * Math.PI / 180), (g[1] - t[1]) * 110574) * 1.09361;
+const show = (name, pic, bg) => { if (!pic) return; const d = document.createElement("div"); d.style.background = bg; const im = new Image(); im.src = pic.url; im.title = name; d.appendChild(im); document.body.appendChild(d); };
+show("fairway", fairwayDetail(course.features, hole, brg, yards, low), "#79c552");
+show("green", greenDetail(course.features, hole, brg, low), "#a3e672");
+teeDetail(course.features, hole, brg, low).forEach((p, i) => show("tee " + i, p, "#8bd862"));
+window.__info = { tris: [] }; window.__done = true;
+</script></body></html>

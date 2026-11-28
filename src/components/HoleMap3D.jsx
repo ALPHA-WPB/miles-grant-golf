@@ -3,7 +3,8 @@ import { createPortal } from "react-dom";
 import HoleLoader from "./HoleLoader";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO, turfDrift, greenCut } from "./realScene";
+import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO, turfDrift } from "./realScene";
+import { fairwayDetail, greenDetail, teeDetail } from "./groundDetail";
 import { COURSE_PLACES, placeBadgeHtml } from "../lib/places";
 import { loadHole3d } from "../lib/course3d";
 
@@ -879,8 +880,12 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
         // GFX LOW: quarter-size patterns over the same ground area (see GROUND_TEXTURES), and no close-up overlay tiles
         // Measured 2026-11-26, hole 1, GFX LOW, desktop: JS heap 737 MB at k = 1, 168 MB at k = 0.25.
         let touch = false; try { touch = window.matchMedia("(pointer: coarse)").matches; } catch { /* old browser */ }
-        let texK = lowGfx ? 0.25 : touch ? 0.5 : 1;
-        try { const o = parseFloat(localStorage.getItem("mgg_texk")); if (o > 0 && o <= 1) texK = o; } catch { /* private mode */ }
+        // 2026-11-28: with one hole loaded at a time and holes no longer piling up in memory, GFX LOW went from 0.25 to 0.375
+        // (2.25x the texels). Measured on hole 1, GFX LOW, all of headless Chrome: 1.66 GB at 0.25, 1.84 GB at 0.5.
+        // k must keep the pattern sizes whole numbers (512 k and 256 k): 0.25, 0.375, 0.5, 0.75, 1. Anything else (0.35 was
+        // tried) smears every pattern into stripes.
+        let texK = lowGfx ? 0.375 : touch ? 0.5 : 1;
+        try { const o = parseFloat(localStorage.getItem("mgg_texk")); if (o > 0 && o <= 1 && Number.isInteger(256 * o)) texK = o; } catch { /* private mode */ }
         Object.entries(GROUND_TEXTURES).forEach(([id, make]) => {
           if (map.hasImage(id)) return;
           if (lowGfx && (id === "tex-rough-tufts" || id === "tex-fine-blades")) return;
@@ -907,16 +912,18 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
         fine("fine-fairway", ["fairway"], "fairway-edge", 1);
         fine("fine-green", ["collar", "tee"], "paved", 0.6);
       } catch { /* smooth turf remains */ }
-      if (!lowGfx) try {
-        // Broad, soft light and dark patches over the rough and lawns, pinned to the ground, so the
-        // small repeating turf tile no longer reads as one flat green (sits under water, roads and fairways)
+      // From here on: single pictures pinned to the ground. Each costs one texture, not one per map tile like the
+      // patterns above, so GFX LOW gets them too (at half the resolution).
+      try {
+        // Broad, soft light and dark patches over the rough and lawns, so the small repeating turf tile no longer
+        // reads as one flat green (sits under water, roads and fairways)
         const dr = !map.getSource("turf-drift") && turfDrift(course.features);
         if (dr) {
           map.addSource("turf-drift", { type: "image", url: dr.url, coordinates: dr.coordinates });
           map.addLayer({ id: "turf-drift", type: "raster", source: "turf-drift", paint: { "raster-fade-duration": 0, "raster-resampling": "linear" } }, "water-bank");
         }
       } catch { /* flat turf remains */ }
-      if (!lowGfx) try {
+      try {
         // First cut: a band of half-height grass about 2 m wide outside every fairway, fading into the rough.
         // A line twice that wide centred on the fairway's edge; the fairway fill above covers its inner half.
         // Widths double per zoom level so the band keeps its size on the ground (0.13 m per pixel at zoom 19).
@@ -924,16 +931,17 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
         if (!map.getLayer("first-cut")) map.addLayer({ id: "first-cut", type: "line", source: "ground", filter: ["==", ["get", "kind"], "fairway"], layout: { "line-join": "round" },
           paint: { "line-color": "#68b54c", "line-opacity": 0.5, "line-width": ["interpolate", ["exponential", 2], ["zoom"], 15, 2.1, 19, 34, 21, 136], "line-blur": ["interpolate", ["exponential", 2], ["zoom"], 15, 0.5, 19, 8, 21, 32] } }, "water-bank");
       } catch { /* hard fairway edge remains */ }
-      if (!lowGfx) try {
-        // Cross-cut mowing pattern on the green of the hole being played: true-size 1.5 m passes, pinned to
-        // the ground, under the green's soft edge line. Fades out when zoomed out (passes thinner than ~3 px).
-        const gc = !map.getSource("green-cut") && greenCut(course.features, hole.number, bearingOf(t, hole.green));
-        if (gc) {
-          map.addSource("green-cut", { type: "image", url: gc.url, coordinates: gc.coordinates });
-          map.addLayer({ id: "green-cut", type: "raster", source: "green-cut",
-            paint: { "raster-fade-duration": 0, "raster-resampling": "linear", "raster-opacity": ["interpolate", ["linear"], ["zoom"], 17, 0, 18.2, 1] } }, "green-edge");
-        }
-      } catch { /* plain green remains */ }
+      // This hole's own fairway, green and tee boxes (groundDetail.js): patches, mower passes, a cut at this hole's own
+      // angle, divots where shots are played from, the green's mowing pattern, old cup plugs, worn tee strips
+      const pinned = (id, pic, before, opacity) => {
+        if (!pic || map.getSource(id)) return;
+        map.addSource(id, { type: "image", url: pic.url, coordinates: pic.coordinates });
+        map.addLayer({ id, type: "raster", source: id, paint: { "raster-fade-duration": 0, "raster-resampling": "linear", "raster-opacity": opacity } }, before);
+      };
+      const holeBrg = bearingOf(t, hole.green);
+      try { pinned("fairway-detail", fairwayDetail(course.features, hole.number, holeBrg, t.yards || len, !!lowGfx), "collar", ["interpolate", ["linear"], ["zoom"], 14.5, 0.5, 16.5, 1]); } catch { /* plain fairway remains */ }
+      try { pinned("green-cut", greenDetail(course.features, hole.number, holeBrg, !!lowGfx), "green-edge", ["interpolate", ["linear"], ["zoom"], 16.5, 0, 17.8, 1]); } catch { /* plain green remains */ }
+      try { teeDetail(course.features, hole.number, holeBrg, !!lowGfx).forEach((pic, i) => pinned("tee-detail-" + i, pic, "tee-edge", ["interpolate", ["linear"], ["zoom"], 16.5, 0, 17.8, 1])); } catch { /* plain tees remain */ }
       try {
         // Flag icon follows the 3D flagstick's screen position; once the real flagstick is big
         // enough to see, the icon hides so there's only ever one flag
