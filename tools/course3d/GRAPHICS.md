@@ -186,6 +186,8 @@ Step 5 progress 2026-11-27, run 52, HOLE 1 (preview blocked, NO change): hole 1 
 height, raked floor), then step 6 (terrain). NEXT RUN: same, needs the preview.
 Step 5 progress 2026-11-28, run 53, HOLE 1 (preview blocked, NO change): hole 1 steps unchanged, step 5 open (bunker lips with
 height, raked floor), then step 6 (terrain). NEXT RUN: same, needs the preview.
+Step 5 progress 2026-11-28, run 54, HOLE 1 (preview blocked, NO change): hole 1 steps unchanged, step 5 open (bunker lips with
+height, raked floor), then step 6 (terrain). NEXT RUN: same, needs the preview.
 **Phone crash, 2026-11-26 (owner's screen recording, iPhone, hole 1, GFX HIGH):** Safari killed the page twice within seconds of
 the hole opening ("A problem repeatedly occurred"), and round-resume reopened the same 3D hole, so the app was stuck. Fix shipped
 the same day: (1) crash guard in App.jsx (`mg_3d_live` mark; a start-up that finds it steps down HIGH -> LOW -> satellite map);
@@ -933,4 +935,10 @@ Each run logs triangles before/after and what still looks fake.
   retried, no server started any other way; nothing was listening on 4173 or 5173). No code or data change, for the reasons in run 40.
   `vite build` passes on the unchanged code. LEFT ON HOLE 1: bunker lips with real height and rake lines (step 5), finer terrain mesh
   (step 6). OWNER DECISION (unchanged, 25th blocked run since 2026-11-25): allow the Browser-pane server "miles-grant-golf (preview)"
+  (always allow) or leave it running, or add a line to the task saying the live site may be used as the viewer.
+
+- 2026-11-28 (hi-res run 54, HOLE 1, step 5): preview blocked. Starting "miles-grant-golf (preview)" was declined at the prompt (not
+  retried, no server started any other way; nothing was listening on 4173 or 5173). No code or data change, for the reasons in run 40;
+  build not re-run because nothing changed. LEFT ON HOLE 1: bunker lips with real height and rake lines (step 5), finer terrain mesh
+  (step 6). OWNER DECISION (unchanged, 26th blocked run since 2026-11-25): allow the Browser-pane server "miles-grant-golf (preview)"
   (always allow) or leave it running, or add a line to the task saying the live site may be used as the viewer.
