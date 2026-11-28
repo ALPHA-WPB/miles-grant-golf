@@ -190,6 +190,8 @@ Step 5 progress 2026-11-28, run 54, HOLE 1 (preview blocked, NO change): hole 1 
 height, raked floor), then step 6 (terrain). NEXT RUN: same, needs the preview.
 Step 5 progress 2026-11-28, run 55, HOLE 1 (preview blocked, NO change): hole 1 steps unchanged, step 5 open (bunker lips with
 height, raked floor), then step 6 (terrain). NEXT RUN: same, needs the preview.
+Step 5 progress 2026-11-28, run 56, HOLE 1 (preview blocked, NO change): hole 1 steps unchanged, step 5 open (bunker lips with
+height, raked floor), then step 6 (terrain). Counter on today's main: hole 1 3.74 M HIGH, 2.37 M LOW. NEXT RUN: same, needs the preview.
 **Phone crash, 2026-11-26 (owner's screen recording, iPhone, hole 1, GFX HIGH):** Safari killed the page twice within seconds of
 the hole opening ("A problem repeatedly occurred"), and round-resume reopened the same 3D hole, so the app was stuck. Fix shipped
 the same day: (1) crash guard in App.jsx (`mg_3d_live` mark; a start-up that finds it steps down HIGH -> LOW -> satellite map);
@@ -950,3 +952,15 @@ Each run logs triangles before/after and what still looks fake.
   `vite build` passes on the unchanged code. LEFT ON HOLE 1: bunker lips with real height and rake lines (step 5), finer terrain mesh
   (step 6). OWNER DECISION (unchanged, 27th blocked run since 2026-11-25): allow the Browser-pane server "miles-grant-golf (preview)"
   (always allow) or leave it running, or add a line to the task saying the live site may be used as the viewer.
+
+- 2026-11-28 (hi-res run 56, HOLE 1, step 5): preview blocked. Starting "miles-grant-golf (preview)" was declined at the prompt (not
+  retried, no server started any other way; nothing was listening on 4173 or 5173). No code or data change, for the reasons in run 40.
+  `vite build` passes on today's main (which now has c087883, one hole's area loaded at a time, and 3154598, a hole is freed on leaving).
+  `tri_count/run.sh` on that code: HIGH 2.52-3.74 M (hole 1 3,738,895), LOW 1.86-2.37 M (hole 1 2,371,273), all inside the budget. The
+  counter still builds the WHOLE course.json, so since c087883 it reads HIGH for the app (which loads only what lies within 250 m of the
+  hole); nobody has read the real `__mggSceneStats` in a browser since that change. The new headless viewer (tools/course3d/preview/
+  shot.py) was NOT used: it needs playwright, which is not installed on this Mac, and a local server started from the shell, which the
+  declined prompt and this task's written rules do not cover. LEFT ON HOLE 1: bunker lips with real height and rake lines (step 5),
+  finer terrain mesh (step 6). OWNER DECISION (unchanged, 28th blocked run since 2026-11-25): allow the Browser-pane server
+  "miles-grant-golf (preview)" (always allow) or leave it running, or add a line to the task saying the headless viewer (or the live
+  site) may be used as the viewer.
