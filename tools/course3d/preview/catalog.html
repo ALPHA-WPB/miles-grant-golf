@@ -1,0 +1,71 @@
+<!doctype html>
+<!-- Tree catalogue: every palm crown and every broadleaf form side by side, for judging the trees without opening a hole.
+     Run `npx vite` and open /tools/course3d/preview/catalog.html?view=palms|broad|mix&lod=0..3 (lod 0 = near on GFX HIGH). -->
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:#8ccbf0;overflow:hidden}canvas{display:block}</style></head>
+<body><script type="module">
+import * as THREE from "three";
+import { catalog, buildTrees } from "/src/components/trees.js";
+const q = new URLSearchParams(location.search), view = q.get("view") || "palms", lod = +(q.get("lod") || 0), from = +(q.get("from") || 0), count = +(q.get("n") || 99);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(+(q.get("dpr") || 1)); renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8ccbf0);
+scene.add(new THREE.HemisphereLight(0xe4f1ff, 0x55703a, 1.15));
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.4); sun.position.set(140, 420, 330); sun.castShadow = true;
+Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, near: 10, far: 1400 }); sun.shadow.mapSize.set(4096, 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.4;
+scene.add(sun, sun.target);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshStandardMaterial({ color: 0x5fa64c, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const C = catalog(lod), leafOpts = { alphaTest: 0.42, side: THREE.DoubleSide, vertexColors: true, alphaToCoverage: lod === 0 };
+let width = 0, height = 12, tris = [];
+if (view === "tex") {   // the drawn textures themselves, on a checkerboard
+  const list = [["frond regular", C.frondTexture("regular")], ["frond fine", C.frondTexture("fine")], ["frond stiff", C.frondTexture("stiff")], ["fan", C.fanTexture()],
+    ...["liveoak", "ficus", "round", "fine", "pine"].map(k => ["sprig " + k, C.sprigTexture(k, 512)])];
+  document.body.innerHTML = ""; document.body.style.cssText = "margin:0;display:flex;gap:8px;flex-wrap:wrap;background:repeating-conic-gradient(#bbb 0 25%, #eee 0 50%) 0 0/24px 24px";
+  for (const [name, t] of list) {
+    const cv = document.createElement("canvas"), w = t.image.width, h = t.image.height; cv.width = w; cv.height = h; cv.title = name; cv.style.height = "512px";
+    const x = cv.getContext("2d"), img = x.createImageData(w, h);
+    for (let y = 0; y < h; y++) img.data.set(t.image.data.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+    x.putImageData(img, 0, 0); document.body.appendChild(cv);
+  }
+  window.__info = { tris: [] }; window.__done = true;
+  throw new Error("textures shown");
+}
+const count3 = g => (g.index ? g.index.count : g.attributes.position.count) / 3;
+if (view === "palms") {
+  const mats = {}, mat = t => (mats[t] ||= C.sameBothSides(new THREE.MeshLambertMaterial({ ...leafOpts, map: t === "fan" ? C.fanTexture() : C.frondTexture(t) })));
+  const trunkMat = new THREE.MeshLambertMaterial({ map: C.trunkTexture(), vertexColors: true });
+  const list = C.palms.slice(from, from + count), gap = +(q.get("gap") || 7.5);
+  list.forEach((p, i) => {
+    const x = (i - (list.length - 1) / 2) * gap, t = new THREE.Mesh(p.trunk, trunkMat); t.position.set(x, 0, 0); t.scale.set(1, p.h, 1); t.castShadow = true; scene.add(t);
+    const c = new THREE.Mesh(p.crown, mat(p.tex)), top = p.trunk.userData.top; c.position.set(x + top[0], p.h, top[2]); c.castShadow = true; scene.add(c);
+    tris.push(`${p.kind}:${count3(p.crown)}+${count3(p.trunk)}`); height = Math.max(height, p.h + 4);
+  });
+  width = list.length * gap;
+} else if (view === "broad") {
+  const S = lod === 1 ? 256 : 512, mats = {};
+  const list = C.broad.slice(from, from + count), gap = +(q.get("gap") || 16);
+  list.forEach((b, i) => {
+    const x = (i - (list.length - 1) / 2) * gap, s = 5.5 / b.radius * (b.form === "banyan" || b.form === "oak_spread" ? 1.5 : b.form === "ball" || b.form === "seagrape" ? 0.6 : 1), sy = s * (b.F.squat || 1);
+    const bark = new THREE.Mesh(b.bGeo, new THREE.MeshLambertMaterial({ map: C.bark, color: new THREE.Color(...b.F.bark) })); bark.position.set(x, 0, 0); bark.scale.set(s, sy, s); bark.castShadow = true; scene.add(bark);
+    const m = (mats[b.F.tex] ||= C.sameBothSides(new THREE.MeshLambertMaterial({ ...leafOpts, alphaTest: 0.5, map: b.F.tex === "photo" ? null : C.sprigTexture(b.F.tex, S), color: new THREE.Color(...b.F.tint) })));
+    const mm = b.F.tex === "photo" ? C.sameBothSides(new THREE.MeshLambertMaterial({ ...leafOpts, alphaTest: 0.5, map: C.photoLeaf, color: new THREE.Color(...b.F.tint) })) : m;
+    const leaves = new THREE.Mesh(b.lGeo, mm); leaves.position.set(x, 0, 0); leaves.scale.set(s, sy, s); leaves.castShadow = true; scene.add(leaves);
+    tris.push(`${b.form}:${count3(b.lGeo)}+${count3(b.bGeo)}`); height = Math.max(height, b.height * s + 2);
+  });
+  width = list.length * gap;
+} else {
+  // a made-up grove, placed by the real code: shows how the kinds mix
+  const feats = [], r = (() => { let s = 7; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; })();
+  const palm = q.get("type") !== "broad";
+  for (let i = 0; i < 40; i++) feats.push({ properties: { kind: "tree", type: palm ? "palm" : "oak", r: palm ? 1.8 : 1.6 + 7 * r() * r(), h: palm ? [7, 7.8, 8.6, 11, 5][Math.floor(r() * 5)] : 4 + 8 * r(), z: 0 }, geometry: { coordinates: [-80.178 + (i % 10) * 0.00013 + r() * 2e-5, 27.147 + Math.floor(i / 10) * 0.00014 + r() * 2e-5] } });
+  for (const m of buildTrees(feats, { toLocal: (lng, lat) => [(lng + 80.178 - 0.0006) * 99000, -(lat - 27.147 - 0.0002) * 111320], low: lod === 1, tier: () => (lod <= 1 ? 0 : lod - 1) })) scene.add(m);
+  width = 110; height = 16;
+}
+const cam = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.5, 2000);
+const dist = Math.max(width / 2 / Math.tan((16 * Math.PI) / 180) / (innerWidth / innerHeight), height / 2 / Math.tan((16 * Math.PI) / 180)) * 1.05, el = +(q.get("el") || 8) * Math.PI / 180;
+cam.position.set(0, height * 0.5 + Math.sin(el) * dist, Math.cos(el) * dist + (view === "mix" ? 30 : 0)); cam.lookAt(0, height * 0.45, view === "mix" ? -20 : 0);
+window.__info = { tris, calls: renderer.info };
+let n = 0; const loop = () => { renderer.render(scene, cam); if (++n < 30) requestAnimationFrame(loop); else window.__done = true; }; loop();
+</script></body></html>

@@ -15,3 +15,8 @@ works on a machine with no GPU.
   course can be judged, not the ground outside it.
 - `leak.py URL GFX N` walks N holes with the next-hole arrow and counts live maps, scenes and renderers after each.
   All three must stay at 1.
+- `catalog.html` is the tree catalogue: every palm crown and every broadleaf form side by side, without opening a hole.
+  Run `npx vite --port 5173`, then
+  `python3 tools/course3d/preview/catalog.py "http://localhost:5173/tools/course3d/preview/catalog.html?view=palms&lod=0&from=0&n=6" /tmp/palms.png`.
+  `view` is `palms`, `broad`, `mix` (a made-up grove placed by the real code) or `tex` (the drawn leaf textures);
+  `lod` 0 = near the hole on GFX HIGH, 1 = near on LOW, 2 and 3 = the two far tiers; `el` is the camera's height angle.

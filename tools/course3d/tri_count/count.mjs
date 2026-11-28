@@ -6,7 +6,9 @@ globalThis.document = { createElement: mkEl, createElementNS: (_, n) => mkEl() }
 globalThis.window = globalThis;
 globalThis.self = globalThis;
 const { createRealisticLayer } = await import(process.env.SCENE);
-const course = JSON.parse(fs.readFileSync(process.env.COURSE, "utf8"));
+// each hole loads only its own part of the property (split.mjs), so the count is made on that part
+const { splitCourse } = await import(new URL("../split.mjs", import.meta.url));
+const perHole = splitCourse(JSON.parse(fs.readFileSync(process.env.COURSE, "utf8"))).holes;
 const src = fs.readFileSync(process.env.APP, "utf8"), holes = [];
 for (const m of src.matchAll(/number:\s*(\d+),[\s\S]*?tees:\s*\{([\s\S]*?)\},\s*green:\s*\{\s*lat:\s*([-\d.]+),\s*lng:\s*([-\d.]+)/g)) {
   const tees = [...m[2].matchAll(/lat:\s*([-\d.]+),\s*lng:\s*([-\d.]+)/g)].map(q => ({ lat: +q[1], lng: +q[2] }));
@@ -17,7 +19,7 @@ for (const low of [false, true]) {
   for (const h of holes) {
     const tees = h.tees || [];
     const t = h.tee || tees[tees.length - 1] || tees[0];
-    const layer = createRealisticLayer(course, 1, null, null, "x", low, [[t.lng, t.lat], [h.green.lng, h.green.lat]]);
+    const layer = createRealisticLayer(perHole[h.number], 1, null, null, "x", low, [[t.lng, t.lat], [h.green.lng, h.green.lat]]);
     try { layer.onAdd({ getCanvas: () => ({}), triggerRepaint() {} }, {}); } catch (e) { if (!globalThis.__mggSceneStats) throw e; }
     const s = globalThis.__mggSceneStats; globalThis.__mggSceneStats = null;
     (out[low ? "LOW" : "HIGH"] ||= []).push([h.number, s.triangles, s.meshes]);
