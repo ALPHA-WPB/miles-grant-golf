@@ -1007,10 +1007,10 @@ export const GROUND_TEXTURES = {
 // The turf patterns above repeat every few metres, so from any distance the rough was one flat green.
 // This is a single small image pinned to the ground (not a repeating tile): broad patches a little
 // darker and a little more sun-bleached, 20-130 m across, clipped to the rough and lawn outlines.
-// Built once per page load; no geometry and no per-frame work.
-let driftCache = null;
+// Built once per hole's data (each hole loads only its own part of the property); no geometry and no per-frame work.
+const driftCache = new WeakMap();
 export function turfDrift(features) {
-  if (driftCache) return driftCache;
+  if (driftCache.has(features)) return driftCache.get(features);
   const polys = [];
   for (const f of features) {
     const k = f.properties.kind;
@@ -1044,8 +1044,9 @@ export function turfDrift(features) {
     x.closePath();
   }
   x.fill("evenodd");
-  driftCache = { url: cv.toDataURL("image/png"), coordinates: [[w, nn], [e, nn], [e, s], [w, s]] };
-  return driftCache;
+  const out = { url: cv.toDataURL("image/png"), coordinates: [[w, nn], [e, nn], [e, s], [w, s]] };
+  driftCache.set(features, out);
+  return out;
 }
 
 // Cross-cut mowing pattern for one green: two sets of mower passes at right angles, each pass MOW metres

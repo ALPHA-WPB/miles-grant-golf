@@ -5,6 +5,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { createRealisticLayer, GROUND_TEXTURES, GROUND_PIXEL_RATIO, turfDrift, greenCut } from "./realScene";
 import { COURSE_PLACES, placeBadgeHtml } from "../lib/places";
+import { loadHole3d } from "../lib/course3d";
 
 // Illustrated, tilted 3D view of a hole: drawn fairways, greens, bunkers and water
 // (public/course3d/course.json), low-poly trees and houses, plus the same overlays as
@@ -355,7 +356,23 @@ const ICON_DOWN = <svg {...iconProps}><path d="M2 15.5h14" /><path d="M9 2.5v9" 
 const ICON_LOOK_UP = <svg {...iconProps}><path d="M1.8 11c2-2.8 4.4-4.2 7.2-4.2s5.2 1.4 7.2 4.2c-2 2.8-4.4 4.2-7.2 4.2S3.8 13.8 1.8 11z" /><circle cx="9" cy="11" r="1.9" fill="currentColor" /><path d="M6.5 3.8 9 1.6l2.5 2.2" /></svg>;
 const ICON_LOOK_DOWN = <svg {...iconProps}><path d="M1.8 7c2-2.8 4.4-4.2 7.2-4.2s5.2 1.4 7.2 4.2c-2 2.8-4.4 4.2-7.2 4.2S3.8 9.8 1.8 7z" /><circle cx="9" cy="7" r="1.9" fill="currentColor" /><path d="M6.5 14.2 9 16.4l2.5-2.2" /></svg>;
 
-export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, recenterTick, approachMode, radarOn,
+// Loads only this hole's part of the property (see tools/course3d/split.mjs), then draws it. Building the
+// whole property for every hole ran iPhones out of memory a couple of holes in.
+export default function HoleMap3D(props) {
+  const { hole, tee, onLoadError } = props;
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    let live = true;
+    loadHole3d(hole.number).then(d => { if (live) setData(d); }).catch(() => { if (live) onLoadError?.(); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hole.number]);
+  if (!data || data.hole !== hole.number)
+    return <div style={{ position: "absolute", inset: 0, background: "#0b2215" }}><HoleLoader hole={hole} tee={tee} progress={0.1} label="Loading the 3D course…" /></div>;
+  return <HoleMap3DView {...props} course={data} />;
+}
+
+function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, approachMode, radarOn,
   onMapTap, onMapMove, onMapMoveEnd, formatShort, playerColor, wind, lowGfx }) {
   const boxRef = useRef(null);
   const mapRef = useRef(null);
@@ -843,11 +860,8 @@ export default function HoleMap3D({ course, hole, tee, gps, holeShots, pad, rece
         track(new maplibregl.Marker({ element: el(`<div style="color:#fff6d8;font:800 11px Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${y}</div>`), opacityWhenCovered: "1" }).setLngLat([p.lng, p.lat]).addTo(map));
       });
       COURSE_PLACES.forEach(p => placeMarkers.add(track(new maplibregl.Marker({ element: el(placeBadgeHtml(p)), anchor: "top-left" }).setLngLat([p.lng, p.lat]).addTo(map))));
-      course.features.forEach(f => {
-        const n = f.properties.hole;
-        if (f.properties.kind !== "green" || !n) return;
-        const ring = f.geometry.type === "Polygon" ? f.geometry.coordinates[0] : f.geometry.coordinates[0][0];
-        const c = ring.reduce((acc, q) => [acc[0] + q[0] / ring.length, acc[1] + q[1] / ring.length], [0, 0]);
+      // every hole's green (this hole's data holds only its own area, so the centres come in a separate list)
+      (course.badges || []).forEach(({ n, c }) => {
         const node = el(holeBadgeHtml(n, n === hole.number));
         holeBadges.push(node.firstChild);
         // the current hole's badge sits below its flag, the others are centred on their greens
