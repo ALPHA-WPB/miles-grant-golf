@@ -1116,6 +1116,9 @@ function HoleMap3DView({ course, hole, tee, gps, holeShots, pad, recenterTick, a
       shotMarkersRef.current = [];
       measureMarkersRef.current = [];
       markerSet.clear();
+      // the 3D layer first: map.remove() does not tell a custom layer it is going, and a hole that is never
+      // cleaned up stays in memory for the rest of the round (see onRemove in realScene.js)
+      try { if (map.getLayer("real3d")) map.removeLayer("real3d"); } catch { /* ignore */ }
       try { map.remove(); } catch { /* ignore */ }
       mapRef.current = null;
     };

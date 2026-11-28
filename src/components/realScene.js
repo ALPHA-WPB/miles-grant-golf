@@ -480,7 +480,7 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
     .scale(new THREE.Vector3(s, -s, s))
     .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
 
-  let renderer, scene, camera, map, flagMesh = null, flagBase = null;
+  let renderer, scene, camera, map, flagMesh = null, flagBase = null, onLoaded = null;
   return {
     id, type: "custom", renderingMode: "3d",
     onAdd(m, gl) {
@@ -805,9 +805,11 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       renderer.shadowMap.type = THREE.PCFShadowMap;      // cheaper than PCFSoft on phones; shadow.radius keeps edges soft
       renderer.shadowMap.autoUpdate = false;   // the scene and sun never move: draw shadows once
       renderer.shadowMap.needsUpdate = true;
-      THREE.DefaultLoadingManager.onLoad = () => { renderer.shadowMap.needsUpdate = true; map.triggerRepaint(); };
+      THREE.DefaultLoadingManager.onLoad = onLoaded = () => { if (!renderer) return; renderer.shadowMap.needsUpdate = true; map.triggerRepaint(); };
+      window.__mggDbg = { scene, renderer };   // for the leak check (tools/course3d/preview/leak.py): counts scenes and renderers still alive
     },
     render(gl, args) {
+      if (!renderer) return;
       if (flagMesh && flagBase) {                       // wind ripple: stronger toward the free edge
         const pa = flagMesh.geometry.attributes.position, t = performance.now() / 1000;
         for (let k = 0; k < pa.count; k++) {
@@ -833,9 +835,22 @@ export function createRealisticLayer(course, exaggeration = 1, pin = null, onPin
       renderer.resetState();
       renderer.render(scene, camera);
     },
+    // Leaving a hole must give back everything this layer made. HoleMap3D removes the layer before it removes the map
+    // (map.remove() alone never calls this). Without it every hole played stayed in memory: the oak bark and leaf textures
+    // are shared by all holes, three.js hangs a listener on them for each renderer, and through that listener the old
+    // renderer, its scene and the whole old map stayed reachable. Three holes of that is what ran phones out of memory.
     onRemove() {
-      scene?.traverse(o => { o.geometry?.dispose?.(); if (o.material) [].concat(o.material).forEach(mt => { mt.map?.dispose?.(); mt.dispose?.(); }); });
+      scene?.traverse(o => {
+        o.geometry?.dispose?.();
+        if (o.material) [].concat(o.material).forEach(mt => { for (const v of Object.values(mt)) if (v && v.isTexture) v.dispose(); mt.dispose?.(); });
+        if (o.isInstancedMesh || o.isLight) o.dispose?.();
+      });
+      scene?.clear();
       renderer?.dispose?.();
+      if (THREE.DefaultLoadingManager.onLoad === onLoaded) THREE.DefaultLoadingManager.onLoad = undefined;
+      if (window.__mggMap === map) window.__mggMap = null;
+      if (window.__mggDbg?.scene === scene) window.__mggDbg = null;
+      renderer = scene = camera = map = flagMesh = flagBase = onLoaded = null;
     },
   };
 }
