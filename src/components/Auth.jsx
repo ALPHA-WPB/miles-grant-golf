@@ -1,4 +1,5 @@
 import LegalFooter from "./PrivacyTerms";
+import { APP_VERSION } from "../lib/version";
 import { useState } from 'react';
 import { authService } from '../services/authService';
 
@@ -83,6 +84,7 @@ export default function Auth({ onGuest, onShowInstructions }) {
           </p>
 
           <LegalFooter style={{marginTop:14}} />
+          <p style={{fontSize:12, fontWeight:700, color:"#7a9e84", textAlign:"center", marginTop:8, letterSpacing:"0.04em"}}>Version {APP_VERSION}</p>
         </div>
       </div>
     </div>

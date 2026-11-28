@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 import { splitCourse } from './tools/course3d/split.mjs'
+import { appVersion } from './tools/version.mjs'
 
 // 3D course data: public/course3d/course.json (the whole property) is cut into one file per hole
 // (/course3d/hole/<n>.json) plus /course3d/index.json, so phones load only the hole being played.
@@ -31,6 +32,13 @@ function course3dPerHole() {
 }
 
 // https://vite.dev/config/
+// The version shown in the app (tools/version.mjs): 3.<changes since the 3D course began>
+const version = appVersion()
+
 export default defineConfig({
   plugins: [react(), course3dPerHole()],
+  define: {
+    __APP_VERSION__: JSON.stringify(version.text),
+    __APP_CHANGES__: JSON.stringify(version.changes),
+  },
 })

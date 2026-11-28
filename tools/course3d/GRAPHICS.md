@@ -16,6 +16,43 @@ it's real. Do it in sections in time. But I want it all." A daily run (scheduled
 - One section per run, one commit, pushed to main (auto-deploys). Log what changed below, with what
   still looks fake, so the next run can pick it up.
 
+- Version number (owner, 2026-11-28): the app shows `3.<changes since 3D began>`. Every commit that changes the app (`src`,
+  `public`, `worker`, `index.html`, `migrations`, `package.json`, `vite.config.js`, `wrangler.jsonc`) first runs
+  `node tools/version.mjs bump` and includes `version.json`. Log-only commits like this file's do not bump it.
+
+## 2026-11-28 owner session: what changed under the graphics runs (read before the next run)
+
+The owner's iPhone ran out of memory on the third hole of a round. Cause and fixes, then the look:
+
+1. **Holes piled up in memory (the real cause, 3154598).** `map.remove()` never calls a custom layer's `onRemove`, so the
+   three.js renderer was never disposed; the shared oak bark and leaf textures kept a dispose listener per renderer, and through
+   it every hole played stayed alive (map, scene, renderer). `HoleMap3D` now removes the `real3d` layer before the map and
+   `onRemove` disposes everything. **Any new thing added to the scene must be disposed there, and any texture shared between
+   holes must be disposed too (it re-uploads on the next hole).** Check with `tools/course3d/preview/leak.py`: maps, scenes and
+   renderers must each stay at 1 while walking holes.
+2. **One hole's data at a time (c087883).** `vite.config.js` splits `public/course3d/course.json` into
+   `/course3d/hole/<n>.json` (features within 250 m of the hole's line, cropped height grid; `tools/course3d/split.mjs`).
+   `build.py` still writes `course.json` as before. `course.badges` carries every green's centre for the hole-number badges.
+3. **Trees (c9f0c13): `src/components/trees.js`.** Nine kinds of palm (25 crowns, each kind its own trunk) and nine forms of
+   broadleaf tree picked from each tree's measured crown width and height; kind and shape come from the tree's position, so a
+   tree is the same from every hole. Fronds are drawn cards on arching stalks (no per-leaflet geometry: that was the moire).
+   Foliage is Lambert-shaded, lit the same from both sides, shaded as one rounded mass. Shapes are cached between holes.
+   `tools/course3d/preview/catalog.html` shows every tree. Triangles: HIGH 1.27-2.52 M, LOW 0.80-1.57 M (limits 4.5 M / 2.5 M
+   stand; there is about 2 M of headroom on HIGH for a later pass).
+4. **Ground (c28c5a4): `src/components/groundDetail.js`.** Each hole gets its own fairway, green and tee pictures when it
+   opens (patches, mower passes, a second cut at a per-hole angle, divots, the green's mowing pattern, cup plugs, worn tee
+   strip). These, the rough's drift and the first cut now show on GFX LOW too. GFX LOW patterns are k = 0.375 (k must keep
+   512 k and 256 k whole: 0.35 smeared every pattern into stripes). `tools/course3d/preview/ground.html` shows a hole's pictures.
+5. **Play screen (f048b2d).** All buttons stay visible (seniors, no menus) but slim and on the edges: camera block bottom-left,
+   fly rail up the left edge, one slim strip down the right edge. Keep new buttons to those edges.
+6. **Preview without the Browser pane:** `tools/course3d/preview/README.md` (headless Chrome with Python + Playwright).
+   `shot.py` takes fixed-camera screenshots of any hole on HIGH or LOW and prints triangles and memory.
+
+Memory, measured in headless Chrome (whole browser, hole 1, GFX LOW): 1.77 GB now; 1.57-1.61 GB after the split alone; about
+1.72 GB for the old whole-property build, which the phone held twice over before failing. Not yet confirmed on the owner's iPhone.
+Still open from this session: phones still start on GFX LOW (the owner can switch to HIGH); the hole-by-hole plan below
+(hole 1 step 5 bunkers, step 6 terrain) is unchanged, but its "trees" and "grass" steps are now done course-wide.
+
 ## Resolution plan (owner, 2026-11-24): keep raising detail inside the perimeter road, the course first
 
 Measured 2026-11-24 (desktop preview, hole 6): the 3D layer drew **8.7 million triangles every frame**, because every

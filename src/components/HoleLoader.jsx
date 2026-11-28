@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import GolfBall from "./GolfBall";
+import { APP_VERSION } from "../lib/version";
 
 // Full-screen loading page while a hole's 3D view and fly-through load: the Miles Grant 1972 ball spins
 // inside a gold ring that fills 0–100%. All drawn in code, so it costs no download.
@@ -73,6 +74,7 @@ export default function HoleLoader({ hole, tee, progress = 0, label, done = fals
         <div style={{ font: "700 16px Inter,sans-serif", color: "#f0ead6", marginTop: 4 }}>Par {hole.par}{yards ? ` · ${yards} yds` : ""}</div>
         <div style={{ font: "600 12px Inter,sans-serif", color: "rgba(200,216,204,0.7)", marginTop: 10, minHeight: 15 }}>{label || "Loading the fly-through…"}</div>
       </div>
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 18, textAlign: "center", font: "700 13px Inter,sans-serif", color: "rgba(200,216,204,0.75)", letterSpacing: "0.04em" }}>Version {APP_VERSION}</div>
     </div>
   );
   return <span ref={ref} style={{ display: "none" }}>{host && page ? createPortal(page, host) : null}</span>;

@@ -12,6 +12,8 @@ import WeatherPanel from "./components/WeatherPanel";
 import LightningBanner from "./components/LightningBanner";
 import PinSetter from "./components/PinSetter";
 import HoleLoader from "./components/HoleLoader";
+import About from "./components/About";
+import { APP_VERSION } from "./lib/version";
 import { readCachedPins, applyPins, fetchPins, flushPending, pinAge } from "./lib/pins";
 import LocationGate from "./components/LocationGate";
 import GpsBanner from "./components/GpsBanner";
@@ -1231,6 +1233,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           {inRound && <button className={section === "round" ? "on" : ""} onClick={() => pick("round")}>This round</button>}
           <button className={section === "history" ? "on" : ""} onClick={() => pick("history")}>History</button>
           <button className={section === "leaders" ? "on" : ""} onClick={() => pick("leaders")}>Leaders</button>
+          <button className={section === "about" ? "on" : ""} onClick={() => pick("about")}>About</button>
         </div>
         <div style={{flex:1, minHeight:0, overflowY:"auto", display:"flex", flexDirection:"column"}}>
           {section === "round" && (
@@ -1266,6 +1269,7 @@ function MainApp({ user, profile, isGuest, onProfileUpdate, onExitGuest, onShowI
           )}
           {section === "history" && (isGuest ? <GuestUpsell feature="Round history" onExitGuest={onExitGuest} /> : <RoundHistory />)}
           {section === "leaders" && <Leaderboard />}
+          {section === "about" && <About />}
         </div>
         <TabBar active="more" onSelect={setTab} onGame={() => setTab(null)} />
       </div>
@@ -2238,8 +2242,9 @@ export default function App() {
   }
 
   if (user === undefined) return (
-    <div style={{height:"100dvh", background:"#0a1c12", display:"flex", alignItems:"center", justifyContent:"center", color:"#c9a84c", fontFamily:"'Playfair Display',serif", fontSize:22}}>
+    <div style={{height:"100dvh", background:"#0a1c12", display:"flex", flexDirection:"column", gap:10, alignItems:"center", justifyContent:"center", color:"#c9a84c", fontFamily:"'Playfair Display',serif", fontSize:22}}>
       Loading…
+      <span style={{font:"700 13px Inter,sans-serif", color:"rgba(200,216,204,0.75)", letterSpacing:"0.04em"}}>Version {APP_VERSION}</span>
     </div>
   );
 
